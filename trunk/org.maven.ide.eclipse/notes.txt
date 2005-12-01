@@ -1,0 +1,49 @@
+
+  Maven svn repo:
+  http://svn.apache.org/repos/asf/maven/components/trunk/
+
+  Bootstrapped m2 is needed to build embedder from svn trunk.
+  Building m2
+  http://maven.apache.org/maven2/developers/building.html
+  
+  "m2 install" for each of the following projects.
+    maven-project
+    maven-core
+    maven-embedder 
+  
+  "m2 assembly:assembly"
+    maven-embedder
+  
+  maven-embedder jar is also available temporarily at
+  http://www.codehaus.org/~jvanzyl/maven-embedder-2.0-beta-4-SNAPSHOT-dep.jar
+
+  Jason's code to run embedder:
+  http://svn.apache.org/viewcvs.cgi/maven/components/trunk/maven-embedder/Plugin.java?rev=293482&view=markup
+  
+
+  ---------------  
+  maven-embedder jar is currently committed at org.maven.ide.eclipse/lib
+  and its name is referenced/hardcoded in the following resources:
+    build.properties
+    META-INF\MANIFEST.MF
+    src\org\maven\ide\eclipse\launch\Maven2LaunchDelegate.java
+
+
+  ---------------  
+  To build Eclipse plugin you would need to checkout the following 
+  modules into Eclipse workbench:
+    org.maven.ide.eclipse
+    org.maven.ide.eclipse.feature
+    org.maven.ide.eclipse.update
+  
+  Plugin version resides in
+    org.maven.ide.eclipse\META-INF\MANIFEST.MF
+    
+  Feature version resides in
+    org.maven.ide.eclipse.feature\feature.xml
+    
+  To build complete update site (plugin, feature and site xml) select
+  org.maven.ide.eclipse.update/site.xml resource and from the popup
+  menu call PDE Tools -> Build Site
+  
+  
