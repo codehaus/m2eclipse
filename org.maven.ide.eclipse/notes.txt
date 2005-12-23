@@ -46,4 +46,4 @@
   org.maven.ide.eclipse.update/site.xml resource and from the popup
   menu call PDE Tools -> Build Site
   
-  
+ 
