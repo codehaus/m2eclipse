@@ -29,6 +29,9 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
     super( parent, new GoalsLabelProvider(), new GoalsContentProvider() );
     setValidator( new GoalsSelectionValidator() );
     setTitle( title );
+    
+    // just test
+    Maven2Plugin.getDefault().getConsole().logMessage("Test 123");
   }
 
   

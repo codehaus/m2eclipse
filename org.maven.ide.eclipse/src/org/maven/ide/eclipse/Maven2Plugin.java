@@ -47,8 +47,10 @@ import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.maven.ide.eclipse.index.Indexer;
+import org.maven.ide.eclipse.launch.console.Maven2Console;
 import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 import org.maven.ide.eclipse.util.ITraceable;
 import org.maven.ide.eclipse.util.Tracer;
@@ -77,7 +79,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   private static Maven2Plugin plugin;
 
   private MavenEmbedder mavenEmbedder;
-  
+
+  /** console */
+  private Maven2Console console;
   
   /**
    * The constructor.
@@ -97,6 +101,13 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       
     } catch( Exception ex ) {
       log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to initialize indexes", ex));
+    }
+
+    try {
+      this.console = new Maven2Console();
+    } 
+    catch (RuntimeException ex) {
+      log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to start console", ex));
     }
   }
 
@@ -543,6 +554,23 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   
   public boolean isTraceEnabled() {
     return TRACE_ENABLED;
+  }
+  
+  /**
+   * Returns the standard display to be used. The method first checks, if
+   * the thread calling this method has an associated display. If so, this
+   * display is returned. Otherwise the method returns the default display.
+   */
+  public static Display getStandardDisplay() {
+      Display display= Display.getCurrent();
+      if (display == null) {
+          display= Display.getDefault();
+      }
+      return display;     
+  }
+  
+  public Maven2Console getConsole() {
+    return this.console;
   }
   
 }

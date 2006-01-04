@@ -17,7 +17,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.debug.ui,
  org.eclipse.ui,
  org.eclipse.ui.ide,
- org.apache.lucene
+ org.apache.lucene,
+ org.eclipse.ui.console
 Eclipse-AutoStart: true
 Bundle-ClassPath: m2plugin.jar,
  lib/maven-embedder-2.0-beta-4-SNAPSHOT-dep.jar
