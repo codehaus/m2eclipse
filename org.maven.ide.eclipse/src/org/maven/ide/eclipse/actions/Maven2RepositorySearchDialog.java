@@ -327,7 +327,7 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
         return ( a.className==null ? "" : a.className + "   " + a.packageName + "   ") + a.group + "   " + a.artifact;
       } else if( element instanceof Indexer.FileInfo) {
         Indexer.FileInfo f = ( Indexer.FileInfo) element;
-        return f.version + " - " + f.name+" - "+f.size+" - "+f.date;
+        return f.version + " - " + f.name+" - "+f.size+" - "+f.date+" ["+f.repository+"]";
       }
       return super.getText( element);
     }

@@ -20,12 +20,15 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.MultiReader;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryParser.ParseException;
-import org.apache.lucene.queryParser.QueryParser;
 import org.apache.lucene.search.Hits;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.WildcardQuery;
 import org.apache.maven.model.Dependency;
+
+import org.eclipse.core.runtime.IProgressMonitor;
 
 
 /**
@@ -34,6 +37,7 @@ import org.apache.maven.model.Dependency;
  * @author Eugene Kuleshov
  */
 public class Indexer {
+  public static final String REPOSITORY = "r";
   public static final String JAR_NAME = "j";
   public static final String JAR_SIZE = "s";
   public static final String JAR_DATE = "d";
@@ -60,9 +64,9 @@ public class Indexer {
     
     Query q;
     if(NAMES.equals( field)) {
-      q = QueryParser.parse( NAMES+":"+query, NAMES, analyzer);
+      q = new WildcardQuery(new Term(NAMES, "*"+query+"*"));
     } else {
-      q = QueryParser.parse( JAR_NAME+":"+query, JAR_NAME, analyzer);
+      q = new WildcardQuery(new Term(JAR_NAME, "*"+query+"*"));
     }
 
     IndexReader[] readers = new IndexReader[ indexes.length];
@@ -80,13 +84,14 @@ public class Indexer {
     
     for( int i = 0; i < hits.length(); i++) {
       Document doc = hits.doc( i);
+      String repository = doc.get( REPOSITORY);
       String jarSize = doc.get( JAR_SIZE);
       String jarDate = doc.get( JAR_DATE);
       String jarName = doc.get( JAR_NAME);
       
-      int n1 = jarName.lastIndexOf( "/");
-      int n2 = jarName.substring( 0, n1).lastIndexOf( "/");
-      int n3 = jarName.substring( 0, n2).lastIndexOf( "/");
+      int n1 = jarName.lastIndexOf( '/');
+      int n2 = jarName.substring( 0, n1).lastIndexOf( '/');
+      int n3 = jarName.substring( 0, n2).lastIndexOf( '/');
       
       String group = jarName.substring( 0, n3).replace('/', '.');
       String artifact = jarName.substring( n3+1, n2);
@@ -94,7 +99,7 @@ public class Indexer {
       String jarFile = jarName.substring( n1+1);
 
       if(JAR_NAME.equals(field)) {
-        addFile(res, jarSize, jarDate, group, artifact, jarVersion, jarFile, null, null);
+        addFile(res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, null, null);
       } else {
         String[] s = doc.get( NAMES).split( "\n");
         for( int i1 = 0; i1 < s.length; i1++) {
@@ -103,7 +108,7 @@ public class Indexer {
           String className = t.substring(n==-1 ? 0 : n+1);
           if( className.toLowerCase().indexOf(query)>-1) {
             String packageName = n==-1 ? "" : t.substring( 0, n).replace('/', '.');
-            addFile( res, jarSize, jarDate, group, artifact, jarVersion, jarFile, className, packageName );
+            addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, className, packageName );
           }
         }
       }
@@ -112,16 +117,16 @@ public class Indexer {
     return res;
   }
 
-  private void addFile( TreeMap res, String jarSize, String jarDate, 
+  private void addFile( TreeMap res, String repository, String jarSize, String jarDate, 
       String group, String artifact, String jarVersion, 
       String jarFile, String className, String packageName ) {
     String key = group + " : "+artifact + " : " + className+" : "+packageName;
     ArtifactInfo info = ( ArtifactInfo) res.get(key);
     if(info==null) {
-      info = new ArtifactInfo( group, artifact, packageName, className);
+      info = new ArtifactInfo(group, artifact, packageName, className);
       res.put(key, info);
     }
-    info.addFile(group, jarFile, jarVersion, jarSize, jarDate);
+    info.addFile(repository, group, jarFile, jarVersion, jarSize, jarDate);
   }
   
   
@@ -134,17 +139,18 @@ public class Indexer {
     Indexer indexer;
     String command = args[ 0];
     if( "index".equals( command)) {
+      String repositoryName = args[ 1];  
       String repositoryPath = args[ 1];  
-      String indexPath = args.length==2 ? "index" : args[ 2];
+      String indexPath = args.length>2 ? "index" : args[ 2];
       
-      Indexer.reindex( indexPath, repositoryPath);
+      Indexer.reindex( indexPath, repositoryPath, repositoryName, null);
 
     } else if( "search".equals( command)) {
       String query = args[ 1];
       String indexPath = args.length==2 ? "index" : args[ 2];
 
       indexer = new Indexer( new File[] { new File( indexPath)});
-      Map res = indexer.search( query, NAMES);
+      Map res = indexer.search( query, JAR_NAME);
       
       for( Iterator it = res.entrySet().iterator(); it.hasNext();) {
         Map.Entry e = ( Map.Entry) it.next();
@@ -156,95 +162,117 @@ public class Indexer {
 
   private static void printUsage() {
     System.err.println( "indexer <command> <args>");
-    System.err.println( "  index <repository path> <index path>");
+    System.err.println( "  index <repository name> <repository path> <index path>");
     System.err.println( "  search <query> <index path>");
   }
 
   
-  public static void reindex( String indexPath, String repositoryPath) throws IOException {
+  public static IndexWriter createIndexWriter( String indexPath, boolean create ) throws IOException {
     Analyzer analyzer = new StandardAnalyzer();
+    return new IndexWriter( indexPath, analyzer, create);
+  }
 
-    IndexWriter w = new IndexWriter( indexPath, analyzer, true);
+  public static void reindex( String indexPath, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
+    IndexWriter w = createIndexWriter( indexPath, true );
     
     long l1 = System.currentTimeMillis();
-    processDir(new File( repositoryPath), w, repositoryPath);
+    processDir(new File( repositoryPath), w, repositoryPath, repositoryName, monitor);
     long l2 = System.currentTimeMillis();
-    System.err.println( "Done. "+((l2-l1)/1000f));
+    // System.err.println( "Done. "+((l2-l1)/1000f));
   
     long l3 = System.currentTimeMillis();
-    System.err.println( "Optimizing...");
+    // System.err.println( "Optimizing...");
     w.optimize();
     w.close();
     long l4 = System.currentTimeMillis();
-    System.err.println( "Done. "+((l4-l3)/1000f));
+    // System.err.println( "Done. "+((l4-l3)/1000f));
     
-    System.err.println( "Total classes: " + totalClasses);
-    System.err.println( "Total jars:    " + totalFiles);
-    System.err.println( "Total size:    " + ( totalSize / 1024 / 1024)+" Mb");
-    System.err.println( "Speed:         " + ( totalSize / ((l2-l1) / 1000f)) + " b/sec");
+    // System.err.println( "Total classes: " + totalClasses);
+    // System.err.println( "Total jars:    " + totalFiles);
+    // System.err.println( "Total size:    " + ( totalSize / 1024 / 1024)+" Mb");
+    // System.err.println( "Speed:         " + ( totalSize / ((l2-l1) / 1000f)) + " b/sec");
+    monitor.subTask( "Completed." );
   }
 
-  private static void processDir( File dir, IndexWriter w, String repositoryPath) throws IOException {
+  private static void processDir( File dir, IndexWriter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
     if(dir==null) return;
-
+    if(monitor!=null && monitor.isCanceled()) return;
+    
     File[] files = dir.listFiles();
-    for( int i = 0; i < files.length; i++) {
+    for( int i = 0; files!=null && i < files.length; i++) {
       File f = files[ i];
-      if(f.isDirectory()) processDir(f, w, repositoryPath);
-      else processFile(f, w, repositoryPath);
+      if(f.isDirectory()) processDir(f, w, repositoryPath, repositoryName, monitor);
+      else processFile(f, w, repositoryPath, repositoryName, monitor);
     }
   }
 
-  private static void processFile( File f, IndexWriter w, String repositoryPath) {
-    if(f.isFile() && f.getName().endsWith( ".jar")) {  // TODO
-      long size = f.length();
-      // System.err.println( "Indexing "+(size/1024f/1024f)+"Mb "+f.getAbsolutePath().substring( repositoryPath.length()));
+  private static void processFile( File f, IndexWriter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) {
+    if(monitor!=null && monitor.isCanceled()) return;
+
+    if(f.isFile() && f.getName().endsWith( ".pom")) {  // TODO
+      String name = f.getName();
+      File jarFile = new File( f.getParent(), name.substring( 0, name.length() - 4) + ".jar");
+      
+      String absolutePath = f.getAbsolutePath();
+      long size = 0;
+      if( jarFile.exists()) {
+        size = jarFile.length();
+        absolutePath = jarFile.getAbsolutePath();
+      }
+      String jarName = absolutePath.substring( repositoryPath.length()).replace( '\\', '/');
+      addDocument( w, repositoryName, jarName, size, f.lastModified() );
       
       totalFiles++;
       totalSize += size;
-      if(( totalFiles % 100)==0) {
-        System.err.println( "Indexing "+totalFiles+" "+f.getParentFile().getAbsolutePath().substring( repositoryPath.length()));
-      }
+//      if(( totalFiles % 100)==0) {
+//        System.err.println( "Indexing "+totalFiles+" "+f.getParentFile().getAbsolutePath().substring( repositoryPath.length()));
+//      }
+      monitor.subTask( totalFiles+" "+f.getParentFile().getAbsolutePath().substring( repositoryPath.length()) );
+    }
+  }
 
-      Document doc = new Document();
-      doc.add( Field.Text( JAR_NAME, f.getAbsolutePath().substring( repositoryPath.length())));
-      doc.add( Field.Text( JAR_DATE, DateField.timeToString( f.lastModified())));
-      doc.add( Field.Text( JAR_SIZE, Long.toString(size)));
-      // TODO calculate jar's sha1 or md5
+  public static void addDocument( IndexWriter w, String repository, String name, long size, long date ) {
+    Document doc = new Document();
+    doc.add( Field.UnIndexed( REPOSITORY, repository));
+    doc.add( Field.UnIndexed( JAR_DATE, DateField.timeToString( date)));
+    doc.add( Field.UnIndexed( JAR_SIZE, Long.toString(size)));
+    doc.add( Field.Text( JAR_NAME, name.charAt(0)=='/' ? name.substring(  1 ) : name));
+    // TODO calculate jar's sha1 or md5
 
+    // store class names into the index
 //      ZipFile jar = null;
-      try {
+    try {
 /*      
-        jar = new ZipFile( f);
-        
-        StringBuffer sb = new StringBuffer();
-        for( Enumeration en = jar.entries(); en.hasMoreElements();) {
-          ZipEntry e = ( ZipEntry) en.nextElement();
-          String name = e.getName();
-          if( name.endsWith( ".class")) {
-            totalClasses++;
-            // TODO verify if class is public or protected
-            // TODO skipp all inner classes for now
-            int i = name.lastIndexOf( "$");
-            if( i==-1) {
-              sb.append( name.substring( 0, name.length() - 6)).append( "\n");
-            }
+      jar = new ZipFile( f);
+      
+      StringBuffer sb = new StringBuffer();
+      for( Enumeration en = jar.entries(); en.hasMoreElements();) {
+        ZipEntry e = ( ZipEntry) en.nextElement();
+        String name = e.getName();
+        if( name.endsWith( ".class")) {
+          totalClasses++;
+          // TODO verify if class is public or protected
+          // TODO skipp all inner classes for now
+          int i = name.lastIndexOf( "$");
+          if( i==-1) {
+            sb.append( name.substring( 0, name.length() - 6)).append( "\n");
           }
         }
-        doc.add( Field.Text( NAMES, sb.toString()));
-        
+      }
+      doc.add( Field.Text( NAMES, sb.toString()));
+      
 
-      } finally {
-        try {
-          jar.close();
-        } catch( Exception e) {
-        }
+    } finally {
+      try {
+        jar.close();
+      } catch( Exception e) {
+      }
 */    
       w.addDocument(doc);
     } catch( Exception e) {
-      System.err.println( "Error for file "+f);
-      System.err.println( "  "+e.getMessage());
-    }
+//      e.printStackTrace();
+//      System.err.println( "Error for file "+f);
+//      System.err.println( "  "+e.getMessage());
     }
   }
 
@@ -273,8 +301,8 @@ public class Indexer {
       this.className = className;
     }
 
-    public void addFile( String group, String name, String version, String size, String date) {
-      files.add( new FileInfo( group, artifact, name, version, size, date));
+    public void addFile( String repository, String group, String name, String version, String size, String date) {
+      files.add( new FileInfo( repository, group, artifact, name, version, size, date));
     }
     
     public String toString() {
@@ -290,6 +318,7 @@ public class Indexer {
 
   
   public static class FileInfo {
+    public final String repository;
     public final String group;
     public final String artifact;
     public final String name;
@@ -297,7 +326,8 @@ public class Indexer {
     public final String size;
     public final Date date;
 
-    public FileInfo( String group, String artifact, String name, String version, String size, String date) {
+    public FileInfo(String repository, String group, String artifact, String name, String version, String size, String date) {
+      this.repository = repository;
       this.group = group;
       this.artifact = artifact;
       this.name = name;

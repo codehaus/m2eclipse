@@ -1,11 +1,18 @@
 
 package org.maven.ide.eclipse;
 
+import java.io.File;
+import java.io.IOException;
+
+import org.apache.lucene.index.IndexWriter;
 import org.apache.maven.wagon.WagonConstants;
 import org.apache.maven.wagon.events.TransferEvent;
 import org.apache.maven.wagon.events.TransferListener;
+import org.apache.maven.wagon.resource.Resource;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.maven.ide.eclipse.index.Indexer;
+
 
 public final class TransferListenerAdapter implements TransferListener {
   private final IProgressMonitor monitor;
@@ -51,6 +58,20 @@ public final class TransferListenerAdapter implements TransferListener {
   public void transferCompleted( TransferEvent e) {
     // System.err.println( "completed "+e.getWagon().getRepository()+"/"+e.getResource().getName());
     monitor.subTask("downloading");
+
+    // updating local index
+    String repository = e.getWagon().getRepository().getName();
+    Resource r = e.getResource();
+    String indexPath = new File(Maven2Plugin.getDefault().getIndexDir(), "local").getAbsolutePath();
+    try {
+      IndexWriter w = Indexer.createIndexWriter( indexPath, false );
+      Indexer.addDocument( w, repository, r.getName(), r.getContentLength(), r.getLastModified() );
+      w.optimize();
+      w.close();
+      
+    } catch( IOException ex ) {
+      // TODO Auto-generated catch block
+    }
   }
 
   public void transferError( TransferEvent e) {
