@@ -257,11 +257,11 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
   }
 
-  public void addDependency(IProject project, Dependency dependency) {
-    MavenEmbedder mavenEmbedder = getMavenEmbedder();
-    IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
+  public void addDependency(IFile file, Dependency dependency) {
+    // IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
     File pom = file.getLocation().toFile();
     try {
+      MavenEmbedder mavenEmbedder = getMavenEmbedder();
       Model model = mavenEmbedder.readModel( pom);
       
       List dependencies = model.getDependencies();

@@ -5,6 +5,7 @@ import java.util.Set;
 
 import org.apache.maven.project.MavenProject;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
@@ -28,19 +29,24 @@ public class AddDependencyAction implements IObjectActionDelegate {
   
   public void run( IAction action ) {
     Object o = selection.iterator().next();
+    IFile file;
     if( o instanceof IProject ) {
-      IProject project = ( IProject ) o;
+      file = (( IProject ) o).getFile( Maven2Plugin.POM_FILE_NAME );
+    } else if( o instanceof IFile) {
+      file = ( IFile ) o;
+    } else {
+      return;
+    }
 
-      Maven2Plugin plugin = getPlugin();
-      MavenProject mavenProject = plugin.getMavenProject( project.getFile( Maven2Plugin.POM_FILE_NAME ), true);
-      Set artifacts = mavenProject==null ? null : mavenProject.getArtifacts();
-
-      Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( getShell(), plugin.getIndexer(), artifacts );
-      if( dialog.open() == Window.OK ) {
-        Indexer.FileInfo fileInfo = ( FileInfo ) dialog.getFirstResult();
-        if( fileInfo != null ) {
-          plugin.addDependency( project, fileInfo.getDependency() );
-        }
+    Maven2Plugin plugin = getPlugin();
+    MavenProject mavenProject = plugin.getMavenProject(file, true );
+    Set artifacts = mavenProject==null ? null : mavenProject.getArtifacts();
+    
+    Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( getShell(), plugin.getIndexer(), artifacts );
+    if( dialog.open() == Window.OK ) {
+      Indexer.FileInfo fileInfo = ( FileInfo ) dialog.getFirstResult();
+      if( fileInfo != null ) {
+        plugin.addDependency( file, fileInfo.getDependency() );
       }
     }
   }
