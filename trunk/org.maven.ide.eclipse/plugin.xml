@@ -119,6 +119,30 @@
          </action>
       </objectContribution>
 
+      <objectContribution
+            adaptable="true"
+            objectClass="org.eclipse.core.resources.IFile"
+            id="org.maven.ide.eclipse.projectMenu" >
+         <visibility>
+            <objectState
+                  name="name"
+                  value="pom.xml">
+            </objectState>
+         </visibility>
+         <menu
+               id="maven2"
+               label="%m2.popup.project.label"
+               path="additions">
+            <separator name="natureGroup"/>
+            <separator name="enable"/>
+         </menu>
+         <action
+               class="org.maven.ide.eclipse.actions.AddDependencyAction"
+               enablesFor="1"
+               id="org.maven.ide.eclipse.addDependencyAction"
+               label="%m2.popup.project.add-dependency.label"
+               menubarPath="maven2/natureGroup"/>
+      </objectContribution>      
    </extension>
 
 	<extension point="org.eclipse.debug.ui.launchShortcuts">
