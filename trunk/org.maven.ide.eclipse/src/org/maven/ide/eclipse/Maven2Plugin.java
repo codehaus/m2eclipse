@@ -307,9 +307,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   public void resolveClasspathEntries(Set set, IResource pomFile, boolean recursive, IProgressMonitor monitor) {
     Tracer.trace(this, "resolveClasspathEntries from pom:"+pomFile);
       
-    if(monitor.isCanceled()) {
-      return;
-    }
+    if(monitor.isCanceled()) return;
     
     monitor.subTask( "Reading "+pomFile.getFullPath());
     
@@ -330,7 +328,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         IContainer parent = pomFile.getParent();
         
         List modules = mavenProject.getModules();
-        for( Iterator it = modules.iterator(); it.hasNext(); ) {
+        for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
           String module = ( String ) it.next();
           IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
           if(memberPom!=null) {
@@ -361,9 +359,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   public void resolveSourceEntries(Set sources, IProject project, IResource pomFile, boolean recursive, IProgressMonitor monitor) {
     Tracer.trace(this, "resolveSourceEntries in project:"+project+" for pom:"+pomFile);
       
-    if(monitor.isCanceled()) {
-      return;
-    }
+    if(monitor.isCanceled()) return;
   
     MavenEmbedder mavenEmbedder = getMavenEmbedder();
     
@@ -404,7 +400,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       IContainer parent = pomFile.getParent();
       
       List modules = mavenProject.getModules();
-      for( Iterator it = modules.iterator(); it.hasNext(); ) {
+      for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
         String module = ( String ) it.next();
         IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
         if(memberPom!=null) {
@@ -452,7 +448,6 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   }
 
 
-  
   /**
    * Substitute any variable
    */

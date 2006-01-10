@@ -32,7 +32,7 @@ public class Maven2Builder extends IncrementalProjectBuilder {
     IJavaProject project = JavaCore.create( getProject() );
     IClasspathEntry[] classPaths = project.getRawClasspath();
 
-    for( int i = 0; i < classPaths.length; i++ ) {
+    for( int i = 0; i < classPaths.length && !monitor.isCanceled(); i++ ) {
       IClasspathEntry entry = classPaths[i];
       IPath path = entry.getPath();
       if( Maven2ClasspathContainer.isMaven2ClasspathContainer( path ) ) {
