@@ -9,7 +9,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringWriter;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
@@ -72,13 +74,16 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
 
   public static final String POM_FILE_NAME = "pom.xml"; //$NON-NLS-1$
 
-  private static final String[] DEFAULT_INDEXES = { "central"};  // default indexes //$NON-NLS-1$
+  public static final String[] DEFAULT_INDEXES = { "central"};  // default indexes //$NON-NLS-1$
+
   
   
   // The shared instance.
   private static Maven2Plugin plugin;
 
   private MavenEmbedder mavenEmbedder;
+
+  private List indexes = Collections.synchronizedList( new ArrayList() );  
 
   /** console */
   private Maven2Console console;
@@ -96,17 +101,18 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   public void start( BundleContext context) throws Exception {
     super.start( context);
     
-    try {
-      initIndexes( context.getBundle() );
+    IndexerJob indexerJob = new IndexerJob("local", getMavenEmbedder().getLocalRepository().getBasedir(), getIndexDir(), indexes);
+    indexerJob.setPriority( Job.LONG );
+    indexerJob.schedule(1000L);
       
-    } catch( Exception ex ) {
-      log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to initialize indexes", ex));
-    }
-
+    UnpackerJob unpackerJob = new UnpackerJob(context.getBundle(), getIndexDir(), indexes);
+    unpackerJob.setPriority( Job.LONG );
+    unpackerJob.schedule(2000L);
+    
     try {
       this.console = new Maven2Console();
-    } 
-    catch (RuntimeException ex) {
+    
+    } catch (RuntimeException ex) {
       log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to start console", ex));
     }
   }
@@ -167,10 +173,6 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   /**
    * Returns an image descriptor for the image file at the given plug-in
    * relative path.
-   * 
-   * @param path
-   *          the path
-   * @return the image descriptor
    */
   public static ImageDescriptor getImageDescriptor( String path) {
     return AbstractUIPlugin.imageDescriptorFromPlugin( "org.maven.ide.eclipse", path);
@@ -189,80 +191,27 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   }
   
   public Indexer getIndexer() {
-    File indexDir = getIndexDir();
     String[] indexNames = getIndexNames();
     
     File[] indexes = new File[ indexNames.length];
     for( int i = 0; i < indexes.length; i++ ) {
-      indexes[ i] = new File( indexDir, indexNames[ i]);
+      indexes[ i] = new File( getIndexDir(), indexNames[ i]);
     }
     
     return new Indexer( indexes);
   }
 
-  private File getIndexDir() {
-    return new File( getStateLocation().toFile(), "index");
+  public String getIndexDir() {
+    return new File( getStateLocation().toFile(), "index").getAbsolutePath();
   }
   
   // TODO implement index registry
   private String[] getIndexNames() {
-    return DEFAULT_INDEXES;
+    return ( String[] ) indexes.toArray( new String[indexes.size()] );
   }
 
   // TODO verify if index had been updated
-  private void initIndexes( Bundle bundle ) throws IOException {
-    File indexesDir = getIndexDir();
-    String[] indexes = getIndexNames();
-    for( int i = 0; i < indexes.length; i++ ) {
-      String name = indexes[ i];
-      
-      File indexDir = new File( indexesDir, name);
-      if(!indexDir.exists()) {
-        indexDir.mkdirs();
-      }
-      
-      URL indexArchive = bundle.getEntry( name+".zip");
-      InputStream is = null;
-      ZipInputStream zis = null;
-      try {
-        is = indexArchive.openStream();
-        zis = new ZipInputStream( is );
-        ZipEntry entry;
-        byte[] buf = new byte[4096];
-        while( ( entry = zis.getNextEntry() ) != null ) {
-          File indexFile = new File( indexDir, entry.getName() );
-          FileOutputStream fos = null;
-          try {
-            fos = new FileOutputStream( indexFile );
-            int n = 0;
-            while( ( n = zis.read( buf ) ) != -1 ) {
-              fos.write( buf, 0, n );
-            }
-          } finally {
-            close( fos );
-          }
-        }
-      } finally {
-        close(zis);
-        close(is);
-      }
-    }
-  }
 
-  private void close(InputStream is) {
-    try {
-      if(is!=null) is.close();
-    } catch(IOException ex) {
-    }
-  }
-  
-  private void close(OutputStream os) {
-    try {
-      if(os!=null) os.close();
-    } catch(IOException ex) {
-    }
-  }
-  
   
   private MavenEmbedder createEmbedder() throws MavenEmbedderException {
     MavenEmbedder embedder = new MavenEmbedder();
@@ -571,6 +520,113 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   
   public Maven2Console getConsole() {
     return this.console;
+  }
+  
+  
+  private static class IndexerJob extends Job {
+    private String repositoryName;
+    private String repositoryDir;
+    private String indexDir;
+    private List indexes;
+    
+    public IndexerJob( String repositoryName, String repositoryDir, String indexDir, List indexes ) {
+      super("Indexing "+repositoryName);
+      this.repositoryName = repositoryName;
+      this.repositoryDir = repositoryDir;
+      this.indexDir = indexDir;
+      this.indexes = indexes;
+    }
+
+    protected IStatus run( IProgressMonitor monitor ) {
+      try {
+        File file = new File(indexDir, repositoryName);
+        if(!file.exists()) {
+          file.mkdirs();
+        }
+      
+        Indexer.reindex( file.getAbsolutePath(), repositoryDir, repositoryName , monitor);
+        indexes.add( repositoryName );
+        return Status.OK_STATUS;
+        
+      } catch( IOException ex ) {
+        return new Status(IStatus.ERROR, PLUGIN_ID, -1, "Indexing error", ex);
+      
+      }
+    }
+    
+  }
+
+  
+  private static class UnpackerJob extends Job {
+    private final Bundle bundle;
+    private final String indexDir;
+    private final List indexes;
+
+    public UnpackerJob( Bundle bundle, String indexDir, List indexes ) {
+      super("Initializing indexes");
+      this.bundle = bundle;
+      this.indexDir = indexDir;
+      this.indexes = indexes;
+    }
+
+    protected IStatus run( IProgressMonitor monitor ) {
+      String[] indexNames = DEFAULT_INDEXES;
+      for( int i = 0; i < indexNames.length; i++ ) {
+        String name = indexNames[ i];
+        
+        File index = new File( indexDir, name);
+        if(!index.exists()) {
+          index.mkdirs();
+        }
+        
+        monitor.subTask( name );
+        URL indexArchive = bundle.getEntry( name+".zip");
+        InputStream is = null;
+        ZipInputStream zis = null;
+        try {
+          is = indexArchive.openStream();
+          zis = new ZipInputStream( is );
+          ZipEntry entry;
+          byte[] buf = new byte[4096];
+          while( ( entry = zis.getNextEntry() ) != null ) {
+            File indexFile = new File( index, entry.getName() );
+            FileOutputStream fos = null;
+            try {
+              fos = new FileOutputStream( indexFile );
+              int n = 0;
+              while( ( n = zis.read( buf ) ) != -1 ) {
+                fos.write( buf, 0, n );
+              }
+            } finally {
+              close( fos );
+            }
+          }
+          indexes.add(name);
+        } catch( Exception ex ) {
+          log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to initialize indexes", ex));
+
+        } finally {
+          close(zis);
+          close(is);
+        }
+      }
+      return Status.OK_STATUS;
+    }
+  
+    private void close(InputStream is) {
+      try {
+        if(is!=null) is.close();
+      } catch(IOException ex) {
+      }
+    }
+    
+    private void close(OutputStream os) {
+      try {
+        if(os!=null) os.close();
+      } catch(IOException ex) {
+      }
+    }
+  
   }
   
 }
