@@ -225,8 +225,14 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     
     // File localRepositoryDirectory = mavenEmbedder.getLocalRepositoryDirectory();
     String localRepositoryDir = store.getString( Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR);
-    if( localRepositoryDir!=null && localRepositoryDir.trim().length()>0) {
-      embedder.setLocalRepositoryDirectory( new File(localRepositoryDir));
+    if( localRepositoryDir!=null) {
+      localRepositoryDir = localRepositoryDir.trim();
+      if(new File(localRepositoryDir).exists()) { 
+        embedder.setLocalRepositoryDirectory( new File(localRepositoryDir.trim()));
+      } else {
+        // TODO print this warning on Maven console
+        Tracer.trace( this, "Local repository folder \""+localRepositoryDir+"\" does not exist" );
+      }
     }
     
     String globalChecksumPolicy = store.getString( Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY);
