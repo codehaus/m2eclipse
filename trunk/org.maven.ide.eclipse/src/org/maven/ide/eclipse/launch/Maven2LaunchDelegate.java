@@ -50,6 +50,8 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
   }
   
   public void launch( ILaunchConfiguration configuration, String mode, ILaunch launch, IProgressMonitor monitor ) throws CoreException {
+    // just test
+    Maven2Plugin.getDefault().getConsole().logMessage("Launching M2");
     launch.setSourceLocator(createSourceLocator());
     super.launch(configuration, "debug", launch, monitor);
   }
