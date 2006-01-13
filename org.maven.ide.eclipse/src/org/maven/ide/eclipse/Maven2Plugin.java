@@ -101,6 +101,13 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   public void start( BundleContext context) throws Exception {
     super.start( context);
     
+    try {
+      this.console = new Maven2Console();
+      
+    } catch (RuntimeException ex) {
+      log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to start console: "+ex.toString(), ex));
+    }
+
     IndexerJob indexerJob = new IndexerJob("local", getMavenEmbedder().getLocalRepository().getBasedir(), getIndexDir(), indexes);
     indexerJob.setPriority( Job.LONG );
     indexerJob.schedule(1000L);
@@ -109,12 +116,6 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     unpackerJob.setPriority( Job.LONG );
     unpackerJob.schedule(2000L);
     
-    try {
-      this.console = new Maven2Console();
-    
-    } catch (RuntimeException ex) {
-      log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to start console", ex));
-    }
   }
 
   /**
@@ -232,8 +233,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       if(new File(localRepositoryDir).exists()) { 
         embedder.setLocalRepositoryDirectory( new File(localRepositoryDir.trim()));
       } else {
-        // TODO print this warning on Maven console
-        Tracer.trace( this, "Local repository folder \""+localRepositoryDir+"\" does not exist" );
+        getConsole().logMessage("Local repository folder \""+localRepositoryDir+"\" does not exist");
       }
     }
     
@@ -318,6 +318,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     if(monitor.isCanceled()) return;
     
     monitor.subTask( "Reading "+pomFile.getFullPath());
+    getConsole().logMessage( "Reading "+pomFile.getFullPath());
     
     TransferListener transferListener = new TransferListenerAdapter( monitor );
     try {
