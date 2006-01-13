@@ -289,6 +289,24 @@
       -->
       
    </extension>
+
+   <extension
+         point="org.eclipse.ui.console.consoleFactories">
+      <consoleFactory
+            label="M2"
+            icon="icons/m2.gif"
+            class="org.maven.ide.eclipse.launch.console.Maven2ConsoleFactory"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.console.consolePageParticipants">
+      <consolePageParticipant
+            class="org.maven.ide.eclipse.launch.console.Maven2ConsolePageParticipant"
+            id="org.maven.ide.eclipse.launch.console.Maven2ConsolePageParticipant">
+         <enablement>
+            <instanceof value="org.maven.ide.eclipse.launch.console.Maven2OutputConsole"/>
+         </enablement>
+      </consolePageParticipant>
+   </extension>
    
 </plugin>
 
