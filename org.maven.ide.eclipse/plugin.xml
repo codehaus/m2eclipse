@@ -303,7 +303,7 @@
             class="org.maven.ide.eclipse.launch.console.Maven2ConsolePageParticipant"
             id="org.maven.ide.eclipse.launch.console.Maven2ConsolePageParticipant">
          <enablement>
-            <instanceof value="org.maven.ide.eclipse.launch.console.Maven2OutputConsole"/>
+            <instanceof value="org.maven.ide.eclipse.launch.console.Maven2Console"/>
          </enablement>
       </consolePageParticipant>
    </extension>
