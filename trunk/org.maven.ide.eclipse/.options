@@ -8,3 +8,5 @@ org.maven.ide.eclipse/launcher=false
 # actions activity
 org.maven.ide.eclipse/actions=false
 
+# console activity
+org.maven.ide.eclipse/console=false

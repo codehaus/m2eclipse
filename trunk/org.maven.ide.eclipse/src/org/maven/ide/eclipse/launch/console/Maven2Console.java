@@ -1,5 +1,6 @@
 package org.maven.ide.eclipse.launch.console;
 
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.util.IPropertyChangeListener;
 import org.eclipse.jface.util.PropertyChangeEvent;
@@ -11,13 +12,16 @@ import org.eclipse.ui.console.IConsoleManager;
 import org.eclipse.ui.console.MessageConsole;
 import org.eclipse.ui.console.MessageConsoleStream;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.util.ITraceable;
+import org.maven.ide.eclipse.util.Tracer;
 
 /**
  * Maven2 plugin Console
  *
  * @author Dmitri Maximovich
  */
-public class Maven2Console extends MessageConsole implements IPropertyChangeListener {
+public class Maven2Console extends MessageConsole implements IPropertyChangeListener, ITraceable {
+  private static final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/console")).booleanValue();
   private boolean initialized = false;
   // console is visible in the Console view
   private boolean visible = false;
@@ -32,15 +36,22 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
   private MessageConsoleStream commandStream;
   private MessageConsoleStream messageStream;
   private MessageConsoleStream errorStream;
+
+  public boolean isTraceEnabled() {
+    return TRACE_ENABLED;
+  }
   
   public Maven2Console() {
     // TODO: extract constants
     super("M2", Maven2Plugin.getImageDescriptor("icons/m2.gif")); //$NON-NLS-1$
     this.document = new ConsoleDocument();
-    showConsole(true);
+//    CVSProviderPlugin.getPlugin().setConsoleListener(CVSOutputConsole.this);
+//    CVSUIPlugin.getPlugin().getPreferenceStore().addPropertyChangeListener(CVSOutputConsole.this);
+    //showConsole(true);
   }
 
   protected void init() {
+    Tracer.trace(this, "init()");
     super.init();
     //  Ensure that initialization occurs in the ui thread
     Maven2Plugin.getStandardDisplay().asyncExec(new Runnable() {
@@ -89,6 +100,7 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
   }
 
   private void appendLine(int type, String line) {
+    showConsole();
     synchronized(document) {
       if(visible) {
         switch(type) {
@@ -106,6 +118,24 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
         document.appendConsoleLine(type, line);
       }
     }
+  }
+  
+  private void showConsole() {
+    show(false);
+  }
+  
+  /**
+   * Show the console.
+   * @param showNoMatterWhat ignore preferences if <code>true</code>
+   */
+  public void show(boolean showNoMatterWhat) {
+  if(showNoMatterWhat /*|| showOnMessage*/) {
+    if(!visible)
+      Maven2ConsoleFactory.showConsole();
+    else
+      ConsolePlugin.getDefault().getConsoleManager().showConsoleView(this);
+  }
+      
   }
   
   public void propertyChange( PropertyChangeEvent event ) {
@@ -140,17 +170,17 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
       }
     }
   
-//    public void shutdown() {
-//      // Call super dispose because we want the partitioner to be
-//      // disconnected.
-//      super.dispose();
-//      if (commandColor != null)
-//        commandColor.dispose();
-//      if (messageColor != null)
-//        messageColor.dispose();
-//      if (errorColor != null)
-//        errorColor.dispose();
-//    }
+    public void shutdown() {
+      // Call super dispose because we want the partitioner to be
+      // disconnected.
+      super.dispose();
+      if (commandColor != null)
+        commandColor.dispose();
+      if (messageColor != null)
+        messageColor.dispose();
+      if (errorColor != null)
+        errorColor.dispose();
+    }
 
     public void logMessage(String message) {
       appendLine(ConsoleDocument.MESSAGE, "  " + message); //$NON-NLS-1$
@@ -162,5 +192,40 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
       //}
       appendLine(ConsoleDocument.ERROR, "  " + message); //$NON-NLS-1$
   }
-    
+
+  /**
+   * Used to notify this console of lifecycle methods <code>init()</code>
+   * and <code>dispose()</code>.
+   */
+  public class MyLifecycle implements org.eclipse.ui.console.IConsoleListener, ITraceable {
+    private final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/console")).booleanValue();
+
+    public boolean isTraceEnabled() {
+      return TRACE_ENABLED;
+    }
+
+    public void consolesAdded(IConsole[] consoles) {
+      Tracer.trace(this, "consolesAdded()");
+      for (int i = 0; i < consoles.length; i++) {
+        IConsole console = consoles[i];
+        if (console == Maven2Console.this) {
+          init();
+        }
+      }
+
+    }
+    public void consolesRemoved(IConsole[] consoles) {
+      Tracer.trace(this, "consolesRemoved()");
+      for (int i = 0; i < consoles.length; i++) {
+        IConsole console = consoles[i];
+        if (console == Maven2Console.this) {
+          ConsolePlugin.getDefault().getConsoleManager().removeConsoleListener(this);
+          dispose();
+        }
+      }
+    }
+
+  }
+  
+  
 }

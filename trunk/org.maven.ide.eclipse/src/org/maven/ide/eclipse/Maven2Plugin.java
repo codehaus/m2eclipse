@@ -124,7 +124,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     super.stop( context);
     
     stopEmbedder();
-    
+    if (this.console != null) {
+      this.console.shutdown();
+    }
     plugin = null;
   }
 
