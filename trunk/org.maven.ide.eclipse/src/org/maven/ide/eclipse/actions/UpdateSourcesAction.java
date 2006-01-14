@@ -2,13 +2,13 @@
 package org.maven.ide.eclipse.actions;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -17,7 +17,6 @@ import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -70,46 +69,44 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
     }
 
     protected IStatus run( IProgressMonitor monitor ) {
-      Set sources = new TreeSet();      
+      IFile pom = project.getFile( Maven2Plugin.POM_FILE_NAME);
+      if( !pom.exists()) {
+        return Status.OK_STATUS;
+      }
+      
+      Maven2Plugin plugin = Maven2Plugin.getDefault();
       try {
-        resolveSources(sources, project, monitor);
-        updateProject(sources, project, monitor);
+        List sourceEntries = new ArrayList(); 
+        plugin.resolveSourceEntries(sourceEntries, project, pom, true, monitor);
         
+        Set sources = new HashSet();
+        for( Iterator it = sourceEntries.listIterator(); it.hasNext(); ) {
+          IClasspathEntry entry = ( IClasspathEntry ) it.next();
+          if(!sources.add( entry.getPath().toString()) ) {
+              it.remove();
+          }
+        }
+        
+        IJavaProject javaProject = JavaCore.create(project);
+        
+        IClasspathEntry[] currentClasspath = javaProject.getRawClasspath();
+        for( int i = 0; i < currentClasspath.length; i++ ) {
+          if( currentClasspath[i].getEntryKind()!=IClasspathEntry.CPE_SOURCE) {
+            sourceEntries.add( currentClasspath[i]);
+          }
+        }
+        
+        IClasspathEntry[] entries = ( IClasspathEntry[] ) sourceEntries.toArray( new IClasspathEntry[ sourceEntries.size()]);
+        javaProject.setRawClasspath(entries, monitor);
+        
+        plugin.getConsole().logMessage("");
+
       } catch( Exception ex ) {
-        // TODO show popup error dialog
-        Maven2Plugin.log( "Unable to update project source folders", ex);
-        
+        String msg = "Unable to update project source folders "+ex.toString();
+        plugin.getConsole().logMessage( msg );
+        Maven2Plugin.log( msg, ex);
       }
       return Status.OK_STATUS;
-    }
-
-    
-    private void resolveSources( Set sources, IProject project, IProgressMonitor monitor) {
-      IFile pom = project.getFile( Maven2Plugin.POM_FILE_NAME);
-      if( pom.exists()) {
-        Maven2Plugin plugin = Maven2Plugin.getDefault();
-        plugin.resolveSourceEntries(sources, project, pom, true, monitor);
-      }    
-    }  
-    
-    private void updateProject( Set sources, IProject project2, IProgressMonitor monitor ) throws JavaModelException {
-      ArrayList sourceEntries = new ArrayList();
-      for( Iterator it = sources.iterator(); it.hasNext(); ) {
-        String name = ( String ) it.next();
-        IResource resource = project.findMember(name);
-        sourceEntries.add(JavaCore.newSourceEntry( resource.getFullPath() /*, new IPath[] { new Path( "**"+"/.svn/"+"**")} */));
-      }
-      
-      IJavaProject javaProject = JavaCore.create(project);
-      IClasspathEntry[] currentClasspath = javaProject.getRawClasspath();
-      for( int i = 0; i < currentClasspath.length; i++ ) {
-        if( currentClasspath[i].getEntryKind()!=IClasspathEntry.CPE_SOURCE) {
-          sourceEntries.add( currentClasspath[i]);
-        }
-      }
-      
-      IClasspathEntry[] entries = ( IClasspathEntry[] ) sourceEntries.toArray( new IClasspathEntry[ sourceEntries.size()]);
-      javaProject.setRawClasspath(entries, monitor);
     }
     
   }

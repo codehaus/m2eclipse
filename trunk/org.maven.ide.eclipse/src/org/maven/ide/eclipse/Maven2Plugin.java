@@ -32,7 +32,6 @@ import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuildingException;
 import org.apache.maven.wagon.events.TransferListener;
 
-import org.codehaus.plexus.util.StringUtils;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
@@ -40,6 +39,7 @@ import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Path;
@@ -372,22 +372,25 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   }
 
   
-  public void resolveSourceEntries(Set sources, IProject project, IResource pomFile, boolean recursive, IProgressMonitor monitor) {
+  public void resolveSourceEntries(List sourceEntries, IProject project, IResource pomFile, boolean recursive, IProgressMonitor monitor) {
     Tracer.trace(this, "resolveSourceEntries in project:"+project+" for pom:"+pomFile);
       
     if(monitor.isCanceled()) return;
   
-    MavenEmbedder mavenEmbedder = getMavenEmbedder();
-    
-    TransferListener transferListener = new TransferListenerAdapter( monitor );
     File f = pomFile.getLocation().toFile();
     
+    TransferListener transferListener = new TransferListenerAdapter( monitor );
+    MavenEmbedder mavenEmbedder = getMavenEmbedder();
     MavenProject mavenProject;
     try {
-      monitor.subTask( "Reading "+pomFile.getFullPath());
+      String msg = "Reading "+pomFile.getFullPath();
+      monitor.subTask( msg);
+      getConsole().logMessage( msg);
       mavenProject = mavenEmbedder.readProjectWithDependencies( f, transferListener);
     } catch( Exception ex) {
-      log( "Unable to read project "+f, ex);
+      String msg = "Unable to read project "+pomFile.getFullPath();
+      getConsole().logMessage(msg);
+      log( msg, ex);
       return;
     }    
 
@@ -396,57 +399,56 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     Properties properties = new Properties();
       
     try {
-      monitor.subTask( "Executing "+pomFile.getFullPath());
+      String msg = "Generating sources for "+pomFile.getFullPath();
+      monitor.subTask( msg);
+      getConsole().logMessage( msg);
       mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
     } catch( Exception ex ) {
-      Tracer.trace(this, "Failed to run generate source goals "+f);
-      log( "Failed to run generate source goals "+f, ex);
+      String msg = "Failed to run generate source goals "+pomFile.getFullPath();
+      getConsole().logMessage(msg);
+      log( msg, ex);
     }
     
     File basedir = pomFile.getLocation().toFile().getParentFile();
     File projectBaseDir = project.getLocation().toFile();
     
-    extractSourceDirs(sources, mavenProject.getCompileSourceRoots(), basedir, projectBaseDir);
-    extractSourceDirs(sources, mavenProject.getTestCompileSourceRoots(), basedir, projectBaseDir);
+    extractSourceDirs(sourceEntries, project, mavenProject.getCompileSourceRoots(), basedir, projectBaseDir);
+    extractSourceDirs(sourceEntries, project, mavenProject.getTestCompileSourceRoots(), basedir, projectBaseDir);
     
-    extractResourceDirs(sources, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
-    extractResourceDirs(sources, mavenProject.getBuild().getTestResources(), basedir, projectBaseDir);
+    extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
+    extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getTestResources(), basedir, projectBaseDir);
     
     if(recursive) {
-      IContainer parent = pomFile.getParent();
-      
+      IContainer parent = pomFile.getParent();      
       List modules = mavenProject.getModules();
       for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
         String module = ( String ) it.next();
         IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
         if(memberPom!=null) {
-          resolveSourceEntries(sources, project, memberPom, true, monitor);
+          resolveSourceEntries(sourceEntries, project, memberPom, true, monitor);
         }
-      }    
+      }
     }
   }
     
-  private void extractSourceDirs( Set directories, List sourceRoots, File basedir, File projectBaseDir ) {
+  private void extractSourceDirs( List entries, IProject project, List sourceRoots, File basedir, File projectBaseDir ) {
     for( Iterator it = sourceRoots.iterator(); it.hasNext(); ) {
       String sourceRoot = ( String ) it.next();
-
       if( new File( sourceRoot ).isDirectory() ) {
-        directories.add( toRelativeAndFixSeparator( projectBaseDir, sourceRoot ) );
+        IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, sourceRoot ));
+        entries.add( JavaCore.newSourceEntry( r.getFullPath() /*, new IPath[] { new Path( "**"+"/.svn/"+"**")} */) );
       }
     }
   }
 
-  private void extractResourceDirs( Set directories, List resources, File basedir, File projectBaseDir ) {
+  private void extractResourceDirs( List entries, IProject project, List resources, File basedir, File projectBaseDir ) {
     for( Iterator it = resources.iterator(); it.hasNext(); ) {
       Resource resource = ( Resource ) it.next();
-
       File resourceDirectory = new File( resource.getDirectory() );
-
-      if( !resourceDirectory.exists() || !resourceDirectory.isDirectory() ) {
-        continue;
+      if( resourceDirectory.exists() && resourceDirectory.isDirectory() ) {
+        IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, resource.getDirectory() ));
+        entries.add( JavaCore.newSourceEntry( r.getFullPath(), new IPath[] {}, r.getFullPath()));  //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
       }
-
-      directories.add( toRelativeAndFixSeparator( projectBaseDir, resource.getDirectory() ) );
     }
   }
 
@@ -459,8 +461,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     } else {
       relative = absolutePath;
     }
-
-    return StringUtils.replace( relative, "\\", "/" ); //$NON-NLS-1$ //$NON-NLS-2$
+    return relative.replace( '\\', '/' ); //$NON-NLS-1$ //$NON-NLS-2$
   }
 
 
