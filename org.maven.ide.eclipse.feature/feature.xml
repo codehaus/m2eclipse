@@ -7,8 +7,9 @@
       plugin="org.maven.ide.eclipse">
    <install-handler/>
 
-   <description url="http://www.md.pp.ru/~eu/12/">
-      Maven 2.0 integration
+   <description url="http://maven.apache.org/eclipse-plugin.html">
+      Maven 2.0 integration, including transient dependencies support, 
+running Maven goals, and adding dependencies from repository.
    </description>
 
    <copyright>
@@ -32,7 +33,7 @@ limitations under the License.
    </license>
 
    <url>
-      <update label="Maven 2.0 integration" url="http://www.md.pp.ru/~eu/12/"/>
+      <update label="Maven 2.0 integration" url="http://m2eclipse.codehaus.org/"/>
    </url>
 
    <requires>
