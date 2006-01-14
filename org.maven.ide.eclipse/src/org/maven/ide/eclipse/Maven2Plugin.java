@@ -395,6 +395,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }    
 
     List goals = Arrays.asList( "generate-sources,generate-resources".split(","));
+    // TODO hook up console view
     EventMonitor eventMonitor = new ConsoleEventMonitor();
     Properties properties = new Properties();
       
