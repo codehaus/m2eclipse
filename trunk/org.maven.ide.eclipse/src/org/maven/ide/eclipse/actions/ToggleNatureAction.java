@@ -16,6 +16,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.window.Window;
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IObjectActionDelegate;
@@ -29,7 +30,6 @@ import org.maven.ide.eclipse.wizards.Maven2PomWizard;
 public class ToggleNatureAction implements IObjectActionDelegate {
   private ISelection selection;
   private IWorkbenchPart targetPart;
-  private IAction action;
 
   /*
    * (non-Javadoc)
@@ -81,6 +81,23 @@ public class ToggleNatureAction implements IObjectActionDelegate {
    */
   private void toggleNature( IProject project, boolean isSingle) {
     try {
+      IFile pom = project.getFile( Maven2Plugin.POM_FILE_NAME);
+      if( isSingle && !pom.exists()) {
+        Maven2PomWizard wizard = new Maven2PomWizard();
+        
+        Maven2Plugin plugin = Maven2Plugin.getDefault();
+        IWorkbench workbench = plugin.getWorkbench();
+        wizard.init(workbench, (IStructuredSelection) selection);
+        
+        Shell shell = workbench.getActiveWorkbenchWindow().getShell();
+        WizardDialog wizardDialog = new WizardDialog( shell, wizard);
+        wizardDialog.create();
+        wizardDialog.getShell().setText("Create new POM");
+        if(wizardDialog.open()==Window.CANCEL) {
+          return;
+        }
+      }
+      
       IProjectDescription description = project.getDescription();
       String[] natures = description.getNatureIds();
       for( int i = 0; i < natures.length; ++i) {
@@ -94,21 +111,6 @@ public class ToggleNatureAction implements IObjectActionDelegate {
       addMaven2Nature( project);
       removeMaven2ClasspathContainer(project);
       addMaven2ClasspathContainer(project);
-      
-      IFile pom = project.getFile( Maven2Plugin.POM_FILE_NAME);
-      if( isSingle && !pom.exists()) {
-        Maven2PomWizard wizard = new Maven2PomWizard();
-        
-        Maven2Plugin plugin = Maven2Plugin.getDefault();
-        IWorkbench workbench = plugin.getWorkbench();
-        wizard.init(workbench, (IStructuredSelection) selection);
-        
-        Shell shell = workbench.getActiveWorkbenchWindow().getShell();
-        WizardDialog wizardDialog = new WizardDialog( shell, wizard);
-        wizardDialog.create();
-        wizardDialog.getShell().setText("Create new POM");
-        wizardDialog.open();
-      }
       
     } catch( CoreException ex) {
       Maven2Plugin.log(ex);
