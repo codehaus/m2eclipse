@@ -20,6 +20,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.InvalidArtifactRTException;
 import org.apache.maven.artifact.resolver.ArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
@@ -360,6 +361,12 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       // addMarker(pomFile, Messages.getString("plugin.markerArtifactResolutionError") + ex.getMessage(), -1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
       String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
       addMarker(pomFile, ex.getOriginalMessage()+" "+name, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+      
+    } catch( InvalidArtifactRTException ex) {
+      addMarker(pomFile, ex.getBaseMessage(), 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+      
+    } catch( Throwable ex) {
+      addMarker(pomFile, ex.toString(), 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
       
     }
   }
