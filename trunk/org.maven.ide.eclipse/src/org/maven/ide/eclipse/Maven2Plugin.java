@@ -437,7 +437,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       String sourceRoot = ( String ) it.next();
       if( new File( sourceRoot ).isDirectory() ) {
         IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, sourceRoot ));
-        entries.add( JavaCore.newSourceEntry( r.getFullPath() /*, new IPath[] { new Path( "**"+"/.svn/"+"**")} */) );
+        if(r!=null) {
+          entries.add( JavaCore.newSourceEntry( r.getFullPath() /*, new IPath[] { new Path( "**"+"/.svn/"+"**")} */) );
+        }
       }
     }
   }
@@ -448,7 +450,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       File resourceDirectory = new File( resource.getDirectory() );
       if( resourceDirectory.exists() && resourceDirectory.isDirectory() ) {
         IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, resource.getDirectory() ));
-        entries.add( JavaCore.newSourceEntry( r.getFullPath(), new IPath[] {}, r.getFullPath()));  //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
+        if(r!=null) {
+          entries.add( JavaCore.newSourceEntry( r.getFullPath(), new IPath[] {}, r.getFullPath()));  //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
+        }
       }
     }
   }
