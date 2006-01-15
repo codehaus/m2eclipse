@@ -56,7 +56,7 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
     //  Ensure that initialization occurs in the ui thread
     Maven2Plugin.getStandardDisplay().asyncExec(new Runnable() {
       public void run() {
-        //JFaceResources.getFontRegistry().addListener(MavenConsole.this);
+        JFaceResources.getFontRegistry().addListener(Maven2Console.this);
         initializeStreams();
         dump();
       }
@@ -73,11 +73,11 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
         errorStream = newMessageStream();
         messageStream = newMessageStream();
         // install colors
-        commandColor = new Color(Maven2Plugin.getStandardDisplay(), new RGB(100, 100, 100));
+        commandColor = new Color(Maven2Plugin.getStandardDisplay(), new RGB(0, 0, 0));
         commandStream.setColor(commandColor);
-        messageColor = new Color(Maven2Plugin.getStandardDisplay(), new RGB(150, 150, 150));
+        messageColor = new Color(Maven2Plugin.getStandardDisplay(), new RGB(0, 0, 255));
         messageStream.setColor(messageColor);
-        errorColor = new Color(Maven2Plugin.getStandardDisplay(), new RGB(200, 200, 200));
+        errorColor = new Color(Maven2Plugin.getStandardDisplay(), new RGB(255, 0, 0));
         errorStream.setColor(errorColor);
         // install font
         // TODO: extract constants
@@ -139,6 +139,8 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
   }
   
   public void propertyChange( PropertyChangeEvent event ) {
+    // font changed
+    setFont(JFaceResources.getFontRegistry().get("pref_console_font"));
   }
 
   private void showConsole(boolean show) {
@@ -166,7 +168,7 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
       // again.
       synchronized (document) {
         visible = false;
-        //JFaceResources.getFontRegistry().removeListener(this);
+        JFaceResources.getFontRegistry().removeListener(this);
       }
     }
   
@@ -183,14 +185,14 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
     }
 
     public void logMessage(String message) {
-      appendLine(ConsoleDocument.MESSAGE, "  " + message); //$NON-NLS-1$
+      appendLine(ConsoleDocument.MESSAGE, message); //$NON-NLS-1$
     }
   
   public void logError(String message) {
       //if (showOnError) {
         bringConsoleToFront();
       //}
-      appendLine(ConsoleDocument.ERROR, "  " + message); //$NON-NLS-1$
+      appendLine(ConsoleDocument.ERROR, message); //$NON-NLS-1$
   }
 
   /**
