@@ -9,6 +9,7 @@ import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IProjectNature;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
@@ -29,9 +30,11 @@ public class Maven2Builder extends IncrementalProjectBuilder {
    *      java.util.Map, org.eclipse.core.runtime.IProgressMonitor)
    */
   protected IProject[] build( int kind, Map args, IProgressMonitor monitor) throws CoreException {
+    IProjectNature nature = getProject().getNature( Maven2Plugin.NATURE_ID );
+    if(nature==null) return null;
+    
     IJavaProject project = JavaCore.create( getProject() );
     IClasspathEntry[] classPaths = project.getRawClasspath();
-
     for( int i = 0; i < classPaths.length && !monitor.isCanceled(); i++ ) {
       IClasspathEntry entry = classPaths[i];
       IPath path = entry.getPath();
@@ -39,7 +42,8 @@ public class Maven2Builder extends IncrementalProjectBuilder {
         IFile pomFile = project.getProject().getFile( Maven2Plugin.POM_FILE_NAME);
 
         Set entrySet = new HashSet();
-        Maven2Plugin.getDefault().resolveClasspathEntries( entrySet, pomFile, true, monitor );
+        Set moduleArtifacts = new HashSet();
+        Maven2Plugin.getDefault().resolveClasspathEntries( entrySet, moduleArtifacts, pomFile, true, monitor );
         
         IClasspathEntry[] entries = ( IClasspathEntry[]) entrySet.toArray( new IClasspathEntry[ entrySet.size()]);
         
@@ -53,9 +57,10 @@ public class Maven2Builder extends IncrementalProjectBuilder {
         
         JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { project },
             new IClasspathContainer[] { new Maven2ClasspathContainer( entries)}, monitor );
+        
+        return null;
       }
-    }
-    
+    }    
     return null;
   }
 
