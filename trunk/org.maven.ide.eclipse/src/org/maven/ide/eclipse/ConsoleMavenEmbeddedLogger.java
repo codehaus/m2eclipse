@@ -4,67 +4,96 @@ package org.maven.ide.eclipse;
 
 import org.apache.maven.embedder.MavenEmbedderLogger;
 
+import org.maven.ide.eclipse.launch.console.Maven2Console;
+
 
 class ConsoleMavenEmbeddedLogger implements MavenEmbedderLogger {
   private int treshold = LEVEL_DEBUG;
+  private final Maven2Console console;
+  
+  public ConsoleMavenEmbeddedLogger() {
+    this(null);
+  }
+  
+  public ConsoleMavenEmbeddedLogger(Maven2Console console) {
+    this.console = console;
+  }
 
+  private void out(String s) {
+    if (this.console != null) {
+      this.console.logMessage(s);
+    }
+    else {
+      System.out.println(s);
+    }
+  }
+
+  private void outError(String s) {
+    if (this.console != null) {
+      this.console.logError(s);
+    }
+    else {
+      System.out.println(s);
+    }
+  }
+  
   public void debug( String msg ) {
     if (isDebugEnabled()) {
-      System.out.println( "[DEBUG] "+msg);
+      out("[DEBUG] "+msg);
     }
   }
 
   public void debug( String msg, Throwable t) {
     if (isDebugEnabled()) {
-      System.out.println( "[DEBUG] "+msg+" "+t.getMessage());
+      out( "[DEBUG] "+msg+" "+t.getMessage());
     }
   }
 
   public void info( String msg ) {
     if (isInfoEnabled()) {
-      System.out.println( "[INFO] "+msg);
+      out( "[INFO] "+msg);
     }
   }
 
   public void info( String msg, Throwable t ) {
     if (isInfoEnabled()) {
-      System.out.println( "[INFO] "+msg+" "+t.getMessage());
+      out( "[INFO] "+msg+" "+t.getMessage());
     }
   }
 
   public void warn( String msg ) {
     if (isWarnEnabled()) {
-      System.out.println("[WARN] "+msg);
+      out("[WARN] "+msg);
     }
   }
   
   public void warn( String msg, Throwable t ) {
     if (isWarnEnabled()) {
-      System.out.println( "[WARN] "+msg+" "+t.getMessage());
+      out( "[WARN] "+msg+" "+t.getMessage());
     }
   }
   
   public void fatalError( String msg ) {
     if (isFatalErrorEnabled()) {
-      System.out.println( "[FATAL ERROR] "+msg);
+      outError( "[FATAL ERROR] "+msg);
     }
   }
   
   public void fatalError( String msg, Throwable t ) {
     if (isFatalErrorEnabled()) {
-      System.out.println( "[FATAL ERROR] "+msg+" "+t.getMessage());
+      outError( "[FATAL ERROR] "+msg+" "+t.getMessage());
     }
   }
   
   public void error( String msg ) {
     if (isErrorEnabled()) {
-      System.out.println( "[ERROR] "+msg);
+      outError( "[ERROR] "+msg);
     }
   }
   
   public void error( String msg, Throwable t ) {
     if (isErrorEnabled()) {
-      System.out.println( "[ERROR] "+msg+" "+t.getMessage());
+      outError( "[ERROR] "+msg+" "+t.getMessage());
     }
   }
   

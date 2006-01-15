@@ -219,7 +219,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   
   private MavenEmbedder createEmbedder() throws MavenEmbedderException {
     MavenEmbedder embedder = new MavenEmbedder();
- 
+    embedder.setLogger(new ConsoleMavenEmbeddedLogger(getConsole()));
+    
     // TODO find a better ClassLoader
     // ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
     embedder.setClassLoader( getClass().getClassLoader());  
