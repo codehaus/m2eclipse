@@ -1,8 +1,6 @@
 
 package org.maven.ide.eclipse.builder;
 
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -41,22 +39,14 @@ public class Maven2Builder extends IncrementalProjectBuilder {
       if( Maven2ClasspathContainer.isMaven2ClasspathContainer( path ) ) {
         IFile pomFile = project.getProject().getFile( Maven2Plugin.POM_FILE_NAME);
 
-        Set entrySet = new HashSet();
+        Set entries = new HashSet();
         Set moduleArtifacts = new HashSet();
-        Maven2Plugin.getDefault().resolveClasspathEntries( entrySet, moduleArtifacts, pomFile, true, monitor );
-        
-        IClasspathEntry[] entries = ( IClasspathEntry[]) entrySet.toArray( new IClasspathEntry[ entrySet.size()]);
-        
-        Arrays.sort( entries, new Comparator() {
-            public int compare( Object o1, Object o2) {
-              return o1.toString().compareTo( o2.toString());
-            }
-          } );
+        Maven2Plugin.getDefault().resolveClasspathEntries( entries, moduleArtifacts, pomFile, true, monitor );
         
         Maven2ClasspathContainer container = ( Maven2ClasspathContainer ) JavaCore.getClasspathContainer( path, project );
-        
+        container.setEntries( entries );
         JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { project },
-            new IClasspathContainer[] { new Maven2ClasspathContainer( entries)}, monitor );
+            new IClasspathContainer[] { container}, monitor );
         
         return null;
       }

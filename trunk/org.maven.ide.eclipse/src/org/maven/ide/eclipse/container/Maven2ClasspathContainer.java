@@ -1,6 +1,10 @@
 
 package org.maven.ide.eclipse.container;
 
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Set;
+
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClasspathContainer;
@@ -17,8 +21,7 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
   private IClasspathEntry[] entries = new IClasspathEntry[ 0];
 
   
-  public Maven2ClasspathContainer( IClasspathEntry[] entries) {
-    this.entries = entries;
+  public Maven2ClasspathContainer() {
   }
   
   public synchronized IClasspathEntry[] getClasspathEntries() {
@@ -42,8 +45,14 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
 //    return true;
 //  }
 
-  public synchronized void setEntries( IClasspathEntry[] entries) {
-    this.entries = entries;
+  public synchronized void setEntries( Set entries) {
+    IClasspathEntry[] e = ( IClasspathEntry[]) entries.toArray( new IClasspathEntry[ entries.size()]);
+    Arrays.sort( e, new Comparator() {
+        public int compare( Object o1, Object o2) {
+          return o1.toString().compareTo( o2.toString());
+        }
+      } );
+    this.entries = e;
   }
   
   public static boolean isMaven2ClasspathContainer( IPath containerPath) {
