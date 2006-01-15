@@ -331,7 +331,10 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       Set artifacts = mavenProject.getArtifacts();
       for( Iterator it = artifacts.iterator(); it.hasNext();) {
         Artifact a = ( Artifact) it.next();
-        set.add( JavaCore.newLibraryEntry( new Path( a.getFile().getAbsolutePath()), null, null));
+        // TODO verify if there is an Eclipse API to check that archive is acceptable
+        if("jar".equals(a.getType()) || "zip".equals( a.getType() )) {
+          set.add( JavaCore.newLibraryEntry( new Path( a.getFile().getAbsolutePath()), null, null));
+        }
       }
       
       if(recursive) {
