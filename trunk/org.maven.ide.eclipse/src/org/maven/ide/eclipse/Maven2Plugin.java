@@ -314,7 +314,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
   }
 
-  public void resolveClasspathEntries(Set set, IResource pomFile, boolean recursive, IProgressMonitor monitor) {
+  public void resolveClasspathEntries(Set libraryentries, Set moduleArtifacts, IResource pomFile, boolean recursive, IProgressMonitor monitor) {
     Tracer.trace(this, "resolveClasspathEntries from pom:"+pomFile);
       
     if(monitor.isCanceled()) return;
@@ -328,13 +328,17 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       
       MavenProject mavenProject = getMavenEmbedder().readProjectWithDependencies( f, transferListener);
       deleteMarkers(pomFile);
+      // TODO use version?
+      moduleArtifacts.add( mavenProject.getGroupId()+":"+mavenProject.getArtifactId() );
       
       Set artifacts = mavenProject.getArtifacts();
       for( Iterator it = artifacts.iterator(); it.hasNext();) {
         Artifact a = ( Artifact) it.next();
-        // TODO verify if there is an Eclipse API to check that archive is acceptable
-        if("jar".equals(a.getType()) || "zip".equals( a.getType() )) {
-          set.add( JavaCore.newLibraryEntry( new Path( a.getFile().getAbsolutePath()), null, null));
+        // TODO use version?
+        if(!moduleArtifacts.contains(a.getGroupId()+":"+a.getArtifactId()) &&
+            // TODO verify if there is an Eclipse API to check that archive is acceptable
+           ("jar".equals(a.getType()) || "zip".equals( a.getType() ))) {
+          libraryentries.add( JavaCore.newLibraryEntry( new Path( a.getFile().getAbsolutePath()), null, null));
         }
       }
       
@@ -346,7 +350,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
           String module = ( String ) it.next();
           IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
           if(memberPom!=null) {
-            resolveClasspathEntries(set, memberPom, true, monitor);
+            resolveClasspathEntries(libraryentries, moduleArtifacts, memberPom, true, monitor);
           }
         }    
       }
@@ -390,7 +394,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       String msg = "Reading "+pomFile.getFullPath();
       monitor.subTask( msg);
       getConsole().logMessage( msg);
-      mavenProject = mavenEmbedder.readProjectWithDependencies( f, transferListener);
+      mavenProject = mavenEmbedder.readProject(f);
     } catch( Exception ex) {
       String msg = "Unable to read project "+pomFile.getFullPath();
       getConsole().logMessage(msg);
