@@ -1,5 +1,9 @@
 package org.maven.ide.eclipse.launch.console;
 
+import java.text.DateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.util.IPropertyChangeListener;
@@ -108,10 +112,10 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
             commandStream.println(line);
             break;
           case ConsoleDocument.MESSAGE:
-            messageStream.println("  " + line); //$NON-NLS-1$
+            messageStream.println(line); //$NON-NLS-1$
             break;
           case ConsoleDocument.ERROR:
-            errorStream.println("  " + line); //$NON-NLS-1$
+            errorStream.println(line); //$NON-NLS-1$
             break;
         }
       } else {
@@ -184,16 +188,19 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
         errorColor.dispose();
     }
 
-    public void logMessage(String message) {
-      appendLine(ConsoleDocument.MESSAGE, message); //$NON-NLS-1$
-    }
+  private DateFormat getDateFormat() {
+    return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.LONG, Locale.getDefault());
+  }
+    
+  public void logMessage(String message) {
+    appendLine(ConsoleDocument.MESSAGE, getDateFormat().format(new Date())+": "+message); //$NON-NLS-1$
+  }
   
   public void logError(String message) {
-      //if (showOnError) {
-        bringConsoleToFront();
-      //}
-      appendLine(ConsoleDocument.ERROR, message); //$NON-NLS-1$
+    bringConsoleToFront();
+    appendLine(ConsoleDocument.ERROR, getDateFormat().format(new Date())+": "+message); //$NON-NLS-1$
   }
+      
 
   /**
    * Used to notify this console of lifecycle methods <code>init()</code>
