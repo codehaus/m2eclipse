@@ -24,6 +24,7 @@ import org.apache.maven.artifact.InvalidArtifactRTException;
 import org.apache.maven.artifact.resolver.ArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
+import org.apache.maven.embedder.MavenEmbedderLogger;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Resource;
@@ -218,15 +219,19 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
 
   
   private MavenEmbedder createEmbedder() throws MavenEmbedderException {
+    IPreferenceStore store = this.getPreferenceStore();
+
     MavenEmbedder embedder = new MavenEmbedder();
-    embedder.setLogger(new ConsoleMavenEmbeddedLogger(getConsole()));
+    MavenEmbedderLogger logger = new ConsoleMavenEmbeddedLogger(getConsole());
+    final boolean debugEnabled = store.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
+    logger.setThreshold(debugEnabled ? MavenEmbedderLogger.LEVEL_DEBUG : MavenEmbedderLogger.LEVEL_INFO);
+    embedder.setLogger(logger);
     
     // TODO find a better ClassLoader
     // ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
     embedder.setClassLoader( getClass().getClassLoader());  
     embedder.setInteractiveMode(false);
     
-    IPreferenceStore store = this.getPreferenceStore();
     
     // File localRepositoryDirectory = mavenEmbedder.getLocalRepositoryDirectory();
     String localRepositoryDir = store.getString( Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR);
