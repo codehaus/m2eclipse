@@ -99,7 +99,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         IClasspathEntry[] entries = ( IClasspathEntry[] ) sourceEntries.toArray( new IClasspathEntry[ sourceEntries.size()]);
         javaProject.setRawClasspath(entries, monitor);
         
-        plugin.getConsole().logMessage("");
+        plugin.getConsole().logMessage("Updated source folders for project "+project.getName());
 
       } catch( Exception ex ) {
         String msg = "Unable to update project source folders "+ex.toString();
