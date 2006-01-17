@@ -3,6 +3,7 @@ package org.maven.ide.eclipse.wizards;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 
@@ -32,6 +33,7 @@ import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.ide.IDE;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.MavenEmbedderCallback;
 
 
 /**
@@ -106,7 +108,7 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
 	 * file if missing or just replace its contents, and open
 	 * the editor on the newly created file.
 	 */
-	private void doFinish( String projectName, Model model, IProgressMonitor monitor) throws CoreException {
+	private void doFinish( String projectName, final Model model, IProgressMonitor monitor) throws CoreException {
 		// monitor.beginTask("Creating " + fileName, 2);
 		IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
 		IResource resource = root.findMember(new Path(projectName));
@@ -124,12 +126,20 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
     
     final File pom = file.getLocation().toFile();
         
-    Maven2Plugin plugin = Maven2Plugin.getDefault();
-    MavenEmbedder mavenEmbedder = plugin.getMavenEmbedder();
-    
     try {
-      StringWriter w = new StringWriter();
-      mavenEmbedder.writeModel( w, model );
+      final StringWriter w = new StringWriter();
+      Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
+        public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
+          try {
+            mavenEmbedder.writeModel( w, model );
+          } 
+          catch( IOException ex ) {
+            Maven2Plugin.log( "Unable to write POM "+pom+"; "+ex.getMessage(), ex);
+          }
+          return null;
+        }
+      });
+      
 
       file.create( new ByteArrayInputStream( w.toString().getBytes( "ASCII" ) ), true, null );
 //    monitor.worked(1);

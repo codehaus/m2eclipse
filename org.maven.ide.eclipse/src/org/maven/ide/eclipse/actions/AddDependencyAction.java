@@ -4,7 +4,10 @@ package org.maven.ide.eclipse.actions;
 import java.util.Collections;
 import java.util.Set;
 
+import org.apache.maven.artifact.resolver.ArtifactResolutionException;
+import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.ProjectBuildingException;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
@@ -18,6 +21,7 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.MavenEmbedderCallback;
 import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.index.Indexer.FileInfo;
 
@@ -30,7 +34,7 @@ public class AddDependencyAction implements IObjectActionDelegate {
   
   public void run( IAction action ) {
     Object o = selection.iterator().next();
-    IFile file;
+    final IFile file;
     if( o instanceof IProject ) {
       file = (( IProject ) o).getFile( Maven2Plugin.POM_FILE_NAME );
     } else if( o instanceof IFile) {
@@ -40,7 +44,21 @@ public class AddDependencyAction implements IObjectActionDelegate {
     }
 
     Maven2Plugin plugin = getPlugin();
-    MavenProject mavenProject = plugin.getMavenProject(file, true );
+    MavenProject mavenProject = (MavenProject)plugin.executeInEmbedder(new MavenEmbedderCallback(){
+
+      public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
+        try {
+          return mavenEmbedder.readProjectWithDependencies(file.getLocation().toFile());
+        } 
+        catch( ProjectBuildingException ex ) {
+          Maven2Plugin.log( "Unable to build POM "+file+"; "+ex.getMessage(), ex);
+        } 
+        catch( ArtifactResolutionException ex ) {
+          Maven2Plugin.log( "Unable to resolve artifacts from POM "+file+"; "+ex.getMessage(), ex);
+        }
+        return null;
+      }
+    });    
     Set artifacts = (mavenProject==null ? Collections.EMPTY_SET : mavenProject.getArtifacts());
     
     Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( getShell(), plugin.getIndexer(), artifacts );

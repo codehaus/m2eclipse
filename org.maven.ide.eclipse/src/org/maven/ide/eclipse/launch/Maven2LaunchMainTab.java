@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -46,6 +47,7 @@ import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.dialogs.ContainerSelectionDialog;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.MavenEmbedderCallback;
 import org.maven.ide.eclipse.Messages;
 import org.maven.ide.eclipse.util.ITraceable;
 import org.maven.ide.eclipse.util.Tracer;
@@ -189,10 +191,15 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
               Messages.getString("launch.errorSelectPom")); //$NON-NLS-1$ //$NON-NLS-2$
 					return;
 				}
-        Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell(), Messages.getString("launch.goalsDialog.title"));  //$NON-NLS-1$ 
-        dialog.setInput(Maven2Plugin.getDefault().getMavenEmbedder());
+        final Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell(), Messages.getString("launch.goalsDialog.title"));  //$NON-NLS-1$
         dialog.setAllowMultiple(false);
-        int buttonId = dialog.open();
+        
+        int buttonId = ((Integer)Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
+          public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
+            dialog.setInput(mavenEmbedder);
+            return new Integer(dialog.open());
+          }
+        })).intValue();
 
         if (buttonId == IDialogConstants.OK_ID) {
             Object[] o = dialog.getResult();
