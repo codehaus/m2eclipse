@@ -1,6 +1,7 @@
 
 package org.maven.ide.eclipse.actions;
 
+import java.util.Collections;
 import java.util.Set;
 
 import org.apache.maven.project.MavenProject;
@@ -40,7 +41,7 @@ public class AddDependencyAction implements IObjectActionDelegate {
 
     Maven2Plugin plugin = getPlugin();
     MavenProject mavenProject = plugin.getMavenProject(file, true );
-    Set artifacts = mavenProject==null ? null : mavenProject.getArtifacts();
+    Set artifacts = (mavenProject==null ? Collections.EMPTY_SET : mavenProject.getArtifacts());
     
     Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( getShell(), plugin.getIndexer(), artifacts );
     if( dialog.open() == Window.OK ) {
