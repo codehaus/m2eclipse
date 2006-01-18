@@ -21,13 +21,7 @@ public class Maven2PreferenceConstants {
   public static final String P_OFFLINE = PREFIX+"offline";
 
   /** boolean */
-  public static final String P_PLUGIN_UPDATE_OVERRIDE = PREFIX+"pluginUpdateOverride";
-
-  /** boolean */
   public static final String P_UPDATE_SNAPSHOTS = PREFIX+"updateSnapshots";
-
-  /** boolean */
-  public static final String P_USE_PLUGIN_REGISTRY = PREFIX+"usePluginRegistry";
 
   /** boolean */
   public static final String P_DEBUG_OUTPUT = PREFIX+"debugOutput";
