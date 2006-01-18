@@ -18,10 +18,21 @@ import org.maven.ide.eclipse.Maven2Plugin;
  * @author Eugene Kuleshov
  */
 public class Maven2ClasspathContainer implements IClasspathContainer {
-  private IClasspathEntry[] entries = new IClasspathEntry[ 0];
+  private IClasspathEntry[] entries;
 
   
   public Maven2ClasspathContainer() {
+    this.entries = new IClasspathEntry[0];
+  }
+  
+  public Maven2ClasspathContainer(Set entries) {
+    IClasspathEntry[] e = ( IClasspathEntry[]) entries.toArray( new IClasspathEntry[ entries.size()]);
+    Arrays.sort( e, new Comparator() {
+      public int compare( Object o1, Object o2) {
+        return o1.toString().compareTo( o2.toString());
+      }
+    } );
+    this.entries = e;
   }
   
   public synchronized IClasspathEntry[] getClasspathEntries() {
@@ -45,16 +56,6 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
 //    return true;
 //  }
 
-  public synchronized void setEntries( Set entries) {
-    IClasspathEntry[] e = ( IClasspathEntry[]) entries.toArray( new IClasspathEntry[ entries.size()]);
-    Arrays.sort( e, new Comparator() {
-        public int compare( Object o1, Object o2) {
-          return o1.toString().compareTo( o2.toString());
-        }
-      } );
-    this.entries = e;
-  }
-  
   public static boolean isMaven2ClasspathContainer( IPath containerPath) {
     return containerPath!=null && containerPath.segmentCount()>0
         && Maven2Plugin.CONTAINER_ID.equals(containerPath.segment(0));

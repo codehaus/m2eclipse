@@ -30,20 +30,21 @@ public class Maven2Builder extends IncrementalProjectBuilder {
    * @see org.eclipse.core.internal.events.InternalBuilder#build(int,
    *      java.util.Map, org.eclipse.core.runtime.IProgressMonitor)
    */
-  protected IProject[] build( int kind, Map args, IProgressMonitor monitor) throws CoreException {
+  protected IProject[] build( int kind, Map args, IProgressMonitor monitor ) throws CoreException {
     IProject project = getProject();
-    if(project.getNature( Maven2Plugin.NATURE_ID )==null) return null;
-    
-    if(kind==AUTO_BUILD || kind==INCREMENTAL_BUILD) {
+    if( project.getNature( Maven2Plugin.NATURE_ID ) == null )
+      return null;
+
+    if( kind == AUTO_BUILD || kind == INCREMENTAL_BUILD ) {
       Verifier verifier = new Verifier();
       getDelta( project ).accept( verifier, IContainer.EXCLUDE_DERIVED );
-      if(!verifier.updated) {
+      if( !verifier.updated ) {
         return null;
       }
     }
-    
+
     updateClasspath( monitor, project );
-    
+
     return null;
   }
 
@@ -54,32 +55,29 @@ public class Maven2Builder extends IncrementalProjectBuilder {
       IClasspathEntry entry = classPaths[i];
       IPath path = entry.getPath();
       if( Maven2ClasspathContainer.isMaven2ClasspathContainer( path ) ) {
-        IFile pomFile = javaProject.getProject().getFile( Maven2Plugin.POM_FILE_NAME);
+        IFile pomFile = javaProject.getProject().getFile( Maven2Plugin.POM_FILE_NAME );
 
         Set entries = new HashSet();
         Set moduleArtifacts = new HashSet();
         Maven2Plugin.getDefault().resolveClasspathEntries( entries, moduleArtifacts, pomFile, true, monitor );
-        
-        Maven2ClasspathContainer container = ( Maven2ClasspathContainer ) JavaCore.getClasspathContainer( path, javaProject );
-        container.setEntries( entries );
+
+        Maven2ClasspathContainer container = new Maven2ClasspathContainer( entries );
         JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { javaProject },
-            new IClasspathContainer[] { container}, monitor );
+            new IClasspathContainer[] { container }, monitor );
       }
     }
   }
 
-  
   private static final class Verifier implements IResourceDeltaVisitor {
     boolean updated;
 
     public boolean visit( IResourceDelta delta ) {
-      if(Maven2Plugin.POM_FILE_NAME.equals(delta.getResource().getName())) {
+      if( Maven2Plugin.POM_FILE_NAME.equals( delta.getResource().getName() ) ) {
         updated = true;
       }
-      return !updated;  // finish earlier if at least one pom found
+      return !updated; // finish earlier if at least one pom found
     }
 
   }
-  
-}
 
+}
