@@ -15,6 +15,7 @@ import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -194,14 +195,14 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
         final Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell(), Messages.getString("launch.goalsDialog.title"));  //$NON-NLS-1$
         dialog.setAllowMultiple(false);
         
-        int buttonId = ((Integer)Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
-          public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
-            dialog.setInput(mavenEmbedder);
-            return new Integer(dialog.open());
-          }
-        })).intValue();
-
-        if (buttonId == IDialogConstants.OK_ID) {
+        Object res = Maven2Plugin.getDefault().executeInEmbedder("Launch Configuration", new MavenEmbedderCallback() {
+            public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+              dialog.setInput(mavenEmbedder);
+              return new Integer(dialog.open());
+            }
+          });
+        int rc = ((Integer) res).intValue();
+        if (rc == IDialogConstants.OK_ID) {
             Object[] o = dialog.getResult();
             StringBuffer sb = new StringBuffer();
             for (int i = 0; i < o.length; i++) {

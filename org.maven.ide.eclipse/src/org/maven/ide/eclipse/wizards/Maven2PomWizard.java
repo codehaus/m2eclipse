@@ -128,8 +128,8 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
         
     try {
       final StringWriter w = new StringWriter();
-      Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
-        public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
+      Maven2Plugin.getDefault().executeInEmbedder("Writing Project", new MavenEmbedderCallback() {
+        public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
           try {
             mavenEmbedder.writeModel( w, model );
           } 
