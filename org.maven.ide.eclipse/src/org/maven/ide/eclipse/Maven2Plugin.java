@@ -21,6 +21,7 @@ import java.util.zip.ZipInputStream;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
+import org.apache.maven.artifact.resolver.ArtifactNotFoundException;
 import org.apache.maven.artifact.resolver.ArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
@@ -79,7 +80,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   public static final String[] DEFAULT_INDEXES = { "central"};  // default indexes //$NON-NLS-1$
 
   /** reise embedder instance or create new one on every operation */
-  private static final boolean REUSE_EMBEDDER = true;
+  private static final boolean REUSE_EMBEDDER = false;
   
   // The shared instance.
   private static Maven2Plugin plugin;
@@ -387,6 +388,10 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         catch( ArtifactResolutionException ex ) {
           // log( "Artifact resolution error " + ex.getMessage(), ex);
           // addMarker(pomFile, Messages.getString("plugin.markerArtifactResolutionError") + ex.getMessage(), -1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+          String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
+          addMarker(pomFile, ex.getOriginalMessage()+" "+name, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+        }
+        catch( ArtifactNotFoundException ex ) {
           String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
           addMarker(pomFile, ex.getOriginalMessage()+" "+name, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
         }

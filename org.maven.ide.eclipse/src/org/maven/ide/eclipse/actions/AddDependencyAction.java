@@ -4,6 +4,7 @@ package org.maven.ide.eclipse.actions;
 import java.util.Collections;
 import java.util.Set;
 
+import org.apache.maven.artifact.resolver.ArtifactNotFoundException;
 import org.apache.maven.artifact.resolver.ArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.project.MavenProject;
@@ -55,6 +56,9 @@ public class AddDependencyAction implements IObjectActionDelegate {
         } 
         catch( ArtifactResolutionException ex ) {
           Maven2Plugin.log( "Unable to resolve artifacts from POM "+file+"; "+ex.getMessage(), ex);
+        }
+        catch( ArtifactNotFoundException ex ) {
+          Maven2Plugin.log( "Unable to find artifacts from POM "+file+"; "+ex.getMessage(), ex);
         }
         return null;
       }

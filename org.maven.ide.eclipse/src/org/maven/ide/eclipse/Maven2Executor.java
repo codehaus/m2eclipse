@@ -10,12 +10,9 @@ import java.util.Properties;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
 import org.apache.maven.embedder.MavenEmbedderLogger;
-import org.apache.maven.lifecycle.LifecycleExecutionException;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.wagon.events.TransferListener;
 
-import org.codehaus.plexus.util.dag.CycleDetectedException;
 import org.maven.ide.eclipse.launch.Maven2LaunchConstants;
 import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 
@@ -45,6 +42,7 @@ public class Maven2Executor implements Maven2LaunchConstants {
       }
       embedder.setLogger(logger);
 
+      setPreferences(embedder);
       embedder.start();
 
       String pomFileName = args[0];
@@ -60,7 +58,6 @@ public class Maven2Executor implements Maven2LaunchConstants {
         goals.add(args[i]);
       }
 
-      setPreferences(embedder);
       
       Properties properties = System.getProperties();
       //System.err.println(properties);
@@ -69,19 +66,7 @@ public class Maven2Executor implements Maven2LaunchConstants {
       TransferListener transferListener = new ConsoleTransferMonitor();
 
       embedder.execute(mavenProject, goals, consoleEventMonitor, transferListener, properties, pomFile.getParentFile() );
-//    } 
-//    catch(Exception e ) {
-//      e.printStackTrace();
-    } catch( MavenEmbedderException ex ) {
-      // TODO Auto-generated catch block
-    } catch( MojoExecutionException ex ) {
-      // TODO Auto-generated catch block
-    } catch( CycleDetectedException ex ) {
-      // TODO Auto-generated catch block
-    } catch( LifecycleExecutionException ex ) {
-      // TODO Auto-generated catch block
-    } 
-    catch (Throwable e) {
+    } catch (Throwable e) {
       e.printStackTrace(System.out);
     }
     finally {
@@ -103,6 +88,9 @@ public class Maven2Executor implements Maven2LaunchConstants {
     if(s!=null && s.trim().length()>0) {
       embedder.setLocalRepositoryDirectory(new File(s));
     }
+    File f = new File("C:\\Documents and Settings\\maxim\\.m2\\repository");
+    boolean yes = f.exists();
+    embedder.setLocalRepositoryDirectory(f);
     
     s = System.getProperty(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY);
     if(s!=null && s.trim().length()>0) {
