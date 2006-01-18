@@ -4,6 +4,11 @@ package org.maven.ide.eclipse;
 
 import org.apache.maven.embedder.MavenEmbedder;
 
+import org.eclipse.core.runtime.IProgressMonitor;
+
+
 public interface MavenEmbedderCallback {
-  Object doInEmbedder(MavenEmbedder mavenEmbedder);
+
+  Object doInEmbedder(MavenEmbedder mavenEmbedder, IProgressMonitor monitor);
+  
 }

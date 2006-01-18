@@ -112,8 +112,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to start console: "+ex.toString(), ex));
     }
 
-    String baseDir = (String)executeInEmbedder(new MavenEmbedderCallback() {
-      public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
+    String baseDir = (String) executeInEmbedder("Resoling Local Repository", new MavenEmbedderCallback() {
+      public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
         return mavenEmbedder.getLocalRepository().getBasedir();
       }
     });
@@ -165,22 +165,32 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     stopEmbedder();
   }
 
-  public Object executeInEmbedder(MavenEmbedderCallback callback) {
+  public Object executeInEmbedder(String name, MavenEmbedderCallback callback) {
     MavenEmbedder embedder = null;
     try {
       embedder = REUSE_EMBEDDER ? getMavenEmbedder() : createEmbedder();
-      Object result = callback.doInEmbedder(embedder);
-      return result;
-    }
+      
+      EmbedderJob job = new EmbedderJob( name, callback, embedder );
+      job.schedule();
+      try {
+        job.join();
+        // TODO check job.getResult()
+        return job.getCallbackResult();        
+      } 
+      catch( InterruptedException ex ) {
+        // TODO Auto-generated catch block
+        getConsole().logError( "Interrupted "+ex.toString());
+      }
+    } 
     catch( MavenEmbedderException e ) {
-      log( "Error starting MavenEmbedder", e);
+      getConsole().logError( "Error starting MavenEmbedder "+e.toString());
     }
     if (embedder != null && !REUSE_EMBEDDER) {
       try {
         embedder.stop();
-      }
+      } 
       catch( MavenEmbedderException e) {
-        log("Error stopping MavenEmbedder", e);
+        getConsole().logError("Error stopping MavenEmbedder "+e.toString());
       }
     }
     return null;
@@ -312,8 +322,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   public void addDependency(final IFile file, final Dependency dependency) {
     // IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
 
-    executeInEmbedder(new MavenEmbedderCallback() {
-        public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
+    executeInEmbedder("Adding Dependency", new MavenEmbedderCallback() {
+        public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
           final File pom = file.getLocation().toFile();
           try {
             Model model = mavenEmbedder.readModel( pom);
@@ -360,43 +370,15 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
   }
 
-  public void resolveClasspathEntries(Set libraryentries, Set moduleArtifacts, final IFile pomFile, boolean recursive, IProgressMonitor monitor) {
+  public void resolveClasspathEntries(Set libraryentries, Set moduleArtifacts, final IFile pomFile, boolean recursive, final IProgressMonitor monitor) {
     Tracer.trace(this, "resolveClasspathEntries from pom:"+pomFile);
       
     if(monitor.isCanceled()) return;
     
-    monitor.subTask( "Reading "+pomFile.getFullPath());
-    getConsole().logMessage( "Reading "+pomFile.getFullPath());
+    String msg = "Reading "+pomFile.getFullPath();
+    getConsole().logMessage( msg);
     
-    MavenProject mavenProject = (MavenProject)executeInEmbedder(new MavenEmbedderCallback() {
-      public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
-        try {
-          return mavenEmbedder.readProjectWithDependencies(pomFile.getLocation().toFile());
-        } 
-        catch( ProjectBuildingException ex ) {
-          Throwable cause = ex.getCause();
-          if( cause instanceof XmlPullParserException) {
-            XmlPullParserException pex = ( XmlPullParserException ) cause;
-            addMarker(pomFile, Messages.getString("plugin.markerParsingError") + pex.getMessage(), pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-          } 
-          else {
-            addMarker(pomFile, Messages.getString("plugin.markerBuildError") + ex.getMessage(), 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-          }
-        } 
-        catch( ArtifactResolutionException ex ) {
-          // log( "Artifact resolution error " + ex.getMessage(), ex);
-          // addMarker(pomFile, Messages.getString("plugin.markerArtifactResolutionError") + ex.getMessage(), -1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-          String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
-          addMarker(pomFile, ex.getOriginalMessage()+" "+name, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-        }
-        catch( ArtifactNotFoundException ex ) {
-          String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
-          addMarker(pomFile, ex.getOriginalMessage()+" "+name, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-        }
-        return null;
-      }
-    });
-    
+    MavenProject mavenProject = (MavenProject) executeInEmbedder("Reading Project", new ReadProjectTask( pomFile ));
     if (mavenProject == null) {
       return;
     }
@@ -437,17 +419,21 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       addMarker(pomFile, ex.toString(), 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
       
     }
+    
+    monitor.done();
   }
 
   
-  public void resolveSourceEntries(final List sourceEntries, final IProject project, final IResource pomFile, final boolean recursive, final IProgressMonitor monitor) {
+  public void resolveSourceEntries(final List sourceEntries, final IProject project, final IResource pomFile, final boolean recursive, IProgressMonitor monitor) {
     Tracer.trace(this, "resolveSourceEntries in project:"+project+" for pom:"+pomFile);
       
     if(monitor.isCanceled()) return;
   
-    executeInEmbedder(new MavenEmbedderCallback() {
+    monitor.beginTask( "Resolving entries", IProgressMonitor.UNKNOWN );
+    
+    executeInEmbedder("Updating Source folders", new MavenEmbedderCallback() {
 
-      public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
+      public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
         File f = pomFile.getLocation().toFile();
         
         TransferListener transferListener = new TransferListenerAdapter( monitor );
@@ -459,7 +445,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
           mavenProject = mavenEmbedder.readProject(f);
         } catch( Exception ex) {
           String msg = "Unable to read project "+pomFile.getFullPath();
-          getConsole().logMessage(msg);
+          getConsole().logError(msg);
           log( msg, ex);
           return null;
         }    
@@ -476,7 +462,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
           mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
         } catch( Exception ex ) {
           String msg = "Failed to run generate source goals "+pomFile.getFullPath();
-          getConsole().logMessage(msg);
+          getConsole().logError(msg);
           log( msg, ex);
         }
         
@@ -505,6 +491,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       
     });
     
+    monitor.done();
   }
     
   void extractSourceDirs( List entries, IProject project, List sourceRoots, File basedir, File projectBaseDir ) {
@@ -514,6 +501,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, sourceRoot ));
         if(r!=null) {
           entries.add( JavaCore.newSourceEntry( r.getFullPath() /*, new IPath[] { new Path( "**"+"/.svn/"+"**")} */) );
+          getConsole().logMessage( "Adding source folder " + r.getFullPath() );
         }
       }
     }
@@ -527,6 +515,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, resource.getDirectory() ));
         if(r!=null) {
           entries.add( JavaCore.newSourceEntry( r.getFullPath(), new IPath[] {}, r.getFullPath()));  //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
+          getConsole().logMessage( "Adding resource folder " + r.getFullPath() );
         }
       }
     }
@@ -565,6 +554,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   }
   
 
+/*  
   private static final class ProjectLoadingJob extends Job {
     private final IFile file;
     private final MavenEmbedder embedder;
@@ -592,6 +582,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
 
   }
+*/
   
   public boolean isTraceEnabled() {
     return TRACE_ENABLED;
@@ -615,6 +606,72 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   }
   
   
+  public static final class ReadProjectTask implements MavenEmbedderCallback {
+    private final IFile file;
+
+    public ReadProjectTask( IFile file ) {
+      this.file = file;
+    }
+
+    public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+      monitor.beginTask( file.getLocation().toFile().toString(), IProgressMonitor.UNKNOWN );
+      try {
+        TransferListenerAdapter listener = new TransferListenerAdapter( monitor );
+        return mavenEmbedder.readProjectWithDependencies(this.file.getLocation().toFile(), listener);
+      } catch( ProjectBuildingException ex ) {
+        Throwable cause = ex.getCause();
+        if( cause instanceof XmlPullParserException) {
+          XmlPullParserException pex = ( XmlPullParserException ) cause;
+          String msg = Messages.getString("plugin.markerParsingError") + pex.getMessage();
+          Maven2Plugin.getDefault().addMarker(this.file, msg, pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+          Maven2Plugin.getDefault().getConsole().logError( msg +" at line "+ pex.getLineNumber());
+        } else {
+          String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
+          Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+          Maven2Plugin.getDefault().getConsole().logError( msg);
+        }
+      } catch( ArtifactResolutionException ex ) {
+        // log( "Artifact resolution error " + ex.getMessage(), ex);
+        // addMarker(pomFile, Messages.getString("plugin.markerArtifactResolutionError") + ex.getMessage(), -1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+        String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
+        String msg = ex.getOriginalMessage()+" "+name;
+        Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+        Maven2Plugin.getDefault().getConsole().logError(msg);
+      } catch( ArtifactNotFoundException ex ) {
+        String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
+        String msg = ex.getOriginalMessage()+" "+name;
+        Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+        Maven2Plugin.getDefault().getConsole().logError(msg);
+      }
+      monitor.done();
+      return null;
+    }
+  }
+
+
+  private static final class EmbedderJob extends Job {
+    private final MavenEmbedderCallback callback;
+    private final MavenEmbedder embedder;
+
+    private Object callbackResult;
+
+    private EmbedderJob( String name, MavenEmbedderCallback callback, MavenEmbedder embedder ) {
+      super( name );
+      this.callback = callback;
+      this.embedder = embedder;
+    }
+
+    protected IStatus run( IProgressMonitor monitor ) {
+      callbackResult = this.callback.doInEmbedder(this.embedder, monitor);
+      return Status.OK_STATUS;
+    }
+    
+    public Object getCallbackResult() {
+      return this.callbackResult;
+    }
+  }
+
+
   private static class IndexerJob extends Job {
     private String repositoryName;
     private String repositoryDir;
