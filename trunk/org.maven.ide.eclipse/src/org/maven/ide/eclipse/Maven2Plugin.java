@@ -175,7 +175,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     catch( MavenEmbedderException e ) {
       log( "Error starting MavenEmbedder", e);
     }
-    if (embedder != null) {
+    if (embedder != null && !REUSE_EMBEDDER) {
       try {
         embedder.stop();
       }
