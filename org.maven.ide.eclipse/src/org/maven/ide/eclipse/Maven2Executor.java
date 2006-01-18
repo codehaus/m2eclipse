@@ -88,9 +88,10 @@ public class Maven2Executor implements Maven2LaunchConstants {
     if(s!=null && s.trim().length()>0) {
       embedder.setLocalRepositoryDirectory(new File(s));
     }
-    File f = new File("C:\\Documents and Settings\\maxim\\.m2\\repository");
-    boolean yes = f.exists();
-    embedder.setLocalRepositoryDirectory(f);
+    // TODO what is that?
+//    File f = new File("C:\\Documents and Settings\\maxim\\.m2\\repository");
+//    boolean yes = f.exists();
+//    embedder.setLocalRepositoryDirectory(f);
     
     s = System.getProperty(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY);
     if(s!=null && s.trim().length()>0) {
@@ -101,12 +102,8 @@ public class Maven2Executor implements Maven2LaunchConstants {
         Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION)).booleanValue());
     embedder.setOffline(
         Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_OFFLINE)).booleanValue());
-    embedder.setPluginUpdateOverride(
-        Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_PLUGIN_UPDATE_OVERRIDE)).booleanValue());
     embedder.setUpdateSnapshots(
         Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS)).booleanValue());
-    embedder.setUsePluginRegistry(
-        Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_USE_PLUGIN_REGISTRY)).booleanValue());
   }
   
 }

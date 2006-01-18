@@ -174,14 +174,8 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
     b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
     sb.append(D).append(Maven2PreferenceConstants.P_OFFLINE).append("=").append(b);
 
-    b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_PLUGIN_UPDATE_OVERRIDE);
-    sb.append(D).append(Maven2PreferenceConstants.P_PLUGIN_UPDATE_OVERRIDE).append("=").append(b);
-
     b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS);
     sb.append(D).append(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS).append("=").append(b);
-
-    b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_USE_PLUGIN_REGISTRY);
-    sb.append(D).append(Maven2PreferenceConstants.P_USE_PLUGIN_REGISTRY).append("=").append(b);
 
     b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
     sb.append(D).append(Maven2PreferenceConstants.P_DEBUG_OUTPUT).append("=").append(b);

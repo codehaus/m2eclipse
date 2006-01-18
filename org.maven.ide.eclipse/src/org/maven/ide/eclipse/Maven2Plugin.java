@@ -290,9 +290,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
  
     embedder.setCheckLatestPluginVersion(store.getBoolean( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION));
     embedder.setOffline(store.getBoolean( Maven2PreferenceConstants.P_OFFLINE));
-    embedder.setPluginUpdateOverride(store.getBoolean( Maven2PreferenceConstants.P_PLUGIN_UPDATE_OVERRIDE));
     embedder.setUpdateSnapshots(store.getBoolean( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS));
-    embedder.setUsePluginRegistry(store.getBoolean( Maven2PreferenceConstants.P_USE_PLUGIN_REGISTRY));
 
     embedder.start();
     
