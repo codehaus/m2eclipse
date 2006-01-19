@@ -21,6 +21,7 @@ import java.util.zip.ZipInputStream;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
+import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.resolver.ArtifactNotFoundException;
 import org.apache.maven.artifact.resolver.ArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
@@ -44,6 +45,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
@@ -102,29 +104,32 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   /**
    * This method is called upon plug-in activation
    */
-  public void start( BundleContext context) throws Exception {
+  public void start( final BundleContext context) throws Exception {
     super.start( context);
-    
+
     try {
       this.console = new Maven2Console();
       
     } catch (RuntimeException ex) {
       log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to start console: "+ex.toString(), ex));
     }
+    
+    executeInEmbedder(new MavenEmbedderCallback() {
+        public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+          ArtifactRepository localRepository = mavenEmbedder.getLocalRepository();
+          String baseDir = localRepository.getBasedir();
+          
+          IndexerJob indexerJob = new IndexerJob("local", baseDir, getIndexDir(), indexes);
+          indexerJob.setPriority( Job.LONG );
+          indexerJob.schedule(1000L);
+          
+          return null;
+        }
+      });
 
-    String baseDir = (String) executeInEmbedder("Resoling Local Repository", new MavenEmbedderCallback() {
-      public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
-        return mavenEmbedder.getLocalRepository().getBasedir();
-      }
-    });
-    IndexerJob indexerJob = new IndexerJob("local", baseDir, getIndexDir(), indexes);
-    indexerJob.setPriority( Job.LONG );
-    indexerJob.schedule(1000L);
-      
     UnpackerJob unpackerJob = new UnpackerJob(context.getBundle(), getIndexDir(), indexes);
     unpackerJob.setPriority( Job.LONG );
     unpackerJob.schedule(2000L);
-    
   }
 
   /**
@@ -147,82 +152,46 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     return plugin;
   }
 
-  /**
-   * @return
-   */
-  private synchronized MavenEmbedder getMavenEmbedder() {
-    if( this.mavenEmbedder==null) {
-      try {
-        this.mavenEmbedder = createEmbedder();
-      } catch( MavenEmbedderException e) {
-        log( "Unable to start MavenEmbedder", e);
+  protected synchronized MavenEmbedder getMavenEmbedder() {
+    if(REUSE_EMBEDDER) {
+      if( this.mavenEmbedder==null) {
+          this.mavenEmbedder = createEmbedder();
       }
+      return this.mavenEmbedder;
+    } else {
+      return createEmbedder();
     }
-    return this.mavenEmbedder;
   }
 
   public void resetMavenEmbedder() {
     stopEmbedder();
   }
 
-  public Object executeInEmbedder(String name, MavenEmbedderCallback callback) {
-    MavenEmbedder embedder = null;
+  public Object executeInEmbedder(MavenEmbedderCallback template) {
     try {
-      embedder = REUSE_EMBEDDER ? getMavenEmbedder() : createEmbedder();
-      
-      EmbedderJob job = new EmbedderJob( name, callback, embedder );
+      return template.run(getMavenEmbedder(), new NullProgressMonitor());
+    } finally {
+      if(!REUSE_EMBEDDER) stopEmbedder();
+    }
+  }
+  
+  public Object executeInEmbedder(String name, MavenEmbedderCallback template) {
+    try {
+      EmbedderJob job = new EmbedderJob( name, template, getMavenEmbedder() );
       job.schedule();
       try {
         job.join();
         // TODO check job.getResult()
         return job.getCallbackResult();        
-      } 
-      catch( InterruptedException ex ) {
-        // TODO Auto-generated catch block
+      } catch( InterruptedException ex ) {
         getConsole().logError( "Interrupted "+ex.toString());
+        return null;
       }
-    } 
-    catch( MavenEmbedderException e ) {
-      getConsole().logError( "Error starting MavenEmbedder "+e.toString());
+    } finally {
+      if(!REUSE_EMBEDDER) stopEmbedder();
     }
-    if (embedder != null && !REUSE_EMBEDDER) {
-      try {
-        embedder.stop();
-      } 
-      catch( MavenEmbedderException e) {
-        getConsole().logError("Error stopping MavenEmbedder "+e.toString());
-      }
-    }
-    return null;
   }  
   
-  
-//  public MavenProject getMavenProject(final IFile file, final boolean withDependencies) {
-//    return (MavenProject)executeInEmbedder(new MavenEmbedderCallback() {
-//
-//      public Object doInEmbedder( MavenEmbedder mavenEmbedder ) {
-//        if( withDependencies ) {
-//          ProjectLoadingJob projectLoadingJob = new ProjectLoadingJob( "Reading project", file, mavenEmbedder );
-//          projectLoadingJob.schedule();
-//          try {
-//            projectLoadingJob.join();
-//          } 
-//          catch( InterruptedException ex ) {
-//            // ok
-//          }
-//          return projectLoadingJob.getMavenProject();
-//        } 
-//        else {
-//          try {
-//            return mavenEmbedder.readProject( file.getLocation().toFile() );
-//          } 
-//          catch( ProjectBuildingException e ) {
-//            return null;
-//          }
-//        }
-//      }
-//    });
-//  }
   
   /**
    * Returns an image descriptor for the image file at the given plug-in
@@ -267,7 +236,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   // TODO verify if index had been updated
 
   
-  private MavenEmbedder createEmbedder() throws MavenEmbedderException {
+  private MavenEmbedder createEmbedder() {
     IPreferenceStore store = this.getPreferenceStore();
 
     MavenEmbedder embedder = new MavenEmbedder();
@@ -280,7 +249,6 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     // ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
     embedder.setClassLoader( getClass().getClassLoader());  
     embedder.setInteractiveMode(false);
-    
     
     // File localRepositoryDirectory = mavenEmbedder.getLocalRepositoryDirectory();
     String localRepositoryDir = store.getString( Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR);
@@ -302,7 +270,11 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     embedder.setOffline(store.getBoolean( Maven2PreferenceConstants.P_OFFLINE));
     embedder.setUpdateSnapshots(store.getBoolean( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS));
 
-    embedder.start();
+    try {
+      embedder.start();
+    } catch( MavenEmbedderException ex ) {
+      log( "Unable to start MavenEmbedder", ex );
+    }
     
     return embedder;
   }
@@ -312,9 +284,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       try {
         mavenEmbedder.stop();
         mavenEmbedder = null;
-      } catch( MavenEmbedderException e) {
-        log( new Status( IStatus.ERROR, PLUGIN_ID, 0, 
-            "Unable to stop MavenEmbedder", e.getCause()));
+      } catch( MavenEmbedderException ex) {
+        log( "Unable to stop MavenEmbedder", ex);
       }
     }
   }
@@ -323,7 +294,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     // IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
 
     executeInEmbedder("Adding Dependency", new MavenEmbedderCallback() {
-        public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+        public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
           final File pom = file.getLocation().toFile();
           try {
             Model model = mavenEmbedder.readModel( pom);
@@ -370,7 +341,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
   }
 
-  public void resolveClasspathEntries(Set libraryentries, Set moduleArtifacts, final IFile pomFile, boolean recursive, final IProgressMonitor monitor) {
+  public void resolveClasspathEntries(Set libraryEntries, Set moduleArtifacts, 
+      IFile pomFile, boolean recursive, IProgressMonitor monitor) {
     Tracer.trace(this, "resolveClasspathEntries from pom:"+pomFile);
       
     if(monitor.isCanceled()) return;
@@ -395,7 +367,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         if(!moduleArtifacts.contains(a.getGroupId()+":"+a.getArtifactId()) &&
             // TODO verify if there is an Eclipse API to check that archive is acceptable
            ("jar".equals(a.getType()) || "zip".equals( a.getType() ))) {
-          libraryentries.add( JavaCore.newLibraryEntry( new Path( a.getFile().getAbsolutePath()), null, null));
+          libraryEntries.add( JavaCore.newLibraryEntry( new Path( a.getFile().getAbsolutePath()), null, null));
         }
       }
       
@@ -407,7 +379,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
           String module = ( String ) it.next();
           IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
           if(memberPom!=null && memberPom.getType() == IResource.FILE) {
-            resolveClasspathEntries(libraryentries, moduleArtifacts, (IFile)memberPom, true, monitor);
+            resolveClasspathEntries(libraryEntries, moduleArtifacts, (IFile)memberPom, true, monitor);
           }
         }    
       }
@@ -429,69 +401,73 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       
     if(monitor.isCanceled()) return;
   
-    monitor.beginTask( "Resolving entries", IProgressMonitor.UNKNOWN );
-    
-    executeInEmbedder("Updating Source folders", new MavenEmbedderCallback() {
-
-      public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
-        File f = pomFile.getLocation().toFile();
-        
-        TransferListener transferListener = new TransferListenerAdapter( monitor );
-        MavenProject mavenProject;
-        try {
-          String msg = "Reading "+pomFile.getFullPath();
-          monitor.subTask( msg);
-          getConsole().logMessage( msg);
-          mavenProject = mavenEmbedder.readProject(f);
-        } catch( Exception ex) {
-          String msg = "Unable to read project "+pomFile.getFullPath();
-          getConsole().logError(msg);
-          log( msg, ex);
-          return null;
-        }    
-
-        List goals = Arrays.asList( "generate-sources,generate-resources".split(","));
-        // TODO hook up console view
-        EventMonitor eventMonitor = new ConsoleEventMonitor();
-        Properties properties = new Properties();
+    MavenProject mavenProject = ( MavenProject ) executeInEmbedder("Reading Sources", new MavenEmbedderCallback() {
+        public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+          File f = pomFile.getLocation().toFile();
           
-        try {
-          String msg = "Generating sources for "+pomFile.getFullPath();
-          monitor.subTask( msg);
-          getConsole().logMessage( msg);
-          mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
-        } catch( Exception ex ) {
-          String msg = "Failed to run generate source goals "+pomFile.getFullPath();
-          getConsole().logError(msg);
-          log( msg, ex);
-        }
-        
-        File basedir = pomFile.getLocation().toFile().getParentFile();
-        File projectBaseDir = project.getLocation().toFile();
-        
-        extractSourceDirs(sourceEntries, project, mavenProject.getCompileSourceRoots(), basedir, projectBaseDir);
-        extractSourceDirs(sourceEntries, project, mavenProject.getTestCompileSourceRoots(), basedir, projectBaseDir);
-        
-        extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
-        extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getTestResources(), basedir, projectBaseDir);
-        
-        if(recursive) {
-          IContainer parent = pomFile.getParent();      
-          List modules = mavenProject.getModules();
-          for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
-            String module = ( String ) it.next();
-            IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
-            if(memberPom!=null) {
-              resolveSourceEntries(sourceEntries, project, memberPom, true, monitor);
-            }
+          TransferListener transferListener = new TransferListenerAdapter( monitor );
+          MavenProject mavenProject;
+          try {
+            String msg = "Reading "+pomFile.getFullPath();
+            monitor.beginTask( msg, IProgressMonitor.UNKNOWN);
+            getConsole().logMessage( msg);
+            mavenProject = mavenEmbedder.readProject(f);
+          } catch( Exception ex) {
+            String msg = "Unable to read project "+pomFile.getFullPath();
+            getConsole().logError(msg);
+            return null;
+          } finally {
+            monitor.done();
           }
+  
+          List goals = Arrays.asList( "generate-sources,generate-resources".split(","));
+          // TODO hook up console view
+          EventMonitor eventMonitor = new ConsoleEventMonitor();
+          Properties properties = new Properties();
+            
+          try {
+            String msg = "Generating sources for "+pomFile.getFullPath();
+            monitor.beginTask( msg, IProgressMonitor.UNKNOWN);
+            getConsole().logMessage( msg);
+            mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
+          } catch( Exception ex ) {
+            String msg = "Failed to run generate source goals "+pomFile.getFullPath();
+            getConsole().logError(msg);
+          } finally {
+            monitor.done();
+          }
+          
+          IContainer parent = pomFile.getParent();
+          try {
+            parent.refreshLocal( IResource.DEPTH_INFINITE, monitor );
+          } catch( CoreException ex ) {
+            log("Unable to refresh folder "+parent.getFullPath(), ex);
+          }
+          
+          File basedir = pomFile.getLocation().toFile().getParentFile();
+          File projectBaseDir = project.getLocation().toFile();
+          
+          extractSourceDirs(sourceEntries, project, mavenProject.getCompileSourceRoots(), basedir, projectBaseDir);
+          extractSourceDirs(sourceEntries, project, mavenProject.getTestCompileSourceRoots(), basedir, projectBaseDir);
+          
+          extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
+          extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getTestResources(), basedir, projectBaseDir);
+          
+          return mavenProject;
         }
-        return null;
-      }
-      
-    });
+      });
     
-    monitor.done();
+    if( mavenProject!=null && recursive) {
+      IContainer parent = pomFile.getParent();      
+      List modules = mavenProject.getModules();
+      for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
+        String module = ( String ) it.next();
+        IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
+        if(memberPom!=null) {
+          resolveSourceEntries(sourceEntries, project, memberPom, true, monitor);
+        }
+      }
+    }
   }
     
   void extractSourceDirs( List entries, IProject project, List sourceRoots, File basedir, File projectBaseDir ) {
@@ -552,38 +528,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   public URL getRootURL() {
     return getBundle().getEntry("/"); 
   }
-  
 
-/*  
-  private static final class ProjectLoadingJob extends Job {
-    private final IFile file;
-    private final MavenEmbedder embedder;
-    private MavenProject mavenProject;
-
-    private ProjectLoadingJob( String name, IFile file, MavenEmbedder embedder ) {
-      super( name );
-      this.file = file;
-      this.embedder = embedder;
-    }
-
-    protected IStatus run( IProgressMonitor monitor ) {
-      monitor.subTask( "Reading " + this.file.getFullPath() );
-      try {
-        TransferListenerAdapter listener = new TransferListenerAdapter( monitor );
-        this.mavenProject = embedder.readProjectWithDependencies( this.file.getLocation().toFile(), listener );
-      } catch( Exception ex ) {
-        // ignore
-      }
-      return Status.OK_STATUS;
-    }
-
-    public MavenProject getMavenProject() {
-      return mavenProject;
-    }
-
-  }
-*/
-  
   public boolean isTraceEnabled() {
     return TRACE_ENABLED;
   }
@@ -613,7 +558,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       this.file = file;
     }
 
-    public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+    public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
       monitor.beginTask( file.getLocation().toFile().toString(), IProgressMonitor.UNKNOWN );
       try {
         TransferListenerAdapter listener = new TransferListenerAdapter( monitor );
@@ -642,27 +587,28 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         String msg = ex.getOriginalMessage()+" "+name;
         Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
         Maven2Plugin.getDefault().getConsole().logError(msg);
+      } finally {
+        monitor.done();
       }
-      monitor.done();
       return null;
     }
   }
 
 
   private static final class EmbedderJob extends Job {
-    private final MavenEmbedderCallback callback;
+    private final MavenEmbedderCallback template;
     private final MavenEmbedder embedder;
 
     private Object callbackResult;
 
-    private EmbedderJob( String name, MavenEmbedderCallback callback, MavenEmbedder embedder ) {
+    private EmbedderJob( String name, MavenEmbedderCallback template, MavenEmbedder embedder ) {
       super( name );
-      this.callback = callback;
+      this.template = template;
       this.embedder = embedder;
     }
 
     protected IStatus run( IProgressMonitor monitor ) {
-      callbackResult = this.callback.doInEmbedder(this.embedder, monitor);
+      callbackResult = this.template.run(this.embedder, monitor);
       return Status.OK_STATUS;
     }
     

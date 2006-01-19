@@ -35,7 +35,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
         Maven2Plugin.log( ex );
       }
 
-      new Job( "Resolving Dependencies" ) {
+      new Job( "Initializing "+project.getProject().getName() ) {
         protected IStatus run( IProgressMonitor monitor ) {
           IFile pomFile = project.getProject().getFile( Maven2Plugin.POM_FILE_NAME );
 
