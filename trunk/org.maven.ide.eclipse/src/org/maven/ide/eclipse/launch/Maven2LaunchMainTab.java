@@ -195,8 +195,8 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
         final Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell(), Messages.getString("launch.goalsDialog.title"));  //$NON-NLS-1$
         dialog.setAllowMultiple(false);
         
-        Object res = Maven2Plugin.getDefault().executeInEmbedder("Launch Configuration", new MavenEmbedderCallback() {
-            public Object doInEmbedder( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+        Object res = Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
+            public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
               dialog.setInput(mavenEmbedder);
               return new Integer(dialog.open());
             }
