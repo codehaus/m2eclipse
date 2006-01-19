@@ -64,7 +64,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
 
 
     private UpdateSourcesJob( IProject project) {
-      super( "Updating Source Folders");
+      super( "Updating "+project.getName()+" Sources");
       this.project = project;
     }
 
@@ -106,6 +106,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         plugin.getConsole().logMessage( msg );
         Maven2Plugin.log( msg, ex);
       }
+      
       return Status.OK_STATUS;
     }
     

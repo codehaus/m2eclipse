@@ -31,7 +31,8 @@ public final class TransferListenerAdapter implements TransferListener {
 
   public void transferStarted( TransferEvent e) {
     Maven2Plugin.getDefault().getConsole().logMessage("Downloading "+e.getWagon().getRepository()+"/"+e.getResource().getName());
-    monitor.setTaskName("0% "+e.getWagon().getRepository()+"/"+e.getResource().getName());
+    // monitor.beginTask("0% "+e.getWagon().getRepository()+"/"+e.getResource().getName(), IProgressMonitor.UNKNOWN);
+    monitor.subTask("0% "+e.getWagon().getRepository()+"/"+e.getResource().getName());
   }
 
   public void transferProgress( TransferEvent e, byte[] buffer, int length) {
@@ -54,13 +55,14 @@ public final class TransferListenerAdapter implements TransferListener {
       }
     }
     
-    monitor.setTaskName((int) ( 100d * complete / total)+"% "+e.getWagon().getRepository()+"/"+e.getResource().getName());
+    monitor.subTask((int) ( 100d * complete / total)+"% "+e.getWagon().getRepository()+"/"+e.getResource().getName());
   }
 
   public void transferCompleted( TransferEvent e) {
     Maven2Plugin.getDefault().getConsole().logMessage("Downloaded "+e.getWagon().getRepository()+"/"+e.getResource().getName());
     
-    monitor.done();
+    // monitor.subTask("100% "+e.getWagon().getRepository()+"/"+e.getResource().getName());
+    monitor.subTask("");
 
     // updating local index
     String repository = e.getWagon().getRepository().getName();
@@ -79,7 +81,7 @@ public final class TransferListenerAdapter implements TransferListener {
 
   public void transferError( TransferEvent e) {
     Maven2Plugin.getDefault().getConsole().logMessage("Unable to download "+e.getWagon().getRepository()+"/"+e.getResource().getName()+": "+e.getException());
-    monitor.done();
+    monitor.subTask("error "+e.getWagon().getRepository()+"/"+e.getResource().getName());
   }
 
   public void debug( String message) {
