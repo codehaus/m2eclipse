@@ -293,7 +293,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   public void addDependency(final IFile file, final Dependency dependency) {
     // IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
 
-    executeInEmbedder("Adding Dependency", new MavenEmbedderCallback() {
+    executeInEmbedder(new MavenEmbedderCallback() {
         public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
           final File pom = file.getLocation().toFile();
           try {
@@ -401,11 +401,10 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       
     if(monitor.isCanceled()) return;
   
-    MavenProject mavenProject = ( MavenProject ) executeInEmbedder("Reading Sources", new MavenEmbedderCallback() {
+    MavenProject mavenProject = ( MavenProject ) executeInEmbedder("Reading Project", new MavenEmbedderCallback() {
         public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
           File f = pomFile.getLocation().toFile();
           
-          TransferListener transferListener = new TransferListenerAdapter( monitor );
           MavenProject mavenProject;
           try {
             String msg = "Reading "+pomFile.getFullPath();
@@ -427,11 +426,12 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
             
           try {
             String msg = "Generating sources for "+pomFile.getFullPath();
-            monitor.beginTask( msg, IProgressMonitor.UNKNOWN);
             getConsole().logMessage( msg);
+            monitor.beginTask( "", IProgressMonitor.UNKNOWN);
+            TransferListener transferListener = new TransferListenerAdapter( monitor );
             mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
           } catch( Exception ex ) {
-            String msg = "Failed to run generate source goals "+pomFile.getFullPath();
+            String msg = "Failed to run generate source goals "+pomFile.getFullPath()+" "+ex.getMessage();
             getConsole().logError(msg);
           } finally {
             monitor.done();
@@ -559,10 +559,12 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
 
     public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
-      monitor.beginTask( file.getLocation().toFile().toString(), IProgressMonitor.UNKNOWN );
+      monitor.beginTask( "", IProgressMonitor.UNKNOWN );
+      
       try {
         TransferListenerAdapter listener = new TransferListenerAdapter( monitor );
         return mavenEmbedder.readProjectWithDependencies(this.file.getLocation().toFile(), listener);
+        
       } catch( ProjectBuildingException ex ) {
         Throwable cause = ex.getCause();
         if( cause instanceof XmlPullParserException) {
@@ -590,6 +592,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       } finally {
         monitor.done();
       }
+      
       return null;
     }
   }
