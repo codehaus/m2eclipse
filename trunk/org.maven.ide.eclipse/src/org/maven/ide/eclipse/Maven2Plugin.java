@@ -22,6 +22,7 @@ import java.util.zip.ZipInputStream;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
 import org.apache.maven.artifact.repository.ArtifactRepository;
+import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
 import org.apache.maven.artifact.resolver.ArtifactNotFoundException;
 import org.apache.maven.artifact.resolver.ArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
@@ -89,7 +90,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
 
   private MavenEmbedder mavenEmbedder;
 
-  private List indexes = Collections.synchronizedList( new ArrayList() );  
+  protected List indexes = Collections.synchronizedList( new ArrayList() );  
 
   /** console */
   private Maven2Console console;
@@ -152,7 +153,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     return plugin;
   }
 
-  protected synchronized MavenEmbedder getMavenEmbedder() {
+  private synchronized MavenEmbedder getMavenEmbedder() {
     if(REUSE_EMBEDDER) {
       if( this.mavenEmbedder==null) {
           this.mavenEmbedder = createEmbedder();
@@ -350,7 +351,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     String msg = "Reading "+pomFile.getFullPath();
     getConsole().logMessage( msg);
     
-    MavenProject mavenProject = (MavenProject) executeInEmbedder("Reading Project", new ReadProjectTask( pomFile ));
+    final MavenProject mavenProject = (MavenProject) executeInEmbedder("Reading Project", new ReadProjectTask( pomFile ));
     if (mavenProject == null) {
       return;
     }
@@ -362,12 +363,31 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       
       Set artifacts = mavenProject.getArtifacts();
       for( Iterator it = artifacts.iterator(); it.hasNext();) {
-        Artifact a = ( Artifact) it.next();
+        final Artifact a = ( Artifact) it.next();
         // TODO use version?
         if(!moduleArtifacts.contains(a.getGroupId()+":"+a.getArtifactId()) &&
             // TODO verify if there is an Eclipse API to check that archive is acceptable
            ("jar".equals(a.getType()) || "zip".equals( a.getType() ))) {
-          libraryEntries.add( JavaCore.newLibraryEntry( new Path( a.getFile().getAbsolutePath()), null, null));
+          
+          // TODO add a lookup trough workspace projects
+          // TODO add preference to disable this  
+          Path srcPath = ( Path ) executeInEmbedder( new MavenEmbedderCallback() {
+                public Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor) {
+                    Artifact src = mavenEmbedder.createArtifactWithClassifier(a.getGroupId(), a.getArtifactId(), a.getVersion(), 
+                        "java-source", "sources");
+                    if (src != null) {
+                      try {
+                        mavenEmbedder.resolve(src, mavenProject.getRemoteArtifactRepositories(), mavenEmbedder.getLocalRepository());
+                        return new Path(src.getFile().getAbsolutePath());
+                      } catch( AbstractArtifactResolutionException ex ) {
+                        getConsole().logError( ex.getOriginalMessage() );
+                      }
+                    }
+                    return null;
+                }
+              }); 
+              
+          libraryEntries.add( JavaCore.newLibraryEntry( new Path( a.getFile().getAbsolutePath()), srcPath, null));
         }
       }
       
