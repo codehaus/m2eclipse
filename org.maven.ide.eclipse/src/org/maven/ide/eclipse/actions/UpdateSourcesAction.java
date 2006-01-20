@@ -91,7 +91,8 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         
         IClasspathEntry[] currentClasspath = javaProject.getRawClasspath();
         for( int i = 0; i < currentClasspath.length; i++ ) {
-          if( currentClasspath[i].getEntryKind()!=IClasspathEntry.CPE_SOURCE) {
+          // Delete all non container (e.g. JRE library) entries. See MNGECLIPSE-9 
+          if( currentClasspath[i].getEntryKind()==IClasspathEntry.CPE_CONTAINER ) {
             sourceEntries.add( currentClasspath[i]);
           }
         }
