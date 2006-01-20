@@ -31,7 +31,7 @@
            label="%m2.decorator.name"
            lightweight="true"
            location="TOP_LEFT"
-           state="false">
+           state="true">
        <description>
           %m2.decorator.description
        </description>
@@ -56,21 +56,17 @@
             <separator name="enable"/>
          </menu>
       </objectContribution>      
+
       <objectContribution
             adaptable="true"
             objectClass="org.eclipse.core.resources.IProject"
             id="org.maven.ide.eclipse.projectMenus">
          <visibility>
-            <and>
-               <objectState name="nature"
-                     value="org.eclipse.jdt.core.javanature">
-               </objectState>
-               <not>
-                  <objectState name="nature"
-                        value="org.maven.ide.eclipse.maven2Nature">
-                  </objectState>
-               </not>
-            </and>
+           <not>
+              <objectState name="nature"
+                    value="org.maven.ide.eclipse.maven2Nature">
+              </objectState>
+           </not>
          </visibility>
          <action
                class="org.maven.ide.eclipse.actions.ToggleNatureAction"
@@ -79,6 +75,7 @@
                menubarPath="maven2/enable">
          </action>
       </objectContribution>
+
       <objectContribution
             adaptable="true"
             objectClass="org.eclipse.core.resources.IProject"
