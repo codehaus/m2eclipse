@@ -69,7 +69,7 @@
            </not>
          </visibility>
          <action
-               class="org.maven.ide.eclipse.actions.ToggleNatureAction"
+               class="org.maven.ide.eclipse.actions.EnableNatureAction"
                id="org.maven.ide.eclipse.enableAction"
                label="%m2.popup.project.enable.label"
                menubarPath="maven2/enable">
@@ -110,7 +110,7 @@
                menubarPath="maven2/natureGroup"/>
          <action
                label="%m2.popup.project.disable.label"
-               class="org.maven.ide.eclipse.actions.ToggleNatureAction"
+               class="org.maven.ide.eclipse.actions.DisableNatureAction"
                menubarPath="maven2/enable"
                id="org.maven.ide.eclipse.disableAction">
          </action>
