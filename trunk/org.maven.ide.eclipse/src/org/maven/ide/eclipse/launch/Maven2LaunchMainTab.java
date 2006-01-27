@@ -60,6 +60,7 @@ import org.maven.ide.eclipse.util.Tracer;
  */
 public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implements Maven2LaunchConstants, ITraceable {
   private static final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/launcher")).booleanValue();
+  public static final String ID_EXTERNAL_TOOLS_LAUNCH_GROUP = "org.eclipse.ui.externaltools.launchGroup"; //$NON-NLS-1$
 
   protected Text fPomDirName;
   protected Text fGoals;

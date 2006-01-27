@@ -20,6 +20,7 @@ import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.IEditorPart;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.launch.Maven2LaunchConstants;
+import org.maven.ide.eclipse.launch.Maven2LaunchMainTab;
 import org.maven.ide.eclipse.util.ITraceable;
 import org.maven.ide.eclipse.util.Tracer;
 
@@ -64,8 +65,28 @@ public class ExecutePomAction implements ILaunchShortcut, Maven2LaunchConstants,
       return;
     }
     
-    Tracer.trace(this, "Launching configuration", launchConfiguration.getName());
-    DebugUITools.launch(launchConfiguration, ILaunchManager.RUN_MODE);
+    boolean openDialog = true;
+    try {
+      // if no goals specified
+      String goals = launchConfiguration.getAttribute(ATTR_GOALS, (String)null);
+      openDialog = (goals == null || goals.trim().length() == 0);
+    }
+    catch (CoreException e) {
+      Tracer.trace(this, "Error creating new launch configuration", "", e);
+      Maven2Plugin.log(e);
+    }
+    
+    if (openDialog) {
+      Tracer.trace(this, "Opening dialog for launch configuration", launchConfiguration.getName());
+      DebugUITools.saveBeforeLaunch();
+      DebugUITools.openLaunchConfigurationDialog(Maven2Plugin.getDefault().getWorkbench().getActiveWorkbenchWindow().getShell(), 
+          launchConfiguration, Maven2LaunchMainTab.ID_EXTERNAL_TOOLS_LAUNCH_GROUP, null);
+    }
+    else {
+      Tracer.trace(this, "Launching configuration", launchConfiguration.getName());
+      DebugUITools.launch(launchConfiguration, ILaunchManager.RUN_MODE);
+    }
+    
   }
 
   private ILaunchConfiguration getLaunchConfiguration(IPath basedir) {
@@ -106,8 +127,8 @@ public class ExecutePomAction implements ILaunchShortcut, Maven2LaunchConstants,
       workingCopy.setAttribute(ATTR_POM_DIR, basedir.toString());
       
       // set other defaults if needed
-      // Maven2LaunchMainTab maintab = new Maven2LaunchMainTab();
-      // maintab.setDefaults(workingCopy);
+      //Maven2LaunchMainTab maintab = new Maven2LaunchMainTab();
+      //maintab.setDefaults(workingCopy);
       // maintab.dispose();
       
       ILaunchConfiguration newConfiguration = workingCopy.doSave();
