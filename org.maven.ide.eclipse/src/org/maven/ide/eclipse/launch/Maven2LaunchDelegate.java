@@ -33,8 +33,6 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
   private static final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/launcher")).booleanValue();
   
   private static final String MAVEN_EXECUTOR_CLASS = "org.maven.ide.eclipse.Maven2Executor";
-  private static final String D = " -D";
-
   private static final String[] CLASSPATH_ENTRY = {
     "lib/maven-embedder-2.0.2-dep.jar",
     "bin",
@@ -144,7 +142,7 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
       if (v.indexOf(' ') >= 0) {
         v = '"'+v+'"';
       }
-      sb.append(D).append(n).append("=").append(v);
+      sb.append(" -D").append(n).append("=").append(v);
     }
     
     return sb.toString();
@@ -160,25 +158,25 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
     
     String s = preferenceStore.getString(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR);
     if (s != null && s.trim().length() > 0) {
-      sb.append(D).append(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR).append("=").append(s);
+      sb.append(" -D").append(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR).append("=\"").append(s).append('\"');
     }
     
     s = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY);
     if (s != null && s.trim().length() > 0) {
-      sb.append(D).append(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY).append("=").append(s);
+      sb.append(" -D").append(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY).append("=").append(s);
     }
      
     boolean b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION);
-    sb.append(D).append(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION).append("=").append(b);
+    sb.append(" -D").append(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION).append("=").append(b);
         
     b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
-    sb.append(D).append(Maven2PreferenceConstants.P_OFFLINE).append("=").append(b);
+    sb.append(" -D").append(Maven2PreferenceConstants.P_OFFLINE).append("=").append(b);
 
     b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS);
-    sb.append(D).append(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS).append("=").append(b);
+    sb.append(" -D").append(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS).append("=").append(b);
 
     b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
-    sb.append(D).append(Maven2PreferenceConstants.P_DEBUG_OUTPUT).append("=").append(b);
+    sb.append(" -D").append(Maven2PreferenceConstants.P_DEBUG_OUTPUT).append("=").append(b);
     
     return sb.toString();
   }
