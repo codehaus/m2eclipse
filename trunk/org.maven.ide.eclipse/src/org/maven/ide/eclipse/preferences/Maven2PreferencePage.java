@@ -50,6 +50,10 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
         .getString( "preferences.updateSnapshots" ), //$NON-NLS-1$
         getFieldEditorParent() ) );
 
+    addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES, Messages
+        .getString( "preferences.downloadSources" ), //$NON-NLS-1$
+        getFieldEditorParent() ) );
+
     /*
      * public static final String CHECKSUM_POLICY_FAIL = "fail"; public static
      * final String CHECKSUM_POLICY_WARN = "warn"; public static final String

@@ -26,5 +26,8 @@ public class Maven2PreferenceConstants {
   /** boolean */
   public static final String P_DEBUG_OUTPUT = PREFIX+"debugOutput";
 
+  /** boolean */
+  public static final String P_DOWNLOAD_SOURCES = PREFIX+"downloadSources";
+
 }
 
