@@ -23,8 +23,6 @@ import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
-import org.apache.maven.artifact.resolver.ArtifactNotFoundException;
-import org.apache.maven.artifact.resolver.ArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
 import org.apache.maven.embedder.MavenEmbedderLogger;
@@ -390,7 +388,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
                           mavenEmbedder.resolve(src, mavenProject.getRemoteArtifactRepositories(), mavenEmbedder.getLocalRepository());
                           return new Path(src.getFile().getAbsolutePath());
                         } catch( AbstractArtifactResolutionException ex ) {
-                          getConsole().logError( ex.getOriginalMessage() );
+                          String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
+                          getConsole().logError( ex.getOriginalMessage()+" "+name );
                         }
                       }
                       return null;
@@ -608,14 +607,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
           Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
           Maven2Plugin.getDefault().getConsole().logError( msg);
         }
-      } catch( ArtifactResolutionException ex ) {
+      } catch( AbstractArtifactResolutionException ex ) {
         // log( "Artifact resolution error " + ex.getMessage(), ex);
         // addMarker(pomFile, Messages.getString("plugin.markerArtifactResolutionError") + ex.getMessage(), -1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-        String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
-        String msg = ex.getOriginalMessage()+" "+name;
-        Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-        Maven2Plugin.getDefault().getConsole().logError(msg);
-      } catch( ArtifactNotFoundException ex ) {
         String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
         String msg = ex.getOriginalMessage()+" "+name;
         Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
