@@ -361,6 +361,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       // TODO use version?
       moduleArtifacts.add( mavenProject.getGroupId()+":"+mavenProject.getArtifactId() );
       
+      boolean downloadSources = this.getPreferenceStore().getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES );
+      
       Set artifacts = mavenProject.getArtifacts();
       for( Iterator it = artifacts.iterator(); it.hasNext();) {
         final Artifact a = ( Artifact) it.next();
@@ -368,26 +370,35 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         if(!moduleArtifacts.contains(a.getGroupId()+":"+a.getArtifactId()) &&
             // TODO verify if there is an Eclipse API to check that archive is acceptable
            ("jar".equals(a.getType()) || "zip".equals( a.getType() ))) {
+          String artifactLocation = a.getFile().getAbsolutePath();
           
-          // TODO add a lookup trough workspace projects
-          // TODO add preference to disable this  
-          Path srcPath = ( Path ) executeInEmbedder( new MavenEmbedderCallback() {
-                public Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor) {
-                    Artifact src = mavenEmbedder.createArtifactWithClassifier(a.getGroupId(), a.getArtifactId(), a.getVersion(), 
-                        "java-source", "sources");
-                    if (src != null) {
-                      try {
-                        mavenEmbedder.resolve(src, mavenProject.getRemoteArtifactRepositories(), mavenEmbedder.getLocalRepository());
-                        return new Path(src.getFile().getAbsolutePath());
-                      } catch( AbstractArtifactResolutionException ex ) {
-                        getConsole().logError( ex.getOriginalMessage() );
+          // TODO add a lookup through workspace projects
+          
+          Path srcPath = null;
+
+          File srcFile = new File(artifactLocation.substring( 0, artifactLocation.length()-4 )+"-sources.jar");
+          if(srcFile.exists()) {
+            // XXX ugly hack to do not download any sources
+            srcPath = new Path(srcFile.getAbsolutePath());
+          } else if (downloadSources) {
+            srcPath = ( Path ) executeInEmbedder( new MavenEmbedderCallback() {
+                  public Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor) {
+                      Artifact src = mavenEmbedder.createArtifactWithClassifier(a.getGroupId(), a.getArtifactId(), a.getVersion(), 
+                          "java-source", "sources");
+                      if (src != null) {
+                        try {
+                          mavenEmbedder.resolve(src, mavenProject.getRemoteArtifactRepositories(), mavenEmbedder.getLocalRepository());
+                          return new Path(src.getFile().getAbsolutePath());
+                        } catch( AbstractArtifactResolutionException ex ) {
+                          getConsole().logError( ex.getOriginalMessage() );
+                        }
                       }
-                    }
-                    return null;
-                }
-              }); 
+                      return null;
+                  }
+                }); 
+          }
               
-          libraryEntries.add( JavaCore.newLibraryEntry( new Path( a.getFile().getAbsolutePath()), srcPath, null));
+          libraryEntries.add( JavaCore.newLibraryEntry( new Path(artifactLocation), srcPath, null));
         }
       }
       
