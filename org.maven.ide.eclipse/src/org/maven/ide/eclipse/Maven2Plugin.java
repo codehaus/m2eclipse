@@ -10,11 +10,9 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -28,20 +26,15 @@ import org.apache.maven.embedder.MavenEmbedderException;
 import org.apache.maven.embedder.MavenEmbedderLogger;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
-import org.apache.maven.model.Resource;
-import org.apache.maven.monitor.event.EventMonitor;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuildingException;
-import org.apache.maven.wagon.events.TransferListener;
 
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
@@ -426,120 +419,6 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   }
 
   
-  public void resolveSourceEntries(final List sourceEntries, final IProject project, final IResource pomFile, final boolean recursive, IProgressMonitor monitor) {
-    Tracer.trace(this, "resolveSourceEntries in project:"+project+" for pom:"+pomFile);
-      
-    if(monitor.isCanceled()) return;
-  
-    MavenProject mavenProject = ( MavenProject ) executeInEmbedder("Reading Project", new MavenEmbedderCallback() {
-        public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
-          File f = pomFile.getLocation().toFile();
-          
-          MavenProject mavenProject;
-          try {
-            String msg = "Reading "+pomFile.getFullPath();
-            monitor.beginTask( msg, IProgressMonitor.UNKNOWN);
-            getConsole().logMessage( msg);
-            mavenProject = mavenEmbedder.readProject(f);
-          } catch( Exception ex) {
-            String msg = "Unable to read project "+pomFile.getFullPath();
-            getConsole().logError(msg);
-            return null;
-          } finally {
-            monitor.done();
-          }
-  
-          List goals = Arrays.asList( "generate-sources,generate-resources".split(","));
-          // TODO hook up console view
-          EventMonitor eventMonitor = new ConsoleEventMonitor();
-          Properties properties = new Properties();
-            
-          try {
-            String msg = "Generating sources for "+pomFile.getFullPath();
-            getConsole().logMessage( msg);
-            monitor.beginTask( "", IProgressMonitor.UNKNOWN);
-            TransferListener transferListener = new TransferListenerAdapter( monitor );
-            mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
-          } catch( Exception ex ) {
-            String msg = "Failed to run generate source goals "+pomFile.getFullPath()+" "+ex.getMessage();
-            getConsole().logError(msg);
-          } finally {
-            monitor.done();
-          }
-          
-          IContainer parent = pomFile.getParent();
-          try {
-            parent.refreshLocal( IResource.DEPTH_INFINITE, monitor );
-          } catch( CoreException ex ) {
-            log("Unable to refresh folder "+parent.getFullPath(), ex);
-          }
-          
-          File basedir = pomFile.getLocation().toFile().getParentFile();
-          File projectBaseDir = project.getLocation().toFile();
-          
-          extractSourceDirs(sourceEntries, project, mavenProject.getCompileSourceRoots(), basedir, projectBaseDir);
-          extractSourceDirs(sourceEntries, project, mavenProject.getTestCompileSourceRoots(), basedir, projectBaseDir);
-          
-          extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
-          extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getTestResources(), basedir, projectBaseDir);
-          
-          return mavenProject;
-        }
-      });
-    
-    if( mavenProject!=null && recursive) {
-      IContainer parent = pomFile.getParent();      
-      List modules = mavenProject.getModules();
-      for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
-        String module = ( String ) it.next();
-        IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
-        if(memberPom!=null) {
-          resolveSourceEntries(sourceEntries, project, memberPom, true, monitor);
-        }
-      }
-    }
-  }
-    
-  void extractSourceDirs( List entries, IProject project, List sourceRoots, File basedir, File projectBaseDir ) {
-    for( Iterator it = sourceRoots.iterator(); it.hasNext(); ) {
-      String sourceRoot = ( String ) it.next();
-      if( new File( sourceRoot ).isDirectory() ) {
-        IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, sourceRoot ));
-        if(r!=null) {
-          entries.add( JavaCore.newSourceEntry( r.getFullPath() /*, new IPath[] { new Path( "**"+"/.svn/"+"**")} */) );
-          getConsole().logMessage( "Adding source folder " + r.getFullPath() );
-        }
-      }
-    }
-  }
-
-  void extractResourceDirs( List entries, IProject project, List resources, File basedir, File projectBaseDir ) {
-    for( Iterator it = resources.iterator(); it.hasNext(); ) {
-      Resource resource = ( Resource ) it.next();
-      File resourceDirectory = new File( resource.getDirectory() );
-      if( resourceDirectory.exists() && resourceDirectory.isDirectory() ) {
-        IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, resource.getDirectory() ));
-        if(r!=null) {
-          entries.add( JavaCore.newSourceEntry( r.getFullPath(), new IPath[] {}, r.getFullPath()));  //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
-          getConsole().logMessage( "Adding resource folder " + r.getFullPath() );
-        }
-      }
-    }
-  }
-
-  private String toRelativeAndFixSeparator( File basedir, String absolutePath ) {
-    String relative;
-    if( absolutePath.equals( basedir.getAbsolutePath() ) ) {
-      relative = ".";
-    } else if( absolutePath.startsWith( basedir.getAbsolutePath() ) ) {
-      relative = absolutePath.substring( basedir.getAbsolutePath().length() + 1 );
-    } else {
-      relative = absolutePath;
-    }
-    return relative.replace( '\\', '/' ); //$NON-NLS-1$ //$NON-NLS-2$
-  }
-
-
   /**
    * Substitute any variable
    */
@@ -596,29 +475,40 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         return mavenEmbedder.readProjectWithDependencies(this.file.getLocation().toFile(), listener);
         
       } catch( ProjectBuildingException ex ) {
-        Throwable cause = ex.getCause();
-        if( cause instanceof XmlPullParserException) {
-          XmlPullParserException pex = ( XmlPullParserException ) cause;
-          String msg = Messages.getString("plugin.markerParsingError") + pex.getMessage();
-          Maven2Plugin.getDefault().addMarker(this.file, msg, pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-          Maven2Plugin.getDefault().getConsole().logError( msg +" at line "+ pex.getLineNumber());
-        } else {
-          String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
-          Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-          Maven2Plugin.getDefault().getConsole().logError( msg);
-        }
+        handleProjectBuildingException( ex );
+        return null;
+      
       } catch( AbstractArtifactResolutionException ex ) {
-        // log( "Artifact resolution error " + ex.getMessage(), ex);
-        // addMarker(pomFile, Messages.getString("plugin.markerArtifactResolutionError") + ex.getMessage(), -1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
         String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
         String msg = ex.getOriginalMessage()+" "+name;
         Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
         Maven2Plugin.getDefault().getConsole().logError(msg);
+        
+        try {
+          return mavenEmbedder.readProject( this.file.getLocation().toFile() );
+        } catch( ProjectBuildingException ex2 ) {
+          handleProjectBuildingException( ex2 );
+        }
+
+        return null;
+        
       } finally {
         monitor.done();
       }
-      
-      return null;
+    }
+
+    private void handleProjectBuildingException( ProjectBuildingException ex ) {
+      Throwable cause = ex.getCause();
+      if( cause instanceof XmlPullParserException) {
+        XmlPullParserException pex = ( XmlPullParserException ) cause;
+        String msg = Messages.getString("plugin.markerParsingError") + pex.getMessage();
+        Maven2Plugin.getDefault().addMarker(this.file, msg, pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+        Maven2Plugin.getDefault().getConsole().logError( msg +" at line "+ pex.getLineNumber());
+      } else {
+        String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
+        Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+        Maven2Plugin.getDefault().getConsole().logError( msg);
+      }
     }
   }
 
