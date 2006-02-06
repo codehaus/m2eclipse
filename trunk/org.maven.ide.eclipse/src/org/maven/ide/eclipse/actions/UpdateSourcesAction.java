@@ -32,6 +32,7 @@ import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.IClasspathEntry;
@@ -193,7 +194,11 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
           IVMInstall install = installs[j];
           String version = getJREVersion(install);
           if(!jreContainers.containsKey( version )) {
-            jreContainers.put(version, JavaCore.newContainerEntry( JavaRuntime.newJREContainerPath( install ) ));
+            // in Eclipse 3.2 one could use JavaRuntime.newJREContainerPath(install)
+            IPath jreContainerPath = new Path(JavaRuntime.JRE_CONTAINER)            
+                .append(install.getVMInstallType().getId())
+                .append(install.getName());            
+            jreContainers.put(version, JavaCore.newContainerEntry( jreContainerPath ));
           }
         }
       }
