@@ -28,11 +28,11 @@ public class Maven2PreferenceInitializer extends AbstractPreferenceInitializer {
     store.setDefault( Maven2PreferenceConstants.P_DEBUG_OUTPUT, false);
     
     store.setDefault( Maven2PreferenceConstants.P_OFFLINE, false);
-    store.setDefault( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS, true);
+    store.setDefault( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS, false);
     store.setDefault( Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY, ArtifactRepositoryPolicy.CHECKSUM_POLICY_WARN);
     
     store.setDefault( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION, false);
-    store.setDefault( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES, true);
+    store.setDefault( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES, false);
   }
 
 }

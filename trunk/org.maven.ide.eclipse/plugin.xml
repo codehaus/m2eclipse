@@ -306,11 +306,13 @@
    </extension>
    
    <!-- pom editor -->
+   <!--
    <extension 
    		point="org.eclipse.ui.editors">
       <editor name="%m2.editor.pom.name" icon="icons/m2.gif" filenames="pom.xml" extensions="xml" class="org.maven.ide.eclipse.editors.pom.Maven2PomEditor" 
       	contributorClass="org.maven.ide.eclipse.editors.pom.Maven2PomEditorContributor" id="org.maven.ide.eclipse.editors.pom.Maven2PomEditor"/>
    </extension>
+   -->
    
 </plugin>
 
