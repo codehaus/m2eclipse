@@ -27,13 +27,14 @@ import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
@@ -87,9 +88,12 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
   }
 
   
-  private static final class UpdateSourcesJob extends Job {
+  private static final class UpdateSourcesJob extends Job implements MavenEmbedderCallback {
     private final IProject project;
 
+    private Set sources = new HashSet();
+    private List sourceEntries = new ArrayList(); 
+    private Map options = new HashMap();
 
     private UpdateSourcesJob( IProject project) {
       super( "Updating "+project.getName()+" Sources");
@@ -97,25 +101,20 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
     }
 
     protected IStatus run( IProgressMonitor monitor ) {
-      IFile pom = project.getFile( Maven2Plugin.POM_FILE_NAME);
+      IFile pom = project.getFile(Maven2Plugin.POM_FILE_NAME);
       if( !pom.exists()) {
         return Status.OK_STATUS;
       }
       
-      Maven2Plugin plugin = Maven2Plugin.getDefault();
-      try {        
-        List sourceEntries = new ArrayList(); 
-        Map options = new HashMap();
-        resolveSourceEntries(sourceEntries, options, project, pom, true, monitor);
+      monitor.beginTask( "Updating sources "+project.getName(), IProgressMonitor.UNKNOWN );
+      try {
+        Maven2Plugin.getDefault().executeInEmbedder(this, monitor);
         
-        Set sources = new HashSet();
-        for( Iterator it = sourceEntries.listIterator(); it.hasNext(); ) {
-          IClasspathEntry entry = ( IClasspathEntry ) it.next();
-          if(!sources.add( entry.getPath().toString()) ) {
-              it.remove();
-          }
-        }
+        // TODO optimize project refresh
+        monitor.subTask( "Refreshing" );
+        project.refreshLocal( IResource.DEPTH_INFINITE, new SubProgressMonitor( monitor, 1) );
         
+        monitor.subTask( "Configuring Build Path" );
         IJavaProject javaProject = JavaCore.create(project);
         
         setOption( javaProject, options, JavaCore.COMPILER_COMPLIANCE );
@@ -143,12 +142,14 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         IClasspathEntry[] entries = ( IClasspathEntry[] ) sourceEntries.toArray( new IClasspathEntry[ sourceEntries.size()]);
         javaProject.setRawClasspath(entries, monitor);
         
-        plugin.getConsole().logMessage("Updated source folders for project "+project.getName());
+        Maven2Plugin.getDefault().getConsole().logMessage("Updated source folders for project "+project.getName());
 
       } catch( Exception ex ) {
-        String msg = "Unable to update project source folders "+ex.toString();
-        plugin.getConsole().logMessage( msg );
-        Maven2Plugin.log( msg, ex);
+        String msg = "Unable to update source folders "+project.getName()+"; " +ex.toString();
+        Maven2Plugin.getDefault().getConsole().logMessage( msg );
+        // Maven2Plugin.log( msg, ex);
+      } finally {
+        monitor.done();
       }
       
       return Status.OK_STATUS;
@@ -227,97 +228,85 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
       return null;
     }
     
-    
-    public void resolveSourceEntries(final List sourceEntries, final Map options, final IProject project, final IResource pomFile, final boolean recursive, IProgressMonitor monitor) {
-      // Tracer.trace(this, "resolveSourceEntries in project:"+project+" for pom:"+pomFile);
-        
-      if(monitor.isCanceled()) return;
-    
-      final Maven2Plugin plugin = Maven2Plugin.getDefault();
-      
-      MavenProject mavenProject = ( MavenProject ) plugin.executeInEmbedder("Reading Project", new MavenEmbedderCallback() {
-          public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
-            File f = pomFile.getLocation().toFile();
-            
-            MavenProject mavenProject;
-            try {
-              String msg = "Reading "+pomFile.getFullPath();
-              monitor.beginTask( msg, IProgressMonitor.UNKNOWN);
-              plugin.getConsole().logMessage( msg);
-              mavenProject = mavenEmbedder.readProject(f);
-            } catch( Exception ex) {
-              String msg = "Unable to read project "+pomFile.getFullPath();
-              plugin.getConsole().logError(msg);
-              return null;
-            } finally {
-              monitor.done();
-            }
-    
-            String source = getBuildOption( mavenProject, "maven-compiler-plugin", "source" );
-            if(source!=null) {
-              plugin.getConsole().logMessage( "Setting source compatibility: "+source );
-              setVersion( options, JavaCore.COMPILER_SOURCE, source);
-              setVersion( options, JavaCore.COMPILER_COMPLIANCE, source );
-            }
-            
-            String target = getBuildOption( mavenProject, "maven-compiler-plugin", "target" );
-            if(target!=null) {
-              plugin.getConsole().logMessage( "Setting target compatibility: "+source );
-              setVersion( options, JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, target );
-            }
-            
-            List goals = Arrays.asList( "generate-sources,generate-resources".split(","));
-            // TODO hook up console view
-            EventMonitor eventMonitor = new PluginConsoleEventMonitor();
-            Properties properties = new Properties();
-              
-            try {
-              String msg = "Generating sources for "+pomFile.getFullPath();
-              plugin.getConsole().logMessage( msg);
-              monitor.beginTask( "", IProgressMonitor.UNKNOWN);
-              TransferListener transferListener = new TransferListenerAdapter( monitor );
-              mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
-            } catch( Exception ex ) {
-              String msg = "Failed to run generate source goals "+pomFile.getFullPath()+" "+ex.getMessage();
-              plugin.getConsole().logError(msg);
-            } finally {
-              monitor.done();
-            }
-            
-            IContainer parent = pomFile.getParent();
-            try {
-              parent.refreshLocal( IResource.DEPTH_INFINITE, monitor );
-            } catch( CoreException ex ) {
-              plugin.getConsole().logError("Unable to refresh folder "+parent.getFullPath()+"; "+ex.getMessage());
-            }
-            
-            File basedir = pomFile.getLocation().toFile().getParentFile();
-            File projectBaseDir = project.getLocation().toFile();
-            
-            extractSourceDirs(sourceEntries, project, mavenProject.getCompileSourceRoots(), basedir, projectBaseDir);
-            extractSourceDirs(sourceEntries, project, mavenProject.getTestCompileSourceRoots(), basedir, projectBaseDir);
-            
-            extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
-            extractResourceDirs(sourceEntries, project, mavenProject.getBuild().getTestResources(), basedir, projectBaseDir);
-            
-            return mavenProject;
-          }
+    /**
+     * @see MavenEmbedderCallback#run(MavenEmbedder, IProgressMonitor)
+     */
+    public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+      resolve( project.getFile(Maven2Plugin.POM_FILE_NAME), mavenEmbedder, monitor );
+      return null;
+    }
 
-        });
+    private void resolve( IResource pomFile, MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+      if(monitor.isCanceled()) {
+        throw new OperationCanceledException();
+      }
+
+      Maven2Plugin plugin = Maven2Plugin.getDefault();
+
+      String msg = "Reading "+pomFile.getFullPath();
+      plugin.getConsole().logMessage( msg);
       
-      if( mavenProject!=null && recursive) {
-        IContainer parent = pomFile.getParent();      
-        List modules = mavenProject.getModules();
-        for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
-          String module = ( String ) it.next();
-          IResource memberPom = parent.findMember( module+"/"+Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
-          if(memberPom!=null) {
-            resolveSourceEntries(sourceEntries, options, project, memberPom, true, monitor);
-          }
+      monitor.subTask( "Reading "+pomFile.getFullPath() );
+      File f = pomFile.getLocation().toFile();
+
+      MavenProject mavenProject;
+      try {
+        mavenProject = mavenEmbedder.readProject(f);
+      } catch( Exception ex) {
+        plugin.getConsole().logError("Unable to read project "+pomFile.getFullPath()+"; "+ex.toString());
+        return;
+      }
+
+      String source = getBuildOption( mavenProject, "maven-compiler-plugin", "source" );
+      if(source!=null) {
+        plugin.getConsole().logMessage( "Setting source compatibility: "+source );
+        setVersion( options, JavaCore.COMPILER_SOURCE, source);
+        setVersion( options, JavaCore.COMPILER_COMPLIANCE, source );
+      }
+      
+      String target = getBuildOption( mavenProject, "maven-compiler-plugin", "target" );
+      if(target!=null) {
+        plugin.getConsole().logMessage( "Setting target compatibility: "+source );
+        setVersion( options, JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, target );
+      }
+      
+      monitor.subTask( "Generating Sources "+pomFile.getFullPath() );
+      List goals = Arrays.asList( "generate-sources,generate-resources".split(","));
+      // TODO hook up console view
+      EventMonitor eventMonitor = new PluginConsoleEventMonitor();
+      Properties properties = new Properties();                
+      try {
+        plugin.getConsole().logMessage("Generating sources "+pomFile.getFullPath());
+        TransferListener transferListener = new TransferListenerAdapter( monitor );
+        mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
+      } catch( Exception ex ) {
+        plugin.getConsole().logError("Failed to run generate source goals "+pomFile.getFullPath()+" "+ex.getMessage());
+      }
+      
+      File basedir = pomFile.getLocation().toFile().getParentFile();
+      File projectBaseDir = project.getLocation().toFile();
+      
+      extractSourceDirs(project, mavenProject.getCompileSourceRoots(), basedir, projectBaseDir);
+      extractSourceDirs(project, mavenProject.getTestCompileSourceRoots(), basedir, projectBaseDir);
+      
+      extractResourceDirs(project, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
+      extractResourceDirs(project, mavenProject.getBuild().getTestResources(), basedir, projectBaseDir);
+      
+      IContainer parent = pomFile.getParent();      
+      List modules = mavenProject.getModules();
+      for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
+        if(monitor.isCanceled()) {
+          throw new OperationCanceledException();
+        }
+        String module = ( String ) it.next();
+        IResource memberPom = parent.findMember( module+"/"+Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
+        if(memberPom!=null) {
+          resolve(memberPom, mavenEmbedder, monitor);
         }
       }
     }
-      
+    
+    
     public static final List VERSIONS = Arrays.asList( "1.1,1.2,1.3,1.4,1.5,1.6,1.7".split( "," ) ); 
     
     static void setVersion( Map options, String name, String value ) {
@@ -336,27 +325,27 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
       }
     }
 
-    void extractSourceDirs( List entries, IProject project, List sourceRoots, File basedir, File projectBaseDir ) {
+    void extractSourceDirs( IProject project, List sourceRoots, File basedir, File projectBaseDir ) {
       for( Iterator it = sourceRoots.iterator(); it.hasNext(); ) {
         String sourceRoot = ( String ) it.next();
         if( new File( sourceRoot ).isDirectory() ) {
           IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, sourceRoot ));
-          if(r!=null) {
-            entries.add( JavaCore.newSourceEntry( r.getFullPath() /*, new IPath[] { new Path( "**"+"/.svn/"+"**")} */) );
+          if(r!=null && sources.add( r.getFullPath().toString())) {
+            sourceEntries.add( JavaCore.newSourceEntry( r.getFullPath() /*, new IPath[] { new Path( "**"+"/.svn/"+"**")} */) );
             Maven2Plugin.getDefault().getConsole().logMessage( "Adding source folder " + r.getFullPath() );
           }
         }
       }
     }
 
-    void extractResourceDirs( List entries, IProject project, List resources, File basedir, File projectBaseDir ) {
+    void extractResourceDirs(IProject project, List resources, File basedir, File projectBaseDir ) {
       for( Iterator it = resources.iterator(); it.hasNext(); ) {
         Resource resource = ( Resource ) it.next();
         File resourceDirectory = new File( resource.getDirectory() );
         if( resourceDirectory.exists() && resourceDirectory.isDirectory() ) {
           IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, resource.getDirectory() ));
-          if(r!=null) {
-            entries.add( JavaCore.newSourceEntry( r.getFullPath(), new IPath[] {}, r.getFullPath()));  //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
+          if(r!=null && sources.add( r.getFullPath().toString())) {
+            sourceEntries.add( JavaCore.newSourceEntry( r.getFullPath(), new IPath[] {}, r.getFullPath()));  //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
             Maven2Plugin.getDefault().getConsole().logMessage( "Adding resource folder " + r.getFullPath() );
           }
         }

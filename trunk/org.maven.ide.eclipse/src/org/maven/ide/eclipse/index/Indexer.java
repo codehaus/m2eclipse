@@ -29,6 +29,7 @@ import org.apache.lucene.search.WildcardQuery;
 import org.apache.maven.model.Dependency;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.SubProgressMonitor;
 
 
 /**
@@ -173,36 +174,49 @@ public class Indexer {
   }
 
   public static void reindex( String indexPath, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
-    IndexWriter w = createIndexWriter( indexPath, true );
+    monitor.beginTask( "Reindex "+repositoryPath, 3 );
+    try {
+      IndexWriter w = createIndexWriter( indexPath, true );
+      
+      long l1 = System.currentTimeMillis();
+      processDir(new File( repositoryPath), w, repositoryPath, repositoryName, new SubProgressMonitor(monitor, 1) );
+      long l2 = System.currentTimeMillis();
+      // System.err.println( "Done. "+((l2-l1)/1000f));
     
-    long l1 = System.currentTimeMillis();
-    processDir(new File( repositoryPath), w, repositoryPath, repositoryName, monitor);
-    long l2 = System.currentTimeMillis();
-    // System.err.println( "Done. "+((l2-l1)/1000f));
-  
-    long l3 = System.currentTimeMillis();
-    // System.err.println( "Optimizing...");
-    w.optimize();
-    w.close();
-    long l4 = System.currentTimeMillis();
-    // System.err.println( "Done. "+((l4-l3)/1000f));
-    
-    // System.err.println( "Total classes: " + totalClasses);
-    // System.err.println( "Total jars:    " + totalFiles);
-    // System.err.println( "Total size:    " + ( totalSize / 1024 / 1024)+" Mb");
-    // System.err.println( "Speed:         " + ( totalSize / ((l2-l1) / 1000f)) + " b/sec");
-    monitor.subTask( "Completed." );
+      long l3 = System.currentTimeMillis();
+      // System.err.println( "Optimizing...");
+      w.optimize();
+      monitor.worked( 1 );
+      
+      w.close();
+      monitor.worked( 1 );
+      long l4 = System.currentTimeMillis();
+      // System.err.println( "Done. "+((l4-l3)/1000f));
+      
+      // System.err.println( "Total classes: " + totalClasses);
+      // System.err.println( "Total jars:    " + totalFiles);
+      // System.err.println( "Total size:    " + ( totalSize / 1024 / 1024)+" Mb");
+      // System.err.println( "Speed:         " + ( totalSize / ((l2-l1) / 1000f)) + " b/sec");
+    } finally {
+      monitor.done();
+    }
   }
 
   private static void processDir( File dir, IndexWriter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
     if(dir==null) return;
     if(monitor!=null && monitor.isCanceled()) return;
-    
+
     File[] files = dir.listFiles();
-    for( int i = 0; files!=null && i < files.length; i++) {
-      File f = files[ i];
-      if(f.isDirectory()) processDir(f, w, repositoryPath, repositoryName, monitor);
-      else processFile(f, w, repositoryPath, repositoryName, monitor);
+    monitor.beginTask( "Processing "+dir.getAbsolutePath(), files.length );
+    try {
+      monitor.subTask( dir.getAbsolutePath() );
+      for( int i = 0; files!=null && i < files.length; i++) {
+        File f = files[ i];
+        if(f.isDirectory()) processDir(f, w, repositoryPath, repositoryName, new SubProgressMonitor(monitor, 1) );
+        else processFile(f, w, repositoryPath, repositoryName, monitor);
+      }
+    } finally {
+      monitor.done();
     }
   }
 
@@ -227,7 +241,8 @@ public class Indexer {
 //      if(( totalFiles % 100)==0) {
 //        System.err.println( "Indexing "+totalFiles+" "+f.getParentFile().getAbsolutePath().substring( repositoryPath.length()));
 //      }
-      monitor.subTask( totalFiles+" "+f.getParentFile().getAbsolutePath().substring( repositoryPath.length()) );
+      // monitor.subTask( totalFiles+" "+f.getParentFile().getAbsolutePath().substring( repositoryPath.length()) );
+      monitor.worked( 1 );
     }
   }
 

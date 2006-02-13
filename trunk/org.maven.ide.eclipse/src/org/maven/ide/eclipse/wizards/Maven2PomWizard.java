@@ -19,6 +19,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -81,8 +82,10 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
 
     IRunnableWithProgress op = new IRunnableWithProgress() {
       public void run( IProgressMonitor monitor ) throws InvocationTargetException {
+        monitor.beginTask( "Creating POM", 1 );
         try {
           doFinish( projectName, model, monitor );
+          monitor.worked( 1 );
         } catch( CoreException e ) {
           throw new InvocationTargetException( e );
         } finally {
@@ -108,7 +111,7 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
 	 * file if missing or just replace its contents, and open
 	 * the editor on the newly created file.
 	 */
-	private void doFinish( String projectName, final Model model, IProgressMonitor monitor) throws CoreException {
+	void doFinish( String projectName, final Model model, IProgressMonitor monitor) throws CoreException {
 		// monitor.beginTask("Creating " + fileName, 2);
 		IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
 		IResource resource = root.findMember(new Path(projectName));
@@ -138,7 +141,7 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
           }
           return null;
         }
-      });
+      }, new NullProgressMonitor());
       
 
       file.create( new ByteArrayInputStream( w.toString().getBytes( "ASCII" ) ), true, null );

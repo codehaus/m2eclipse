@@ -16,6 +16,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -201,7 +202,7 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
               dialog.setInput(mavenEmbedder);
               return new Integer(dialog.open());
             }
-          });
+          }, new NullProgressMonitor());
         int rc = ((Integer) res).intValue();
         if (rc == IDialogConstants.OK_ID) {
             Object[] o = dialog.getResult();
