@@ -14,6 +14,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.ClasspathContainerInitializer;
 import org.eclipse.jdt.core.IClasspathContainer;
@@ -47,15 +48,17 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
         protected IStatus run( IProgressMonitor monitor ) {
           IFile pomFile = project.getProject().getFile( Maven2Plugin.POM_FILE_NAME );
 
+          monitor.beginTask( "Initializing", 2 );
+          
           HashSet entries = new HashSet();
           HashSet moduleArtifacts = new HashSet();
           Maven2Plugin.getDefault().resolveClasspathEntries( entries, moduleArtifacts, pomFile, true,
-              new NullProgressMonitor() );
+              new SubProgressMonitor(monitor, 1, 0) );
 
           Maven2ClasspathContainer container = new Maven2ClasspathContainer( entries );
           try {
             JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { project },
-                new IClasspathContainer[] { container }, new NullProgressMonitor() );
+                new IClasspathContainer[] { container }, new SubProgressMonitor(monitor, 1, 0) );
           } catch( JavaModelException ex ) {
             Maven2Plugin.log( ex );
           }

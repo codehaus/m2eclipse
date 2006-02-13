@@ -12,10 +12,8 @@ import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.resources.IResourceDeltaVisitor;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.IClasspathContainer;
-import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
@@ -50,22 +48,23 @@ public class Maven2Builder extends IncrementalProjectBuilder {
 
   private void updateClasspath( IProgressMonitor monitor, IProject project ) throws JavaModelException {
     IJavaProject javaProject = JavaCore.create( project );
-    IClasspathEntry[] classPaths = javaProject.getRawClasspath();
-    for( int i = 0; i < classPaths.length && !monitor.isCanceled(); i++ ) {
-      IClasspathEntry entry = classPaths[i];
-      IPath path = entry.getPath();
-      if( Maven2ClasspathContainer.isMaven2ClasspathContainer( path ) ) {
-        IFile pomFile = javaProject.getProject().getFile( Maven2Plugin.POM_FILE_NAME );
+    
+//    IClasspathEntry[] classPaths = javaProject.getRawClasspath();
+//    for( int i = 0; i < classPaths.length && !monitor.isCanceled(); i++ ) {
+//      IClasspathEntry entry = classPaths[i];
+//      if( Maven2ClasspathContainer.isMaven2ClasspathContainer( entry.getPath() ) ) {
 
-        Set entries = new HashSet();
-        Set moduleArtifacts = new HashSet();
-        Maven2Plugin.getDefault().resolveClasspathEntries( entries, moduleArtifacts, pomFile, true, monitor );
+    Set entries = new HashSet();
+    Set moduleArtifacts = new HashSet();
+    IFile pomFile = javaProject.getProject().getFile( Maven2Plugin.POM_FILE_NAME );
+    Maven2Plugin.getDefault().resolveClasspathEntries( entries, moduleArtifacts, pomFile, true, monitor );
 
-        Maven2ClasspathContainer container = new Maven2ClasspathContainer( entries );
-        JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { javaProject },
-            new IClasspathContainer[] { container }, monitor );
-      }
-    }
+    Maven2ClasspathContainer container = new Maven2ClasspathContainer( entries );
+    JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { javaProject },
+        new IClasspathContainer[] { container }, monitor );
+
+//      }
+//    }
   }
 
   private static final class Verifier implements IResourceDeltaVisitor {
