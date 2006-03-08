@@ -157,14 +157,54 @@
                <iterate>
                  <and>
                    <test property="org.eclipse.debug.ui.matchesPattern" value="pom.xml"/>
-				   <adapt type="org.eclipse.core.resources.IFile"/>
+                   <adapt type="org.eclipse.core.resources.IFile"/>
                  </and>
                </iterate>
              </with>
            </enablement>
   		 </contextualLaunch>
-    	</shortcut>
+     </shortcut>
+     <shortcut
+           class="org.maven.ide.eclipse.actions.ExecutePomActionWithDialog"
+           icon="icons/m2.gif"
+           id="org.maven.ide.eclipse.pomFileActionWithDialog"
+           label="%m2.popup.pomFileWithDialog.label"
+           modes="run">
+        <contextualLaunch>
+           <contextLabel
+                 label="%m2.popup.pomFileWithDialog.label"
+                 mode="run"/>
+           <enablement>
+              <with variable="selection">
+                 <count value="1"/>
+                 <iterate>
+                    <and>
+                       <test
+                             property="org.eclipse.debug.ui.matchesPattern"
+                             value="pom.xml"/>
+                       <adapt type="org.eclipse.core.resources.IFile"/>
+                    </and>
+                 </iterate>
+              </with>
+           </enablement>
+        </contextualLaunch>
+     </shortcut>
 	</extension>
+
+  <extension point="org.eclipse.ui.commands">
+    <command
+         name="%m2.shortcut.description.run"
+         description="%m2.shortcut.description.run"
+         categoryId="org.eclipse.debug.ui.category.run"
+         id="org.maven.ide.eclipse.pomFileAction.run">
+    </command>
+  </extension>	
+  <extension point="org.eclipse.ui.bindings">
+    <key sequence="M3+M2+X M"
+         contextId="org.eclipse.ui.globalScope"
+         commandId="org.maven.ide.eclipse.pomFileAction.run"
+         schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"/>
+  </extension>
 
    <!--
    <extension point="org.eclipse.ui.bindings">
@@ -304,6 +344,16 @@
          </enablement>
       </consolePageParticipant>
    </extension>
+   
+   <!--
+   <extension
+         point="org.eclipse.jdt.ui.quickAssistProcessors">
+      <quickAssistProcessor
+            class="org.maven.ide.eclipse.actions.Maven2DependencyResolver"
+            name="org.maven.ide.eclipse.actions.Maven2DependencyResolver"
+            id="org.maven.ide.eclipse.quickAssistProcessor"/>
+   </extension>
+   -->
    
    <!-- pom editor -->
    <!--
