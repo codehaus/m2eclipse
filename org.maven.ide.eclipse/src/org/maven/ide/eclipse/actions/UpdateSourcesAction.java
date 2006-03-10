@@ -271,7 +271,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
       }
       
       monitor.subTask( "Generating Sources "+pomFile.getFullPath() );
-      List goals = Arrays.asList( "generate-sources,generate-resources".split(","));
+      List goals = Arrays.asList( "generate-sources,generate-resources,generate-test-sources,generate-test-resources".split(","));
       // TODO hook up console view
       EventMonitor eventMonitor = new PluginConsoleEventMonitor();
       Properties properties = new Properties();                
