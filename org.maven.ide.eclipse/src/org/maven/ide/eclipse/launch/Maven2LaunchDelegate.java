@@ -166,18 +166,20 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
       sb.append(" -D").append(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY).append("=").append(s);
     }
      
-    boolean b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION);
-    sb.append(" -D").append(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION).append("=").append(b);
-        
-    b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
-    sb.append(" -D").append(Maven2PreferenceConstants.P_OFFLINE).append("=").append(b);
-
-    b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS);
-    sb.append(" -D").append(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS).append("=").append(b);
+    boolean b;
 
     b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
     sb.append(" -D").append(Maven2PreferenceConstants.P_DEBUG_OUTPUT).append("=").append(b);
     
+    b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
+    sb.append(" -D").append(Maven2PreferenceConstants.P_OFFLINE).append("=").append(b);
+    
+    // boolean b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION);
+    // sb.append(" -D").append(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION).append("=").append(b);
+        
+    // b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS);
+    // sb.append(" -D").append(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS).append("=").append(b);
+
     return sb.toString();
   }
 

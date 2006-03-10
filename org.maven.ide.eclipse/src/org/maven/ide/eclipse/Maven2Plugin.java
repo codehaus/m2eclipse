@@ -257,9 +257,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       embedder.setGlobalChecksumPolicy(globalChecksumPolicy);
     }
  
-    embedder.setCheckLatestPluginVersion(store.getBoolean( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION));
     embedder.setOffline(store.getBoolean( Maven2PreferenceConstants.P_OFFLINE));
-    embedder.setUpdateSnapshots(store.getBoolean( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS));
+//    embedder.setCheckLatestPluginVersion(store.getBoolean( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION));
+//    embedder.setUpdateSnapshots(store.getBoolean( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS));
 
     try {
       embedder.start();
@@ -281,12 +281,12 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
   }
 
-  public void addDependency(final IFile file, final Dependency dependency) {
+  public void addDependency(final IFile pomFile, final Dependency dependency) {
     // IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
 
     executeInEmbedder(new MavenEmbedderCallback() {
         public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
-          final File pom = file.getLocation().toFile();
+          final File pom = pomFile.getLocation().toFile();
           try {
             Model model = mavenEmbedder.readModel( pom);
             
@@ -296,8 +296,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
             StringWriter w = new StringWriter();
             mavenEmbedder.writeModel( w, model);
             
-            file.setContents( new ByteArrayInputStream( w.toString().getBytes( "ASCII")), true, true, null);
-            file.refreshLocal( IResource.DEPTH_ONE, null); // TODO ???
+            pomFile.setContents( new ByteArrayInputStream( w.toString().getBytes( "ASCII")), true, true, null);
+            pomFile.refreshLocal( IResource.DEPTH_ONE, null); // TODO ???
           } 
           catch (Exception ex) {
             log( "Unable to update POM: "+pom+"; "+ex.getMessage(), ex);
@@ -371,6 +371,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
             // TODO verify if there is an Eclipse API to check that archive is acceptable
            ("jar".equals(a.getType()) || "zip".equals( a.getType() ))) {
           String artifactLocation = a.getFile().getAbsolutePath();
+          
           
           // TODO add a lookup through workspace projects
           
