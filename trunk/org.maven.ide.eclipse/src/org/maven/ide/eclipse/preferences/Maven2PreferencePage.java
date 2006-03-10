@@ -35,23 +35,23 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
    * knows how to save and restore itself.
    */
   public void createFieldEditors() {
-    addField( new DirectoryFieldEditor( Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR, Messages
-        .getString( "preferences.localRepositoryFolder" ), //$NON-NLS-1$
+    addField( new DirectoryFieldEditor( Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR, 
+        Messages.getString( "preferences.localRepositoryFolder" ), //$NON-NLS-1$
         getFieldEditorParent() ) );
 
-    addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION, Messages
-        .getString( "preferences.checkLastPluginVersions" ), //$NON-NLS-1$
-        getFieldEditorParent() ) );
+    // addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION, 
+    //     Messages.getString( "preferences.checkLastPluginVersions" ), //$NON-NLS-1$
+    //     getFieldEditorParent() ) );
 
     addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_OFFLINE, Messages.getString( "preferences.offline" ), //$NON-NLS-1$
         getFieldEditorParent() ) );
 
-    addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS, Messages
-        .getString( "preferences.updateSnapshots" ), //$NON-NLS-1$
-        getFieldEditorParent() ) );
+    // addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS, 
+    //     Messages.getString( "preferences.updateSnapshots" ), //$NON-NLS-1$
+    //     getFieldEditorParent() ) );
 
-    addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES, Messages
-        .getString( "preferences.downloadSources" ), //$NON-NLS-1$
+    addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES, 
+        Messages.getString( "preferences.downloadSources" ), //$NON-NLS-1$
         getFieldEditorParent() ) );
 
     /*
@@ -72,8 +72,8 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     // "A &text preference:",
     // getFieldEditorParent()));
 
-    addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_DEBUG_OUTPUT, Messages
-        .getString( "preferences.debugOutput" ), //$NON-NLS-1$
+    addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_DEBUG_OUTPUT, 
+        Messages.getString( "preferences.debugOutput" ), //$NON-NLS-1$
         getFieldEditorParent() ) );
 
   }

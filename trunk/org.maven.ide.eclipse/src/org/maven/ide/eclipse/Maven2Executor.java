@@ -98,12 +98,12 @@ public class Maven2Executor implements Maven2LaunchConstants {
       embedder.setGlobalChecksumPolicy(s);
     }
  
-    embedder.setCheckLatestPluginVersion(
-        Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION)).booleanValue());
     embedder.setOffline(
         Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_OFFLINE)).booleanValue());
-    embedder.setUpdateSnapshots(
-        Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS)).booleanValue());
+//    embedder.setCheckLatestPluginVersion(
+//        Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION)).booleanValue());
+//    embedder.setUpdateSnapshots(
+//        Boolean.valueOf(System.getProperty(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS)).booleanValue());
   }
   
 }
