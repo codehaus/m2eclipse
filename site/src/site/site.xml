@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project name="Maven">
+  <bannerLeft>
+    <name>Mergere</name>
+    <src>http://www.mergere.com/_design/images/mergere_logo.gif</src>
+    <href>http://www.mergere.com</href>
+  </bannerLeft>
+  <bannerRight>
+    <name>Codehaus</name>
+    <src>http://www.codehaus.org/__unity__/images/logo.png</src>
+    <href>http://www.codehaus.org</href>
+  </bannerRight>
+  <publishDate format="dd MMM yyyy" />
+  <body>
+    <links>
+      <item name="Apache Maven" href="http://Maven.apache.org/"/>
+      <item name="Codehaus" href="http://www.codehaus.org/" />
+      <item name="Eclipse" href="http://www.eclipse.org/" />
+      <item name="Mergere" href="http://www.mergere.com" />
+    </links>
+
+    <menu name="Maven 2.x Plug-in for Eclipse">
+      <item name="About" href="/index.html" />
+    </menu>
+
+    ${reports}
+  </body>
+</project>
