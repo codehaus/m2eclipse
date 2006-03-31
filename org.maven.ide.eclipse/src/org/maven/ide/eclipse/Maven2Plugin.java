@@ -365,14 +365,11 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         final Artifact a = ( Artifact) it.next();
 
         monitor.subTask( "Processing " + a.getId() );
+        String artifactLocation = a.getFile().getAbsolutePath();
         
         // TODO use version?
         if(!moduleArtifacts.contains(a.getGroupId()+":"+a.getArtifactId()) &&
-            // TODO verify if there is an Eclipse API to check that archive is acceptable
-           ("jar".equals(a.getType()) || "zip".equals( a.getType() ))) {
-          String artifactLocation = a.getFile().getAbsolutePath();
-          
-          
+           (artifactLocation.endsWith("jar") || artifactLocation.endsWith("zip"))) {
           // TODO add a lookup through workspace projects
           
           Path srcPath = null;
