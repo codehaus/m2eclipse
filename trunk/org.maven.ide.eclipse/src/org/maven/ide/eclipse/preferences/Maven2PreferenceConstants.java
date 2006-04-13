@@ -29,5 +29,8 @@ public class Maven2PreferenceConstants {
   /** boolean */
   public static final String P_DOWNLOAD_SOURCES = PREFIX+"downloadSources";
 
+  /** boolean */
+  public static final String P_DOWNLOAD_JAVADOC = PREFIX+"downloadJavadoc";
+
 }
 

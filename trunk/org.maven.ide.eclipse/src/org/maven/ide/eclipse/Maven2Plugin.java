@@ -45,6 +45,8 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.core.variables.VariablesPlugin;
+import org.eclipse.jdt.core.IAccessRule;
+import org.eclipse.jdt.core.IClasspathAttribute;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.ImageDescriptor;
@@ -354,7 +356,10 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       // TODO use version?
       moduleArtifacts.add( mavenProject.getGroupId()+":"+mavenProject.getArtifactId() );
       
-      boolean downloadSources = this.getPreferenceStore().getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES );
+      boolean downloadSources = 
+        this.getPreferenceStore().getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES );
+      boolean downloadJavadoc = 
+        this.getPreferenceStore().getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC );
       
       Set artifacts = mavenProject.getArtifacts();
       for( Iterator it = artifacts.iterator(); it.hasNext();) {
@@ -372,34 +377,31 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
            (artifactLocation.endsWith("jar") || artifactLocation.endsWith("zip"))) {
           // TODO add a lookup through workspace projects
           
-          Path srcPath = null;
-          File srcFile = new File(artifactLocation.substring( 0, artifactLocation.length()-4 )+"-sources.jar");
-          if(srcFile.exists()) {
-            // XXX ugly hack to do not download any sources
-            srcPath = new Path(srcFile.getAbsolutePath());
-          } else if (downloadSources) {
-            srcPath = ( Path ) executeInEmbedder( new MavenEmbedderCallback() {
-                  public Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor) {
-                    monitor.beginTask( "Resolve sources "+a.getId(), IProgressMonitor.UNKNOWN );
-                    try {
-                      Artifact src = mavenEmbedder.createArtifactWithClassifier(a.getGroupId(), a.getArtifactId(), a.getVersion(), 
-                          "java-source", "sources");
-                      if (src != null) {
-                        mavenEmbedder.resolve(src, mavenProject.getRemoteArtifactRepositories(), mavenEmbedder.getLocalRepository());
-                        return new Path(src.getFile().getAbsolutePath());
-                      }
-                    } catch( AbstractArtifactResolutionException ex ) {
-                      String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
-                      getConsole().logError( ex.getOriginalMessage()+" "+name );
-                    } finally {
-                      monitor.done();
-                    }
-                    return null;
-                  }
-                }, new SubProgressMonitor(monitor, 1)); 
+          Path srcPath = 
+            materializeArtifactPath(
+              mavenProject, a, 
+              "java-source", "sources", downloadSources,
+              monitor);
+          
+          Path javadocPath = 
+            materializeArtifactPath(
+                mavenProject, a, 
+                "java-doc", "javadoc", downloadJavadoc,
+                monitor);
+          IClasspathAttribute javadocAttr = null;
+          if (javadocPath != null) {
+            javadocAttr = 
+              JavaCore.newClasspathAttribute(
+                  IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, 
+                  javadocPath.toOSString());
           }
-              
-          libraryEntries.add( JavaCore.newLibraryEntry( new Path(artifactLocation), srcPath, null));
+          
+          libraryEntries.add(
+              JavaCore.newLibraryEntry(
+                  new Path(artifactLocation), srcPath, null,
+                  new IAccessRule[0],
+                  javadocAttr != null ? new IClasspathAttribute[]{javadocAttr} : new IClasspathAttribute[0],
+                  false/*not exported*/));
         }
       }
       
@@ -434,6 +436,45 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       monitor.done();
       
     }
+  }
+  
+  
+  // type = "java-source"
+  private Path materializeArtifactPath(
+      final MavenProject mavenProject, final Artifact a, 
+      final String type, final String suffix, boolean download,
+      IProgressMonitor monitor) {
+    String artifactLocation = a.getFile().getAbsolutePath();
+    // artifactLocation ends on '.jar' or '.zip'
+    File file = new File(artifactLocation.substring(0, artifactLocation.length()-4) + "-" + suffix + ".jar");
+    Path path = null;
+    if(file.exists()) {
+      // XXX ugly hack to do not download any artifacts
+      path = new Path(file.getAbsolutePath());
+    } else if (download) {
+      path = ( Path ) executeInEmbedder( new MavenEmbedderCallback() {
+            public Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor) {
+              monitor.beginTask( "Resolve " + type + " " + a.getId(), IProgressMonitor.UNKNOWN );
+              try {
+                Artifact f = 
+                  mavenEmbedder.createArtifactWithClassifier(
+                      a.getGroupId(), a.getArtifactId(), a.getVersion(), 
+                      type, suffix);
+                if (f != null) {
+                  mavenEmbedder.resolve(f, mavenProject.getRemoteArtifactRepositories(), mavenEmbedder.getLocalRepository());
+                  return new Path(f.getFile().getAbsolutePath());
+                }
+              } catch( AbstractArtifactResolutionException ex ) {
+                String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
+                getConsole().logError( ex.getOriginalMessage()+" "+name );
+              } finally {
+                monitor.done();
+              }
+              return null;
+            }
+          }, new SubProgressMonitor(monitor, 1)); 
+    }
+    return path;
   }
 
   
