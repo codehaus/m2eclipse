@@ -32,6 +32,7 @@ public class Maven2PreferenceInitializer extends AbstractPreferenceInitializer {
     store.setDefault( Maven2PreferenceConstants.P_OFFLINE, false);
     
     store.setDefault( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES, false);
+    store.setDefault( Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC, false);
     
     // store.setDefault( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS, false);
     // store.setDefault( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION, false);
