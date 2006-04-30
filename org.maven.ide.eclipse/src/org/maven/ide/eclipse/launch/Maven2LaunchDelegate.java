@@ -34,7 +34,7 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
   
   private static final String MAVEN_EXECUTOR_CLASS = "org.maven.ide.eclipse.Maven2Executor";
   private static final String[] CLASSPATH_ENTRY = {
-    "lib/maven-embedder-2.0.2-dep.jar",
+    "lib/maven-embedder-2.0.4-dep.jar",
     "bin",
     "m2plugin.jar"
   };
