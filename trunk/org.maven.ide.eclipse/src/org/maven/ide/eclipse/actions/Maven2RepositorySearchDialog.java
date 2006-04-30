@@ -67,13 +67,15 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
   Set artifacts;
   
   SearchJob searchJob;
-  private String query;
+  private String queryText;
+  private String queryField;
   
 
-  public Maven2RepositorySearchDialog( Shell parent, Indexer indexer, Set artifacts) {
+  public Maven2RepositorySearchDialog(Shell parent, Indexer indexer, Set artifacts, String queryField) {
     super( parent);
     this.indexer = indexer;
     this.artifacts = artifacts;
+    this.queryField = queryField;
     
     setShellStyle( getShellStyle() | SWT.RESIZE);
     setStatusLineAboveButtons( true);
@@ -91,7 +93,7 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
   }
 
   public void setQuery(String query) {
-    this.query = query;
+    this.queryText = query;
   }
   
   protected Point getInitialSize() {
@@ -174,8 +176,8 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
     searchTextlabel.setLayoutData( new GridData( GridData.FILL, GridData.BEGINNING, true, false));
 
     searchText = new Text( composite, SWT.BORDER);
-    if(query!=null) {
-      searchText.setText( query);
+    if(queryText!=null) {
+      searchText.setText( queryText);
     }
     searchText.setLayoutData( new GridData( GridData.FILL, GridData.BEGINNING, true, false));
     searchText.addKeyListener( new KeyAdapter() {
@@ -226,7 +228,7 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
     
     updateStatus(new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, -1, "", null));
     
-    scheduleSearch(query);
+    scheduleSearch(queryText);
     
     return composite;
   }
@@ -236,10 +238,10 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
     setResult( selection.toList());
   }
   
-  protected void scheduleSearch(final String query) {
+  protected void scheduleSearch(String query) {
     if(query!=null && query.length()>0) {
       if(searchJob==null) {
-        searchJob = new SearchJob( query.toLowerCase(), indexer, this);
+        searchJob = new SearchJob(queryField, indexer, this);
       }
       
       searchJob.setQuery(query.toLowerCase());
@@ -260,14 +262,15 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
     final Indexer indexer;
     final Maven2RepositorySearchDialog dialog;
     
-    
     private String query;
+    private String field;
+
     boolean isRunning = false;
 
     
-    public SearchJob( String query, Indexer indexer, Maven2RepositorySearchDialog dialog) {
-      super( "Repository search for "+query);
-      this.query = query;
+    public SearchJob(String field, Indexer indexer, Maven2RepositorySearchDialog dialog) {
+      super( "Repository search");
+      this.field = field;
       this.indexer = indexer;
       this.dialog = dialog;
     }
@@ -277,38 +280,38 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
     }
 
     public void setQuery( String query) {
-      this.query = query;      
+      this.query = query;
     }
 
     protected IStatus run(IProgressMonitor monitor) {
       isRunning = true;
       while(!monitor.isCanceled() && query!=null) {
-        final String activeQuery = query;
+        String activeQuery = query;
         query = null;
         try {
-          final Map res = indexer.search( activeQuery, Indexer.JAR_NAME);
-  
-          Display.getDefault().syncExec( new Runnable() {
-              public void run() {
-                // dialog.setMessage( "Result for "+activeQuery);
-                dialog.setSearchResult( res);
-                dialog.updateStatus( new Status(IStatus.OK,  Maven2Plugin.PLUGIN_ID, -1,
-                    "Result for: "+activeQuery, null));
-              }
-            });
+          Map res = indexer.search(activeQuery, field);
+          setResult( new Status(IStatus.OK,  Maven2Plugin.PLUGIN_ID, -1,
+              "Result for: "+activeQuery, null), res);
           
+        } catch( final RuntimeException ex) {
+          setResult( new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, -1, 
+              "Search error: "+ex.toString(), null), Collections.EMPTY_MAP);
         } catch( final Exception ex) {
-          Display.getDefault().syncExec( new Runnable() {
-              public void run() {
-                dialog.updateStatus( new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, -1, 
-                    "Search error: "+ex.getMessage(), null));
-                dialog.setSearchResult( Collections.EMPTY_MAP);
-              }
-            });
+          setResult( new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, -1, 
+              "Search error: "+ex.getMessage(), null), Collections.EMPTY_MAP );
         }
       }
       isRunning = false;
       return Status.OK_STATUS;
+    }
+    
+    private void setResult( final Status status, final Map result ) {
+      Display.getDefault().syncExec( new Runnable() {
+        public void run() {
+          dialog.updateStatus( status);
+          dialog.setSearchResult( result);
+        }
+      });
     }
     
   }

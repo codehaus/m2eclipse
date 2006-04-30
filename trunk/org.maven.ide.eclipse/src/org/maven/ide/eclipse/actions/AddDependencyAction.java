@@ -41,9 +41,9 @@ public class AddDependencyAction implements IObjectActionDelegate {
 
     Maven2Plugin plugin = getPlugin();
     MavenProject mavenProject = ( MavenProject ) plugin.executeInEmbedder( "Read Project", new Maven2Plugin.ReadProjectTask(file) ); 
-    Set artifacts = (mavenProject==null ? Collections.EMPTY_SET : mavenProject.getArtifacts());
+    Set artifacts = mavenProject==null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
     
-    Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( getShell(), plugin.getIndexer(), artifacts );
+    Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( getShell(), plugin.getIndexer(), artifacts, Indexer.JAR_NAME );
     if( dialog.open() == Window.OK ) {
       Indexer.FileInfo fileInfo = ( FileInfo ) dialog.getFirstResult();
       if( fileInfo != null ) {
