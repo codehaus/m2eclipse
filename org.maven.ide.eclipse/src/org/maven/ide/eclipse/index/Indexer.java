@@ -3,28 +3,33 @@ package org.maven.ide.eclipse.index;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.DateField;
+import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.queryParser.ParseException;
 import org.apache.lucene.search.Hits;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.WildcardQuery;
 import org.apache.maven.model.Dependency;
 
@@ -48,28 +53,35 @@ public class Indexer {
   private static long totalFiles = 0;
   private static long totalSize = 0;
   
-  private Analyzer analyzer;
-  
   private final File[] indexes;
   
 
   public Indexer( File[] indexes) {
     this.indexes = indexes;
-    this.analyzer = new StandardAnalyzer();
   }
 
-  public Map search( String query, String field) throws ParseException, IOException {
+  public Map search( String query, String field) throws IOException {
     if(query==null || query.length()==0) {
       return Collections.EMPTY_MAP;
     }
     
-    Query q;
-    if(NAMES.equals( field)) {
-      q = new WildcardQuery(new Term(NAMES, "*"+query+"*"));
-    } else {
-      q = new WildcardQuery(new Term(JAR_NAME, "*"+query+"*"));
-    }
+    int queryLength = query.length();
 
+    Query q;
+    if(query.indexOf( '*' )>-1) {
+      q = new WildcardQuery(new Term(field, query));
+    } else {
+      String[] terms = query.split( "[\\. -/\\\\]" );
+      if(terms.length>1) {
+        q = new PhraseQuery();
+        for( int i = 0; i < terms.length; i++ ) {
+          ((PhraseQuery) q).add(new Term(field, terms[i]));
+        }
+      } else {
+        q = new TermQuery(new Term(field, query));
+      }
+    }
+      
     IndexReader[] readers = new IndexReader[ indexes.length];
     for( int i = 0; i < indexes.length; i++ ) {
       readers[ i] = IndexReader.open( indexes[ i]);
@@ -101,15 +113,45 @@ public class Indexer {
 
       if(JAR_NAME.equals(field)) {
         addFile(res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, null, null);
-      } else {
-        String[] s = doc.get( NAMES).split( "\n");
-        for( int i1 = 0; i1 < s.length; i1++) {
-          String t = s[ i1];
-          int n = t.lastIndexOf("/");
-          String className = t.substring(n==-1 ? 0 : n+1);
-          if( className.toLowerCase().indexOf(query)>-1) {
-            String packageName = n==-1 ? "" : t.substring( 0, n).replace('/', '.');
-            addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, className, packageName );
+
+      } else if(NAMES.equals( field )) {
+        String[] entries = doc.get(NAMES).split( "\n");
+        for( int j = 0; j < entries.length; j++) {
+          String entry = entries[j];
+          if(query.indexOf( '.' )==-1) {
+            // class name
+            int n = entry.lastIndexOf("/");
+            String className = entry.substring(n==-1 ? 0 : n+1);
+            String packageName = n==-1 ? "" : entry.substring( 0, n).replace('/', '.');
+            
+            if( query.endsWith( "*")) {
+              if(query.charAt( 0 )=='*' ? 
+                  className.toLowerCase().indexOf( query.substring( 1, queryLength-2 ) )>1 : 
+                  className.toLowerCase().startsWith( query.substring( 0, queryLength-2 ) ) ) {
+                addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, className, packageName );
+              }
+            } else {
+              if(query.charAt( 0 )=='*' ? 
+                  className.toLowerCase().endsWith( query.substring( 1 ) ) : 
+                  className.equalsIgnoreCase( query ) ) {
+                addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, className, packageName );
+              }
+            }
+            
+          } else {
+            // qualified class or package
+            if( entry.equals(query.replace( '.', '/' )) ) {
+              // qualified class name
+              int n = entry.lastIndexOf("/");
+              String className = entry.substring(n==-1 ? 0 : n+1);
+              String packageName = n==-1 ? "" : entry.substring( 0, n).replace('/', '.');
+              addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, className, packageName );
+            
+            } else if( entry.startsWith(query.replace( '.', '/' )) ) {
+              // package name
+              addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, null, query );
+            
+            }
           }
         }
       }
@@ -121,7 +163,8 @@ public class Indexer {
   private void addFile( TreeMap res, String repository, String jarSize, String jarDate, 
       String group, String artifact, String jarVersion, 
       String jarFile, String className, String packageName ) {
-    String key = group + " : "+artifact + " : " + className+" : "+packageName;
+    // String key = group + " : "+artifact + " : " + className+" : "+packageName;
+    String key = className + " : "+packageName + " : " + group + " : "+artifact;
     ArtifactInfo info = ( ArtifactInfo) res.get(key);
     if(info==null) {
       info = new ArtifactInfo(group, artifact, packageName, className);
@@ -131,7 +174,7 @@ public class Indexer {
   }
   
   
-  public static void main( String[] args) throws IOException, ParseException {
+  public static void main( String[] args) throws IOException {
     if( args.length<2) {
       printUsage();
       return;
@@ -178,25 +221,14 @@ public class Indexer {
     try {
       IndexWriter w = createIndexWriter( indexPath, true );
       
-      long l1 = System.currentTimeMillis();
-      processDir(new File( repositoryPath), w, repositoryPath, repositoryName, new SubProgressMonitor(monitor, 1) );
-      long l2 = System.currentTimeMillis();
-      // System.err.println( "Done. "+((l2-l1)/1000f));
-    
-      long l3 = System.currentTimeMillis();
-      // System.err.println( "Optimizing...");
+      processDir( new File( repositoryPath ), w, repositoryPath, repositoryName, new SubProgressMonitor( monitor, 1 ) );
+
       w.optimize();
       monitor.worked( 1 );
-      
+
       w.close();
       monitor.worked( 1 );
-      long l4 = System.currentTimeMillis();
-      // System.err.println( "Done. "+((l4-l3)/1000f));
-      
-      // System.err.println( "Total classes: " + totalClasses);
-      // System.err.println( "Total jars:    " + totalFiles);
-      // System.err.println( "Total size:    " + ( totalSize / 1024 / 1024)+" Mb");
-      // System.err.println( "Speed:         " + ( totalSize / ((l2-l1) / 1000f)) + " b/sec");
+
     } finally {
       monitor.done();
     }
@@ -204,13 +236,13 @@ public class Indexer {
 
   private static void processDir( File dir, IndexWriter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
     if(dir==null) return;
-    if(monitor!=null && monitor.isCanceled()) return;
+    if(monitor.isCanceled()) return;
 
     File[] files = dir.listFiles();
     monitor.beginTask( "Processing "+dir.getAbsolutePath(), files.length );
     try {
       monitor.subTask( dir.getAbsolutePath() );
-      for( int i = 0; files!=null && i < files.length; i++) {
+      for( int i = 0; i < files.length; i++) {
         File f = files[ i];
         if(f.isDirectory()) processDir(f, w, repositoryPath, repositoryName, new SubProgressMonitor(monitor, 1) );
         else processFile(f, w, repositoryPath, repositoryName, monitor);
@@ -221,7 +253,7 @@ public class Indexer {
   }
 
   private static void processFile( File f, IndexWriter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) {
-    if(monitor!=null && monitor.isCanceled()) return;
+    if(monitor.isCanceled()) return;
 
     if(f.isFile() && f.getName().endsWith( ".pom")) {  // TODO
       String name = f.getName();
@@ -229,12 +261,14 @@ public class Indexer {
       
       String absolutePath = f.getAbsolutePath();
       long size = 0;
+      String names = null;
       if( jarFile.exists()) {
         size = jarFile.length();
         absolutePath = jarFile.getAbsolutePath();
+        names = readNames(jarFile);
       }
       String jarName = absolutePath.substring( repositoryPath.length()).replace( '\\', '/');
-      addDocument( w, repositoryName, jarName, size, f.lastModified() );
+      addDocument( w, repositoryName, jarName, size, f.lastModified(), names );
       
       totalFiles++;
       totalSize += size;
@@ -246,19 +280,32 @@ public class Indexer {
     }
   }
 
-  public static void addDocument( IndexWriter w, String repository, String name, long size, long date ) {
+  public static void addDocument( IndexWriter w, String repository, String name, long size, long date, String names ) {
     Document doc = new Document();
-    doc.add( Field.UnIndexed( REPOSITORY, repository));
-    doc.add( Field.UnIndexed( JAR_DATE, DateField.timeToString( date)));
-    doc.add( Field.UnIndexed( JAR_SIZE, Long.toString(size)));
-    doc.add( Field.Text( JAR_NAME, name.charAt(0)=='/' ? name.substring(  1 ) : name));
+
+    doc.add( new Field( REPOSITORY, repository, Field.Store.YES, Field.Index.NO));
+    doc.add( new Field( JAR_NAME, name.charAt(0)=='/' ? name.substring(  1 ) : name, Field.Store.YES, Field.Index.TOKENIZED));
+    doc.add( new Field( JAR_DATE, DateTools.timeToString( date, DateTools.Resolution.MINUTE), Field.Store.YES, Field.Index.NO));
+    doc.add( new Field( JAR_SIZE, Long.toString(size), Field.Store.YES, Field.Index.NO));
+    
+    if(names!=null) {
+      doc.add( new Field( NAMES, names, Field.Store.COMPRESS, Field.Index.TOKENIZED));
+    }
     // TODO calculate jar's sha1 or md5
 
-    // store class names into the index
-//      ZipFile jar = null;
     try {
-/*      
-      jar = new ZipFile( f);
+      w.addDocument(doc);
+    } catch( IOException e) {
+//      e.printStackTrace();
+//      System.err.println( "Error for file "+f);
+//      System.err.println( "  "+e.getMessage());
+    }
+  }
+
+  public static String readNames(File jarFile) {
+    ZipFile jar = null;
+    try {
+      jar = new ZipFile( jarFile);
       
       StringBuffer sb = new StringBuffer();
       for( Enumeration en = jar.entries(); en.hasMoreElements();) {
@@ -274,20 +321,20 @@ public class Indexer {
           }
         }
       }
-      doc.add( Field.Text( NAMES, sb.toString()));
+      return sb.toString();
       
-
-    } finally {
-      try {
-        jar.close();
-      } catch( Exception e) {
-      }
-*/    
-      w.addDocument(doc);
     } catch( Exception e) {
-//      e.printStackTrace();
-//      System.err.println( "Error for file "+f);
-//      System.err.println( "  "+e.getMessage());
+      // System.err.println( "Error for file "+jarFile.getAbsolutePath());
+      // System.err.println( "  "+e.getMessage());
+      return null;
+      
+    } finally {
+      if(jar!=null) {
+        try {
+          jar.close();
+        } catch( Exception e) {
+        }
+      }
     }
   }
 
@@ -348,7 +395,13 @@ public class Indexer {
       this.name = name;
       this.version = version;
       this.size = size;
-      this.date = DateField.stringToDate(date);
+      
+      Date d = null;
+      try {
+        d = DateTools.stringToDate(date);
+      } catch( ParseException ex ) {
+      }
+      this.date = d;
     }
 
     public Dependency getDependency() {

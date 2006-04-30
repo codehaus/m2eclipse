@@ -345,7 +345,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         if( resourceDirectory.exists() && resourceDirectory.isDirectory() ) {
           IResource r = project.findMember(toRelativeAndFixSeparator( projectBaseDir, resource.getDirectory() ));
           if(r!=null && sources.add( r.getFullPath().toString())) {
-            sourceEntries.add( JavaCore.newSourceEntry( r.getFullPath(), new IPath[] {}, r.getFullPath()));  //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
+            sourceEntries.add( JavaCore.newSourceEntry( r.getFullPath(), new IPath[] { new Path("**") }, r.getFullPath()));  //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
             Maven2Plugin.getDefault().getConsole().logMessage( "Adding resource folder " + r.getFullPath() );
           }
         }

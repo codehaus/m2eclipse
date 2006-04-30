@@ -70,7 +70,7 @@ public final class TransferListenerAdapter implements TransferListener {
     String indexPath = new File(Maven2Plugin.getDefault().getIndexDir(), "local").getAbsolutePath();
     try {
       IndexWriter w = Indexer.createIndexWriter( indexPath, false );
-      Indexer.addDocument( w, repository, r.getName(), r.getContentLength(), r.getLastModified() );
+      Indexer.addDocument( w, repository, r.getName(), r.getContentLength(), r.getLastModified(), Indexer.readNames( e.getLocalFile() ) );
       w.optimize();
       w.close();
       
