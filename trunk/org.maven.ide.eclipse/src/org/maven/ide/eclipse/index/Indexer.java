@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -16,11 +17,11 @@ import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.index.IndexModifier;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.MultiReader;
@@ -34,7 +35,7 @@ import org.apache.lucene.search.WildcardQuery;
 import org.apache.maven.model.Dependency;
 
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.SubProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 
 
 /**
@@ -49,18 +50,13 @@ public class Indexer {
   public static final String JAR_DATE = "d";
   public static final String NAMES = "c";
   
-  private static long totalClasses = 0;
-  private static long totalFiles = 0;
-  private static long totalSize = 0;
+  public long totalClasses = 0;
+  public long totalFiles = 0;
+  public long totalSize = 0;
   
-  private final File[] indexes;
-  
+  private long lastTime = System.currentTimeMillis();
 
-  public Indexer( File[] indexes) {
-    this.indexes = indexes;
-  }
-
-  public Map search( String query, String field) throws IOException {
+  public Map search( File[] indexes, String query, String field) throws IOException {
     if(query==null || query.length()==0) {
       return Collections.EMPTY_MAP;
     }
@@ -89,30 +85,18 @@ public class Indexer {
     
     IndexSearcher searcher = new IndexSearcher( new MultiReader( readers));
     Hits hits = searcher.search( q);
-    if( hits.length()==0) {
+    
+    if(hits==null || hits.length()==0) {
       return Collections.EMPTY_MAP;
     }
 
     TreeMap res = new TreeMap();
-    
     for( int i = 0; i < hits.length(); i++) {
       Document doc = hits.doc( i);
-      String repository = doc.get( REPOSITORY);
-      String jarSize = doc.get( JAR_SIZE);
-      String jarDate = doc.get( JAR_DATE);
-      String jarName = doc.get( JAR_NAME);
-      
-      int n1 = jarName.lastIndexOf( '/');
-      int n2 = jarName.substring( 0, n1).lastIndexOf( '/');
-      int n3 = jarName.substring( 0, n2).lastIndexOf( '/');
-      
-      String group = jarName.substring( 0, n3).replace('/', '.');
-      String artifact = jarName.substring( n3+1, n2);
-      String jarVersion = jarName.substring( n2+1, n1);
-      String jarFile = jarName.substring( n1+1);
+      FileInfo fileInfo = new FileInfo(doc);
 
       if(JAR_NAME.equals(field)) {
-        addFile(res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, null, null);
+        addFile(res, fileInfo, null, null);
 
       } else if(NAMES.equals( field )) {
         String[] entries = doc.get(NAMES).split( "\n");
@@ -128,13 +112,13 @@ public class Indexer {
               if(query.charAt( 0 )=='*' ? 
                   className.toLowerCase().indexOf( query.substring( 1, queryLength-2 ) )>1 : 
                   className.toLowerCase().startsWith( query.substring( 0, queryLength-2 ) ) ) {
-                addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, className, packageName );
+                addFile( res, fileInfo, className, packageName );
               }
             } else {
               if(query.charAt( 0 )=='*' ? 
                   className.toLowerCase().endsWith( query.substring( 1 ) ) : 
                   className.equalsIgnoreCase( query ) ) {
-                addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, className, packageName );
+                addFile( res, fileInfo, className, packageName );
               }
             }
             
@@ -145,11 +129,11 @@ public class Indexer {
               int n = entry.lastIndexOf("/");
               String className = entry.substring(n==-1 ? 0 : n+1);
               String packageName = n==-1 ? "" : entry.substring( 0, n).replace('/', '.');
-              addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, className, packageName );
+              addFile( res, fileInfo, className, packageName );
             
             } else if( entry.startsWith(query.replace( '.', '/' )) ) {
               // package name
-              addFile( res, repository, jarSize, jarDate, group, artifact, jarVersion, jarFile, null, query );
+              addFile( res, fileInfo, null, query );
             
             }
           }
@@ -160,17 +144,15 @@ public class Indexer {
     return res;
   }
 
-  private void addFile( TreeMap res, String repository, String jarSize, String jarDate, 
-      String group, String artifact, String jarVersion, 
-      String jarFile, String className, String packageName ) {
+  private void addFile( TreeMap res, FileInfo fileInfo, String className, String packageName ) {
     // String key = group + " : "+artifact + " : " + className+" : "+packageName;
-    String key = className + " : "+packageName + " : " + group + " : "+artifact;
+    String key = className + " : "+packageName + " : " + fileInfo.group + " : "+fileInfo.artifact;
     ArtifactInfo info = ( ArtifactInfo) res.get(key);
     if(info==null) {
-      info = new ArtifactInfo(group, artifact, packageName, className);
+      info = new ArtifactInfo(fileInfo.group, fileInfo.artifact, packageName, className);
       res.put(key, info);
     }
-    info.addFile(repository, group, jarFile, jarVersion, jarSize, jarDate);
+    info.addFile(fileInfo);
   }
   
   
@@ -180,27 +162,33 @@ public class Indexer {
       return;
     }
     
-    Indexer indexer;
+    Indexer indexer = new Indexer();
     String command = args[ 0];
     if( "index".equals( command)) {
       String repositoryName = args[ 1];  
       String repositoryPath = args[ 1];  
-      String indexPath = args.length>2 ? "index" : args[ 2];
+      String indexPath = args.length>2 ? args[ 2] : "index";
       
-      Indexer.reindex( indexPath, repositoryPath, repositoryName, null);
-
+      long l1 = System.currentTimeMillis();
+      
+      indexer.reindex( indexPath, repositoryPath, repositoryName, new NullProgressMonitor());
+      
+      long l2 = System.currentTimeMillis();
+      System.err.println("Total time: "+((l2-l1)/1000f));
+      System.err.println("Total files: "+indexer.totalFiles);
+      System.err.println("Total classes: "+indexer.totalClasses);
+      System.err.println("Total size: "+indexer.totalSize);
+      
     } else if( "search".equals( command)) {
       String query = args[ 1];
       String indexPath = args.length==2 ? "index" : args[ 2];
 
-      indexer = new Indexer( new File[] { new File( indexPath)});
-      Map res = indexer.search( query, JAR_NAME);
+      Map res = indexer.search(new File[] { new File( indexPath)}, query, JAR_NAME);
       
       for( Iterator it = res.entrySet().iterator(); it.hasNext();) {
         Map.Entry e = ( Map.Entry) it.next();
         System.err.println( e);
       }
-    
     }
   }
 
@@ -211,80 +199,122 @@ public class Indexer {
   }
 
   
-  public static IndexWriter createIndexWriter( String indexPath, boolean create ) throws IOException {
-    Analyzer analyzer = new StandardAnalyzer();
-    return new IndexWriter( indexPath, analyzer, create);
+  private IndexerAdapter createIndexerAdapter( String indexPath, boolean create ) throws IOException {
+    final File indexDir = new File(indexPath);
+    try {
+      return new IndexerModifierAdapter( indexDir, create );
+    } catch( IOException ex ) {
+      return new IndexerWriterAdapter(indexDir, true);
+    }
   }
 
-  public static void reindex( String indexPath, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
-    monitor.beginTask( "Reindex "+repositoryPath, 3 );
+  public void reindex( String indexPath, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
+    IndexerAdapter w = createIndexerAdapter( indexPath, false );
+    monitor.beginTask( "Indexing "+repositoryName, IProgressMonitor.UNKNOWN );
     try {
-      IndexWriter w = createIndexWriter( indexPath, true );
-      
-      processDir( new File( repositoryPath ), w, repositoryPath, repositoryName, new SubProgressMonitor( monitor, 1 ) );
+      processDir( new File( repositoryPath ), w, repositoryPath, repositoryName, monitor );
 
       w.optimize();
       monitor.worked( 1 );
 
-      w.close();
-      monitor.worked( 1 );
+    } catch(IOException ex) {
+      throw ex;
 
     } finally {
+      w.close();
+      monitor.worked( 1 );
       monitor.done();
     }
   }
 
-  private static void processDir( File dir, IndexWriter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
+  private void processDir( File dir, IndexerAdapter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
     if(dir==null) return;
     if(monitor.isCanceled()) return;
 
     File[] files = dir.listFiles();
-    monitor.beginTask( "Processing "+dir.getAbsolutePath(), files.length );
+    // monitor.beginTask( "Processing "+dir.getAbsolutePath(), files.length );
+    monitor.worked( 1 );
     try {
-      monitor.subTask( dir.getAbsolutePath() );
+      long time = System.currentTimeMillis();
+      if((time-lastTime)>1000) {
+        monitor.subTask( dir.getAbsolutePath() );
+        lastTime = time;
+      }
       for( int i = 0; i < files.length; i++) {
         File f = files[ i];
-        if(f.isDirectory()) processDir(f, w, repositoryPath, repositoryName, new SubProgressMonitor(monitor, 1) );
-        else processFile(f, w, repositoryPath, repositoryName, monitor);
+        if(f.isDirectory()) {
+          // processDir(f, w, repositoryPath, repositoryName, new SubProgressMonitor(monitor, 1) );
+          processDir(f, w, repositoryPath, repositoryName, monitor );
+        } else if(f.isFile()) {
+          processFile(f, w, repositoryPath, repositoryName, monitor);
+        }
       }
     } finally {
-      monitor.done();
+      // monitor.done();
     }
   }
 
-  private static void processFile( File f, IndexWriter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) {
+  private void processFile( File f, IndexerAdapter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
     if(monitor.isCanceled()) return;
 
-    if(f.isFile() && f.getName().endsWith( ".pom")) {  // TODO
-      String name = f.getName();
-      File jarFile = new File( f.getParent(), name.substring( 0, name.length() - 4) + ".jar");
-      
-      String absolutePath = f.getAbsolutePath();
-      long size = 0;
-      String names = null;
-      if( jarFile.exists()) {
-        size = jarFile.length();
-        absolutePath = jarFile.getAbsolutePath();
-        names = readNames(jarFile);
-      }
-      String jarName = absolutePath.substring( repositoryPath.length()).replace( '\\', '/');
-      addDocument( w, repositoryName, jarName, size, f.lastModified(), names );
-      
-      totalFiles++;
+    totalFiles++;
+
+    String name = f.getName();
+
+    String absolutePath = f.getAbsolutePath();
+    String jarName = absolutePath.substring(repositoryPath.length()).replace( '\\', '/');
+    
+    FileInfo fileInfo = w.get(jarName);
+    if(fileInfo!=null) {
+      return;  // TODO compare date and size
+    }
+
+    long size;
+    String names = null;
+    
+    if(name.endsWith( ".jar" )) {
+      size = f.length();
+      names = readNames(f);
       totalSize += size;
+      
+    } else if(name.endsWith( ".pom" )) {
+      File jarFile = new File( f.getParent(), name.substring( 0, name.length() - 4) + ".jar");
+      if(jarFile.exists()) {
+        return;
+      }      
+      size = 0;
+
+    } else {
+      return;
+    }
+    
+    addDocument( repositoryName, jarName, size, f.lastModified(), names, w );
+    
 //      if(( totalFiles % 100)==0) {
 //        System.err.println( "Indexing "+totalFiles+" "+f.getParentFile().getAbsolutePath().substring( repositoryPath.length()));
 //      }
       // monitor.subTask( totalFiles+" "+f.getParentFile().getAbsolutePath().substring( repositoryPath.length()) );
-      monitor.worked( 1 );
-    }
+    // monitor.worked( 1 );
   }
 
-  public static void addDocument( IndexWriter w, String repository, String name, long size, long date, String names ) {
+  public void addDocument( String repository, String name, long size, long date, String names, String indexPath ) throws IOException {
+    IndexerAdapter w = createIndexerAdapter( indexPath, false );
+    try {
+      addDocument( repository, name, size, date, names, w );
+      w.optimize();
+    } catch( Exception e ) {
+      w.close();
+    }
+  }
+  
+  public static void addDocument( String repository, String name, long size, long date, String names, IndexerAdapter w ) throws IOException {
+    if(name.charAt(0)=='/') {
+      name = name.substring(1);
+    }
+    
     Document doc = new Document();
-
     doc.add( new Field( REPOSITORY, repository, Field.Store.YES, Field.Index.NO));
-    doc.add( new Field( JAR_NAME, name.charAt(0)=='/' ? name.substring(  1 ) : name, Field.Store.YES, Field.Index.TOKENIZED));
+    doc.add( new Field( JAR_NAME, name, Field.Store.YES, Field.Index.TOKENIZED));
     doc.add( new Field( JAR_DATE, DateTools.timeToString( date, DateTools.Resolution.MINUTE), Field.Store.YES, Field.Index.NO));
     doc.add( new Field( JAR_SIZE, Long.toString(size), Field.Store.YES, Field.Index.NO));
     
@@ -293,16 +323,10 @@ public class Indexer {
     }
     // TODO calculate jar's sha1 or md5
 
-    try {
-      w.addDocument(doc);
-    } catch( IOException e) {
-//      e.printStackTrace();
-//      System.err.println( "Error for file "+f);
-//      System.err.println( "  "+e.getMessage());
-    }
+    w.add(doc);
   }
 
-  public static String readNames(File jarFile) {
+  public String readNames(File jarFile) {
     ZipFile jar = null;
     try {
       jar = new ZipFile( jarFile);
@@ -363,8 +387,8 @@ public class Indexer {
       this.className = className;
     }
 
-    public void addFile( String repository, String group, String name, String version, String size, String date) {
-      files.add( new FileInfo( repository, group, artifact, name, version, size, date));
+    public void addFile(FileInfo fileInfo) {
+      files.add(fileInfo);
     }
     
     public String toString() {
@@ -385,23 +409,30 @@ public class Indexer {
     public final String artifact;
     public final String name;
     public final String version;
-    public final String size;
+    public final long size;
     public final Date date;
 
-    public FileInfo(String repository, String group, String artifact, String name, String version, String size, String date) {
-      this.repository = repository;
-      this.group = group;
-      this.artifact = artifact;
-      this.name = name;
-      this.version = version;
-      this.size = size;
+    public FileInfo( Document doc ) {
+      this.repository = doc.get( REPOSITORY);
+      
+      String jarName = doc.get( JAR_NAME);    
+      int n1 = jarName.lastIndexOf( '/');
+      int n2 = jarName.substring( 0, n1).lastIndexOf( '/');
+      int n3 = jarName.substring( 0, n2).lastIndexOf( '/');
+      
+      this.group = jarName.substring( 0, n3).replace('/', '.');
+      this.artifact = jarName.substring( n3+1, n2);
+      this.version = jarName.substring( n2+1, n1);
+      this.name = jarName.substring( n1+1);
+
+      this.size = Long.parseLong(doc.get( JAR_SIZE));
       
       Date d = null;
       try {
-        d = DateTools.stringToDate(date);
+        d = DateTools.stringToDate(doc.get( JAR_DATE));
       } catch( ParseException ex ) {
       }
-      this.date = d;
+      this.date = d;      
     }
 
     public Dependency getDependency() {
@@ -414,5 +445,87 @@ public class Indexer {
     }
   }
 
+  
+  private static interface IndexerAdapter {
+    void add( Document doc ) throws IOException;
+    FileInfo get( String jarName );
+    void optimize() throws IOException;
+    void close() throws IOException;
+  }
+  
+  private static class IndexerModifierAdapter implements IndexerAdapter {
+    private IndexModifier m;
+    private HashMap documents = new HashMap();
+
+    public IndexerModifierAdapter( File indexDir, boolean create ) throws IOException {
+      boolean shouldCreate = create || !IndexReader.indexExists( indexDir );
+      if(!shouldCreate) {
+        IndexReader r = null;
+        try {
+          r = IndexReader.open( indexDir );
+          int n = r.numDocs();
+          for( int i = 0; i < n; i++ ) {
+            Document doc = r.document( i );
+            String jarName = doc.get( JAR_NAME );
+            documents.put( jarName, new FileInfo(doc));
+          }
+        } catch(IOException ex) {
+          shouldCreate = true;
+        } finally {
+          if(r!=null) {
+            r.close();
+          }
+        }
+      }
+      
+      m = new IndexModifier(indexDir, new StandardAnalyzer(), shouldCreate);
+    }
+
+    public void add( Document doc ) throws IOException {
+      m.addDocument( doc );
+    }
+
+    public FileInfo get( String jarName ) {
+      return ( FileInfo ) documents.get( jarName );
+    }
+
+    public void optimize() throws IOException {
+      m.optimize();
+      m.flush();
+    }
+
+    public void close() throws IOException {
+      m.close();
+    }
+    
+  }
+
+  
+  private static class IndexerWriterAdapter implements IndexerAdapter {
+    private IndexWriter w;
+
+    public IndexerWriterAdapter(File indexDir, boolean create) throws IOException {
+      w = new IndexWriter(indexDir, new StandardAnalyzer(), create);
+    }
+    
+    public void add( Document doc ) throws IOException {
+      w.addDocument(doc);
+      
+    }
+
+    public FileInfo get( String jarName ) {
+      return null;
+    }
+    
+    public void close() throws IOException {
+      w.close();
+    }
+
+    public void optimize() throws IOException {
+      w.optimize();
+    }
+    
+  }
+  
 }
 

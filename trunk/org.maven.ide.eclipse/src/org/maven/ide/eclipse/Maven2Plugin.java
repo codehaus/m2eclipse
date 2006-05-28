@@ -208,7 +208,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     log( new Status( IStatus.ERROR, PLUGIN_ID, 0, msg, t));
   }
   
-  public Indexer getIndexer() {
+  public File[] getIndexes() {
     String[] indexNames = getIndexNames();
     
     File[] indexes = new File[ indexNames.length];
@@ -216,7 +216,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       indexes[ i] = new File( getIndexDir(), indexNames[ i]);
     }
     
-    return new Indexer( indexes);
+    return indexes;
   }
 
   public String getIndexDir() {
@@ -612,23 +612,20 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
 
     protected IStatus run( IProgressMonitor monitor ) {
-      monitor.beginTask( getName(), 1 );
       try {
         File file = new File(indexDir, repositoryName);
         if(!file.exists()) {
           file.mkdirs();
         }
       
-        Indexer.reindex( file.getAbsolutePath(), repositoryDir, repositoryName , new SubProgressMonitor(monitor, 1));
+        Indexer indexer = new Indexer();
+        indexer.reindex( file.getAbsolutePath(), repositoryDir, repositoryName , monitor);
         indexes.add( repositoryName );
         return Status.OK_STATUS;
         
       } catch( IOException ex ) {
         return new Status(IStatus.ERROR, PLUGIN_ID, -1, "Indexing error", ex);
       
-      } finally {
-        monitor.done();
-        
       }
     }
     
