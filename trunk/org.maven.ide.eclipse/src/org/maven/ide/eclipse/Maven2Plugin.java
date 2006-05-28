@@ -112,13 +112,15 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     String repositoryDir = ( String ) executeInEmbedder(new MavenEmbedderCallback() {
         public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
           ArtifactRepository localRepository = mavenEmbedder.getLocalRepository();
-          return localRepository.getBasedir();
+          return localRepository==null ? null : localRepository.getBasedir();
         }
       }, new NullProgressMonitor());
-
-    IndexerJob indexerJob = new IndexerJob("local", repositoryDir, getIndexDir(), indexes);
-    indexerJob.setPriority( Job.LONG );
-    indexerJob.schedule(1000L);
+    
+    if(repositoryDir!=null) {
+      IndexerJob indexerJob = new IndexerJob("local", repositoryDir, getIndexDir(), indexes);
+      indexerJob.setPriority( Job.LONG );
+      indexerJob.schedule(1000L);
+    }
     
     UnpackerJob unpackerJob = new UnpackerJob(context.getBundle(), getIndexDir(), indexes);
     unpackerJob.setPriority( Job.LONG );
@@ -356,10 +358,10 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       // TODO use version?
       moduleArtifacts.add( mavenProject.getGroupId()+":"+mavenProject.getArtifactId() );
       
-      boolean downloadSources = 
-        this.getPreferenceStore().getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES );
-      boolean downloadJavadoc = 
-        this.getPreferenceStore().getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC );
+      final IPreferenceStore prefs = this.getPreferenceStore();
+      boolean offline = prefs.getBoolean( Maven2PreferenceConstants.P_OFFLINE );
+      boolean downloadSources = !offline & prefs.getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES );
+      boolean downloadJavadoc = !offline & prefs.getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC );
       
       Set artifacts = mavenProject.getArtifacts();
       for( Iterator it = artifacts.iterator(); it.hasNext();) {
