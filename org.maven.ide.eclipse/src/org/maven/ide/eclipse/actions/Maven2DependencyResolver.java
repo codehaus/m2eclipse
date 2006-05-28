@@ -108,7 +108,7 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
       IWorkbench workbench = plugin.getWorkbench();
       Shell shell = workbench.getDisplay().getActiveShell();
 
-      Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( shell, plugin.getIndexer(), artifacts, Indexer.NAMES );
+      Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( shell, plugin.getIndexes(), artifacts, Indexer.NAMES );
       dialog.setQuery(query);
 
       if( dialog.open()==Window.OK) {

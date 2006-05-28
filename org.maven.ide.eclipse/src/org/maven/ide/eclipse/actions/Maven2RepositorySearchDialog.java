@@ -1,6 +1,7 @@
 
 package org.maven.ide.eclipse.actions;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -63,7 +64,7 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
   Text searchText = null;
   TreeViewer searchResultViewer = null;
 
-  Indexer indexer;
+  File[] indexes;
   Set artifacts;
   
   SearchJob searchJob;
@@ -71,9 +72,9 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
   private String queryField;
   
 
-  public Maven2RepositorySearchDialog(Shell parent, Indexer indexer, Set artifacts, String queryField) {
+  public Maven2RepositorySearchDialog(Shell parent, File[] indexes, Set artifacts, String queryField) {
     super( parent);
-    this.indexer = indexer;
+    this.indexes = indexes;
     this.artifacts = artifacts;
     this.queryField = queryField;
     
@@ -241,7 +242,7 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
   protected void scheduleSearch(String query) {
     if(query!=null && query.length()>0) {
       if(searchJob==null) {
-        searchJob = new SearchJob(queryField, indexer, this);
+        searchJob = new SearchJob(queryField, indexes, this);
       }
       
       searchJob.setQuery(query.toLowerCase());
@@ -259,8 +260,10 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
 
   
   private static class SearchJob extends Job {
-    final Indexer indexer;
     final Maven2RepositorySearchDialog dialog;
+
+    final Indexer indexer;
+    private File[] indexes;
     
     private String query;
     private String field;
@@ -268,10 +271,11 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
     boolean isRunning = false;
 
     
-    public SearchJob(String field, Indexer indexer, Maven2RepositorySearchDialog dialog) {
+    public SearchJob(String field, File[] indexes, Maven2RepositorySearchDialog dialog) {
       super( "Repository search");
       this.field = field;
-      this.indexer = indexer;
+      this.indexer = new Indexer();
+      this.indexes = indexes;
       this.dialog = dialog;
     }
 
@@ -289,7 +293,7 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
         String activeQuery = query;
         query = null;
         try {
-          Map res = indexer.search(activeQuery, field);
+          Map res = indexer.search(indexes, activeQuery, field);
           setResult( new Status(IStatus.OK,  Maven2Plugin.PLUGIN_ID, -1,
               "Result for: "+activeQuery, null), res);
           

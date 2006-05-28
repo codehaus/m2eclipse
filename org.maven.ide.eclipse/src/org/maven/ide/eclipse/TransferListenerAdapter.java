@@ -4,7 +4,6 @@ package org.maven.ide.eclipse;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.lucene.index.IndexWriter;
 import org.apache.maven.wagon.WagonConstants;
 import org.apache.maven.wagon.events.TransferEvent;
 import org.apache.maven.wagon.events.TransferListener;
@@ -69,13 +68,10 @@ public final class TransferListenerAdapter implements TransferListener {
     Resource r = e.getResource();
     String indexPath = new File(Maven2Plugin.getDefault().getIndexDir(), "local").getAbsolutePath();
     try {
-      IndexWriter w = Indexer.createIndexWriter( indexPath, false );
-      Indexer.addDocument( w, repository, r.getName(), r.getContentLength(), r.getLastModified(), Indexer.readNames( e.getLocalFile() ) );
-      w.optimize();
-      w.close();
-      
+      Indexer indexer = new Indexer();
+      indexer.addDocument( repository, r.getName(), r.getContentLength(), r.getLastModified(), indexer.readNames( e.getLocalFile() ), indexPath );
     } catch( IOException ex ) {
-      // TODO Auto-generated catch block
+      Maven2Plugin.getDefault().getConsole().logError("Unable to index "+r.getName()+"; "+ex.getMessage());
     }
   }
 
