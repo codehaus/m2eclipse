@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Maven 2.0 integration
 Bundle-SymbolicName: org.maven.ide.eclipse; singleton:=true
-Bundle-Version: 0.0.7
+Bundle-Version: 0.0.8
 Bundle-Activator: org.maven.ide.eclipse.Maven2Plugin
 Bundle-Vendor: maven.org
 Bundle-Localization: plugin
@@ -26,5 +26,5 @@ Require-Bundle:
  org.eclipse.ltk.core.refactoring
 Eclipse-AutoStart: true
 Bundle-ClassPath: m2plugin.jar,
- lib/lucene-core-1.9.1.jar,
- lib/maven-embedder-2.0.4-dep.jar
+ lib/maven-embedder-2.0.4-dep.jar,
+ lib/lucene-core-2.0.0.jar
