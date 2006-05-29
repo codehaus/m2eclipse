@@ -486,7 +486,7 @@ public class Indexer {
     }
 
     public FileInfo get( String jarName ) {
-      return ( FileInfo ) documents.get( jarName );
+      return ( FileInfo ) documents.get( jarName.charAt(0)=='/' ? jarName.substring(1) : jarName );
     }
 
     public void optimize() throws IOException {
