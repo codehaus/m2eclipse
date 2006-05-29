@@ -93,7 +93,8 @@ public class Indexer {
     TreeMap res = new TreeMap();
     for( int i = 0; i < hits.length(); i++) {
       Document doc = hits.doc( i);
-      FileInfo fileInfo = new FileInfo(doc);
+      FileInfo fileInfo = FileInfo.getFileInfo(doc);
+      if(fileInfo==null) continue;
 
       if(JAR_NAME.equals(field)) {
         addFile(res, fileInfo, null, null);
@@ -412,27 +413,14 @@ public class Indexer {
     public final long size;
     public final Date date;
 
-    public FileInfo( Document doc ) {
-      this.repository = doc.get( REPOSITORY);
-      
-      String jarName = doc.get( JAR_NAME);    
-      int n1 = jarName.lastIndexOf( '/');
-      int n2 = jarName.substring( 0, n1).lastIndexOf( '/');
-      int n3 = jarName.substring( 0, n2).lastIndexOf( '/');
-      
-      this.group = jarName.substring( 0, n3).replace('/', '.');
-      this.artifact = jarName.substring( n3+1, n2);
-      this.version = jarName.substring( n2+1, n1);
-      this.name = jarName.substring( n1+1);
-
-      this.size = Long.parseLong(doc.get( JAR_SIZE));
-      
-      Date d = null;
-      try {
-        d = DateTools.stringToDate(doc.get( JAR_DATE));
-      } catch( ParseException ex ) {
-      }
-      this.date = d;      
+    private FileInfo( String repository, String group, String artifact, String version, String name, long size, Date date ) {
+      this.repository = repository;
+      this.group = group;
+      this.artifact = artifact;
+      this.version = version;
+      this.name = name;
+      this.size = size;
+      this.date = date;
     }
 
     public Dependency getDependency() {
@@ -442,6 +430,39 @@ public class Indexer {
       dependency.setVersion( version);
       dependency.setType( "jar");  // TODO
       return dependency;
+    }
+    
+    public static FileInfo getFileInfo(Document doc) {
+      String repository = doc.get( REPOSITORY);
+      
+      String jarName = doc.get( JAR_NAME);    
+      int n1 = jarName.lastIndexOf( '/');
+      if(n1==-1) return null;
+      int n2 = jarName.substring( 0, n1).lastIndexOf( '/');
+      if(n2==-1) return null;
+      int n3 = jarName.substring( 0, n2).lastIndexOf( '/');
+      if(n3==-1) return null;
+      
+      String group = jarName.substring( 0, n3).replace('/', '.');
+      String artifact = jarName.substring( n3+1, n2);
+      String version = jarName.substring( n2+1, n1);
+      String name = jarName.substring( n1+1);
+
+      long size;
+      try {
+        size = Long.parseLong(doc.get( JAR_SIZE));
+      } catch( NumberFormatException ex1 ) {
+        return null;
+      }
+      
+      Date date = null;
+      try {
+        date = DateTools.stringToDate(doc.get( JAR_DATE));
+      } catch( ParseException ex ) {
+        return null;
+      }
+      
+      return new FileInfo(repository, group, artifact, version, name, size, date);
     }
   }
 
@@ -467,7 +488,7 @@ public class Indexer {
           for( int i = 0; i < n; i++ ) {
             Document doc = r.document( i );
             String jarName = doc.get( JAR_NAME );
-            documents.put( jarName, new FileInfo(doc));
+            documents.put( jarName, FileInfo.getFileInfo(doc));            
           }
         } catch(IOException ex) {
           shouldCreate = true;
