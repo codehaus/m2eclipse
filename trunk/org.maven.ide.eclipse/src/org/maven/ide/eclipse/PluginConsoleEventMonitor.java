@@ -20,7 +20,7 @@ public class PluginConsoleEventMonitor implements EventMonitor {
 
   public void errorEvent( String eventName, String target, long timestamp, Throwable cause ) {
     Maven2Plugin.getDefault().getConsole().logMessage(
-        "ERROR " + eventName + " : " + target + " : " + cause.getMessage() );
+        "ERROR " + eventName + " : " + target + (cause==null ? "" : " : " + cause.getMessage()) );
   }
 
 }

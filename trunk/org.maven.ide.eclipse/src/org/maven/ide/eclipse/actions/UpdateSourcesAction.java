@@ -15,12 +15,14 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+import org.apache.maven.SettingsConfigurationException;
 import org.apache.maven.embedder.MavenEmbedder;
+import org.apache.maven.execution.DefaultMavenExecutionRequest;
+import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.Resource;
-import org.apache.maven.monitor.event.EventMonitor;
 import org.apache.maven.project.MavenProject;
-import org.apache.maven.wagon.events.TransferListener;
+import org.apache.maven.settings.Settings;
 
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.eclipse.core.resources.IContainer;
@@ -52,21 +54,22 @@ import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.MavenEmbedderCallback;
 import org.maven.ide.eclipse.PluginConsoleEventMonitor;
 import org.maven.ide.eclipse.TransferListenerAdapter;
+import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 
 
 public class UpdateSourcesAction implements IObjectActionDelegate {
-  private IAction action;
-  private IWorkbenchPart targetPart;
+  // private IAction action;
+  // private IWorkbenchPart targetPart;
   private ISelection selection;
   
 
   public void setActivePart( IAction action, IWorkbenchPart targetPart ) {
-    this.action = action;
-    this.targetPart = targetPart;
+    // this.action = action;
+    // this.targetPart = targetPart;
   }
 
   public void selectionChanged( IAction action, ISelection selection ) {
-    this.action = action;
+    // this.action = action;
     this.selection = selection;
   }
 
@@ -95,7 +98,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
     private List sourceEntries = new ArrayList(); 
     private Map options = new HashMap();
 
-    private UpdateSourcesJob( IProject project) {
+    UpdateSourcesJob( IProject project) {
       super( "Updating "+project.getName()+" Sources");
       this.project = project;
     }
@@ -236,24 +239,24 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
       return null;
     }
 
-    private void resolve( IResource pomFile, MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+    private void resolve( IResource pomResource, MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
       if(monitor.isCanceled()) {
         throw new OperationCanceledException();
       }
 
       Maven2Plugin plugin = Maven2Plugin.getDefault();
 
-      String msg = "Reading "+pomFile.getFullPath();
+      String msg = "Reading "+pomResource.getFullPath();
       plugin.getConsole().logMessage( msg);
       
-      monitor.subTask( "Reading "+pomFile.getFullPath() );
-      File f = pomFile.getLocation().toFile();
+      monitor.subTask( "Reading "+pomResource.getFullPath() );
+      File pomFile = pomResource.getLocation().toFile();
 
       MavenProject mavenProject;
       try {
-        mavenProject = mavenEmbedder.readProject(f);
+        mavenProject = mavenEmbedder.readProject(pomFile);
       } catch( Exception ex) {
-        plugin.getConsole().logError("Unable to read project "+pomFile.getFullPath()+"; "+ex.toString());
+        plugin.getConsole().logError("Unable to read project "+pomResource.getFullPath()+"; "+ex.toString());
         return;
       }
 
@@ -270,20 +273,20 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         setVersion( options, JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, target );
       }
       
-      monitor.subTask( "Generating Sources "+pomFile.getFullPath() );
-      List goals = Arrays.asList( "generate-sources,generate-resources,generate-test-sources,generate-test-resources".split(","));
-      // TODO hook up console view
-      EventMonitor eventMonitor = new PluginConsoleEventMonitor();
-      Properties properties = new Properties();                
+      monitor.subTask( "Generating Sources "+pomResource.getFullPath() );
       try {
-        plugin.getConsole().logMessage("Generating sources "+pomFile.getFullPath());
-        TransferListener transferListener = new TransferListenerAdapter( monitor );
-        mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
+        plugin.getConsole().logMessage("Generating sources "+pomResource.getFullPath());
+        
+        mavenEmbedder.execute( getExecutionRequest(pomFile, monitor, mavenEmbedder) );
+        // TODO hook up console view
+        // EventMonitor eventMonitor = new PluginConsoleEventMonitor();
+        // mavenEmbedder.execute(mavenProject, goals, eventMonitor, transferListener, properties, f.getParentFile());
+
       } catch( Exception ex ) {
-        plugin.getConsole().logError("Failed to run generate source goals "+pomFile.getFullPath()+" "+ex.getMessage());
+        plugin.getConsole().logError("Failed to run generate source goals "+pomResource.getFullPath()+" "+ex.getMessage());
       }
       
-      File basedir = pomFile.getLocation().toFile().getParentFile();
+      File basedir = pomResource.getLocation().toFile().getParentFile();
       File projectBaseDir = project.getLocation().toFile();
       
       extractSourceDirs(project, mavenProject.getCompileSourceRoots(), basedir, projectBaseDir);
@@ -292,7 +295,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
       extractResourceDirs(project, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
       extractResourceDirs(project, mavenProject.getBuild().getTestResources(), basedir, projectBaseDir);
       
-      IContainer parent = pomFile.getParent();      
+      IContainer parent = pomResource.getParent();      
       List modules = mavenProject.getModules();
       for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
         if(monitor.isCanceled()) {
@@ -307,6 +310,54 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
     }
     
     
+    private MavenExecutionRequest getExecutionRequest(File pomFile, IProgressMonitor monitor, MavenEmbedder embedder) throws SettingsConfigurationException {
+      List goals = Arrays.asList( "generate-sources,generate-resources,generate-test-sources,generate-test-resources".split(","));
+
+      Properties properties = new Properties();                
+
+      File userSettingsPath = embedder.getUserSettingsPath( null );
+      File globalSettingsFile = embedder.getGlobalSettingsPath();
+      
+      Settings settings = embedder.buildSettings( 
+          userSettingsPath,
+          globalSettingsFile,
+          false,  // interactive
+          false,  // offline,
+          false,  // usePluginRegistry,
+          Boolean.FALSE);  // pluginUpdateOverride );
+
+      String localRepositoryPath = System.getProperty(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR);
+      if(localRepositoryPath==null || localRepositoryPath.trim().length()==0) {
+        localRepositoryPath = embedder.getLocalRepositoryPath( settings );
+      }
+      
+      MavenExecutionRequest executionRequest = new DefaultMavenExecutionRequest()
+          .setPomFile( pomFile.getAbsolutePath() )
+          .setBasedir( pomFile.getParentFile() )
+          .setGoals( goals )
+          .setSettings( settings )  // TODO
+          .setProperties( properties )
+          .setLocalRepositoryPath( localRepositoryPath )
+          .setReactorActive( false )
+          .setRecursive( true )
+          .setShowErrors( true )  // TODO
+          .setInteractive( false )
+          .setLoggingLevel( MavenExecutionRequest.LOGGING_LEVEL_INFO )
+          .activateDefaultEventMonitor()
+          .addEventMonitor( new PluginConsoleEventMonitor() )
+          .setTransferListener( new TransferListenerAdapter( monitor ) )
+          .setFailureBehavior( MavenExecutionRequest.REACTOR_FAIL_AT_END )
+          // .addActiveProfiles( activeProfiles )
+          // .addInactiveProfiles( inactiveProfiles )
+          .setOffline(Boolean.getBoolean(Maven2PreferenceConstants.P_OFFLINE))
+          .setGlobalChecksumPolicy(System.getProperty(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY));
+          // .setUpdateSnapshots( updateSnapshots )  // TODO
+          ;
+      
+      return executionRequest;
+    }
+
+
     public static final List VERSIONS = Arrays.asList( "1.1,1.2,1.3,1.4,1.5,1.6,1.7".split( "," ) ); 
     
     static void setVersion( Map options, String name, String value ) {
