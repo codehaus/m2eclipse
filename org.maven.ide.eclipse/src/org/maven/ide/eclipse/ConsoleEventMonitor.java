@@ -1,4 +1,3 @@
-/* $Id$ */
 
 package org.maven.ide.eclipse;
 
@@ -48,7 +47,9 @@ class ConsoleEventMonitor implements EventMonitor {
   
   public void errorEvent( String eventName, String target, long timestamp, Throwable cause ) {
     System.out.println("[ERROR] " + eventName + " : " + target );
-    System.out.println("Diagnosis: "+cause.getMessage());
+    if(cause!=null) {
+      System.out.println("Diagnosis: "+cause.getMessage());
+    }
     System.out.println("FATAL ERROR: Error executing Maven for a project");
   }
 

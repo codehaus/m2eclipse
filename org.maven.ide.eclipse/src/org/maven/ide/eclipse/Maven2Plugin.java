@@ -30,7 +30,6 @@ import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuildingException;
 
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
-import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IResource;
@@ -407,23 +406,23 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         }
       }
       
-      if(recursive) {
-        IContainer parent = pomFile.getParent();
-        
-        List modules = mavenProject.getModules();
-        for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
-          if(monitor.isCanceled()) {
-            throw new OperationCanceledException();
-          }
-
-          String module = ( String ) it.next();
-          IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
-          if(memberPom!=null && memberPom.getType() == IResource.FILE) {
-            resolveClasspathEntries(libraryEntries, moduleArtifacts, (IFile)memberPom, true, 
-                new SubProgressMonitor(monitor, 1));
-          }
-        }    
-      }
+//      if(recursive) {
+//        IContainer parent = pomFile.getParent();
+//        
+//        List modules = mavenProject.getModules();
+//        for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
+//          if(monitor.isCanceled()) {
+//            throw new OperationCanceledException();
+//          }
+//
+//          String module = ( String ) it.next();
+//          IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
+//          if(memberPom!=null && memberPom.getType() == IResource.FILE) {
+//            resolveClasspathEntries(libraryEntries, moduleArtifacts, (IFile)memberPom, true, 
+//                new SubProgressMonitor(monitor, 1));
+//          }
+//        }    
+//      }
 
     } catch (OperationCanceledException ex) {
       throw ex;
