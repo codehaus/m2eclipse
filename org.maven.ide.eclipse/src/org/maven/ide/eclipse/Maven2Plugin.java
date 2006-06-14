@@ -234,7 +234,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     IPreferenceStore store = this.getPreferenceStore();
 
     MavenEmbedder embedder = new MavenEmbedder();
-    MavenEmbedderLogger logger = new ConsoleMavenEmbeddedLogger(getConsole());
+    MavenEmbedderLogger logger = new PluginConsoleMavenEmbeddedLogger();
     final boolean debugEnabled = store.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
     logger.setThreshold(debugEnabled ? MavenEmbedderLogger.LEVEL_DEBUG : MavenEmbedderLogger.LEVEL_INFO);
     embedder.setLogger(logger);
@@ -579,7 +579,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
 
     private Object callbackResult;
 
-    private EmbedderJob( String name, MavenEmbedderCallback template, MavenEmbedder embedder ) {
+    EmbedderJob( String name, MavenEmbedderCallback template, MavenEmbedder embedder ) {
       super( name );
       this.template = template;
       this.embedder = embedder;

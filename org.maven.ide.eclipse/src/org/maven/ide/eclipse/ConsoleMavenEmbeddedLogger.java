@@ -1,40 +1,18 @@
-/* $Id$ */
 
 package org.maven.ide.eclipse;
 
 import org.apache.maven.embedder.MavenEmbedderLogger;
 
-import org.maven.ide.eclipse.launch.console.Maven2Console;
-
 
 class ConsoleMavenEmbeddedLogger implements MavenEmbedderLogger {
   private int treshold = LEVEL_DEBUG;
-  private final Maven2Console console;
-  
-  public ConsoleMavenEmbeddedLogger() {
-    this(null);
-  }
-  
-  public ConsoleMavenEmbeddedLogger(Maven2Console console) {
-    this.console = console;
-  }
 
   private void out(String s) {
-    if (this.console != null) {
-      this.console.logMessage(s);
-    }
-    else {
-      System.out.println(s);
-    }
+    System.out.println(s);
   }
 
   private void outError(String s) {
-    if (this.console != null) {
-      this.console.logError(s);
-    }
-    else {
-      System.out.println(s);
-    }
+    System.out.println(s);
   }
   
   public void debug( String msg ) {
