@@ -229,10 +229,10 @@ public class Indexer {
   }
 
   private void processDir( File dir, IndexerAdapter w, String repositoryPath, String repositoryName, IProgressMonitor monitor) throws IOException {
-    if(dir==null) return;
-    if(monitor.isCanceled()) return;
+    if(monitor.isCanceled() || dir==null || !dir.exists()) return;
 
     File[] files = dir.listFiles();
+    if(files==null) return;
     // monitor.beginTask( "Processing "+dir.getAbsolutePath(), files.length );
     monitor.worked( 1 );
     try {
