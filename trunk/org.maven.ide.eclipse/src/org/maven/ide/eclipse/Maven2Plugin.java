@@ -13,10 +13,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.apache.maven.SettingsConfigurationException;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
 import org.apache.maven.artifact.repository.ArtifactRepository;
@@ -24,10 +26,16 @@ import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
 import org.apache.maven.embedder.MavenEmbedderLogger;
+import org.apache.maven.execution.DefaultMavenExecutionRequest;
+import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
+import org.apache.maven.project.InvalidProjectModelException;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuildingException;
+import org.apache.maven.project.validation.ModelValidationResult;
+import org.apache.maven.settings.Settings;
+import org.apache.maven.wagon.events.TransferListener;
 
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.eclipse.core.resources.IFile;
@@ -51,11 +59,13 @@ import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
+
 import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
 import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 import org.maven.ide.eclipse.util.ITraceable;
 import org.maven.ide.eclipse.util.Tracer;
+
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 
@@ -311,11 +321,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   }
 
 
-  public void addMarker( IResource file, String message, int lineNumber, int severity) {
+  public void addMarker( IResource resource, String message, int lineNumber, int severity) {
     try {
-      deleteMarkers(file);
-      
-      IMarker marker = file.createMarker( Maven2Plugin.MARKER_ID);
+      IMarker marker = resource.createMarker( Maven2Plugin.MARKER_ID);
       marker.setAttribute( IMarker.MESSAGE, message);
       marker.setAttribute( IMarker.SEVERITY, severity);
       if( lineNumber == -1) {
@@ -327,9 +335,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
   }
 
-  public void deleteMarkers( IResource file) {
+  public void deleteMarkers( IResource resource) {
     try {
-      file.deleteMarkers( Maven2Plugin.MARKER_ID, false, IResource.DEPTH_ZERO);
+      resource.deleteMarkers( Maven2Plugin.MARKER_ID, false, IResource.DEPTH_ZERO);
     } catch( CoreException ex) {
       Maven2Plugin.log(ex);
     }
@@ -424,14 +432,16 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
 //        }    
 //      }
 
-    } catch (OperationCanceledException ex) {
+    } catch(OperationCanceledException ex) {
       throw ex;
       
-    } catch( InvalidArtifactRTException ex) {
-      addMarker(pomFile, ex.getBaseMessage(), 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+    } catch(InvalidArtifactRTException ex) {
+      deleteMarkers(pomFile);
+      addMarker(pomFile, ex.getBaseMessage(), 1, IMarker.SEVERITY_ERROR);
       
-    } catch( Throwable ex) {
-      addMarker(pomFile, ex.toString(), 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+    } catch(Throwable ex) {
+      deleteMarkers(pomFile);
+      addMarker(pomFile, ex.toString(), 1, IMarker.SEVERITY_ERROR);
       
     } finally {
       monitor.done();
@@ -541,7 +551,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       } catch( AbstractArtifactResolutionException ex ) {
         String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
         String msg = ex.getOriginalMessage()+" "+name;
-        Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+        Maven2Plugin.getDefault().deleteMarkers(this.file);
+        Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR);
         Maven2Plugin.getDefault().getConsole().logError(msg);
         
         try {
@@ -562,10 +573,27 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       if( cause instanceof XmlPullParserException) {
         XmlPullParserException pex = ( XmlPullParserException ) cause;
         String msg = Messages.getString("plugin.markerParsingError") + pex.getMessage();
+        Maven2Plugin.getDefault().deleteMarkers(this.file);
         Maven2Plugin.getDefault().addMarker(this.file, msg, pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
         Maven2Plugin.getDefault().getConsole().logError( msg +" at line "+ pex.getLineNumber());
+      } else if( ex instanceof InvalidProjectModelException) {
+        InvalidProjectModelException mex = ( InvalidProjectModelException ) ex;
+        ModelValidationResult validationResult = mex.getValidationResult();
+        String msg = Messages.getString("plugin.markerBuildError") + mex.getMessage();
+        Maven2Plugin.getDefault().getConsole().logError( msg);        
+        Maven2Plugin.getDefault().deleteMarkers(this.file);
+        if(validationResult==null) {
+          Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+        } else {
+          for( Iterator it = validationResult.getMessages().iterator(); it.hasNext(); ) {
+            String message = ( String ) it.next();
+            Maven2Plugin.getDefault().addMarker(this.file, message, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+            Maven2Plugin.getDefault().getConsole().logError("  "+message);        
+          }
+        }
       } else {
         String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
+        Maven2Plugin.getDefault().deleteMarkers(this.file);
         Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
         Maven2Plugin.getDefault().getConsole().logError( msg);
       }
@@ -702,6 +730,127 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
   
   }
+  
+  /**
+   * Provides a clean mechanism to allow the construction of a
+   * MavenExectionRequest for the given embedder, pom and with goals and
+   * properties. Note that the rest of the settings can be modified by the
+   * preferences of the plugin, this allows for good re-use with some
+   * consistency
+   * 
+   * @param embedder
+   * @param pomFile
+   * @param properties
+   * @param goals
+   * @throws SettingsConfigurationException
+   */
+  public MavenExecutionRequest getMavenExecutionRequest( MavenEmbedder embedder, File pomFile, Properties properties,
+      List goals ) throws SettingsConfigurationException {
+
+    PluginConsoleEventMonitor consoleEventMonitor = new PluginConsoleEventMonitor();
+    TransferListener transferListener = new ConsoleTransferMonitor();
+
+    File userSettingsPath = embedder.getUserSettingsPath( null );
+    File globalSettingsFile = embedder.getGlobalSettingsPath();
+
+    Settings settings = embedder.buildSettings( userSettingsPath, globalSettingsFile, false, // interactive
+        false, // offline,
+        false, // usePluginRegistry,
+        Boolean.FALSE ); // pluginUpdateOverride );
+
+    String localRepositoryPath = System.getProperty( Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR );
+    if( localRepositoryPath == null || localRepositoryPath.trim().length() == 0 ) {
+      localRepositoryPath = embedder.getLocalRepositoryPath( settings );
+    }
+
+    MavenExecutionRequest executionRequest = new DefaultMavenExecutionRequest().setPomFile( pomFile.getAbsolutePath() )
+        .setBasedir(pomFile.getParentFile())
+        .setGoals(goals)
+        .setProperties(properties==null ? System.getProperties() : properties)
+        .setSettings(settings)
+        .setLocalRepositoryPath(localRepositoryPath)
+        .setReactorActive( false )
+        .setRecursive(true)
+        .setInteractive(false)
+        .setTransferListener(transferListener)
+        .addEventMonitor(consoleEventMonitor)
+        // .activateDefaultEventMonitor()
+        .setShowErrors(true) // TODO make configurable
+        .setLoggingLevel(MavenExecutionRequest.LOGGING_LEVEL_INFO) // TODO make configurable
+        .setFailureBehavior(MavenExecutionRequest.REACTOR_FAIL_AT_END) // TODO make configurable
+        // .addActiveProfiles( activeProfiles ) // TODO make configurable
+        // .addInactiveProfiles( inactiveProfiles ) // TODO make configurable
+        .setOffline(Boolean.getBoolean(Maven2PreferenceConstants.P_OFFLINE))
+        .setGlobalChecksumPolicy(System.getProperty(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY))
+        // .setUpdateSnapshots( updateSnapshots ) // TODO make configurable
+        ;
+    return executionRequest;
+  }
+
+  /**
+   * Helper method that can be used to add the Maven2 natures (to enable the
+   * tooling) to a given eclipse project, this is useful as it allows other
+   * plug-in or wizards outside of the plugin to add the requires natures to
+   * enable the tooling automatically
+   * 
+   * @param project
+   */
+  /*
+  // TODO this is not ready to be a public API. 
+     It should apply changes only if they are required, to avoid project rebuild on buildpath change
+        
+  public void addNatures( IProject project ) throws CoreException {
+    ArrayList newNatures = new ArrayList();
+    newNatures.add( JavaCore.NATURE_ID );
+    newNatures.add( Maven2Plugin.NATURE_ID );
+
+    IProjectDescription description = project.getDescription();
+    String[] natures = description.getNatureIds();
+    for( int i = 0; i < natures.length; ++i ) {
+      String id = natures[i];
+      if( !Maven2Plugin.NATURE_ID.equals( id ) && !JavaCore.NATURE_ID.equals( natures[i] ) ) {
+        newNatures.add( natures[i] );
+      }
+    }
+    description.setNatureIds( ( String[] ) newNatures.toArray( new String[newNatures.size()] ) );
+    project.setDescription( description, null );
+
+    IJavaProject javaProject = JavaCore.create( project );
+    if( javaProject != null ) {
+      // remove classpatch container from JavaProject
+      IClasspathEntry[] entries = javaProject.getRawClasspath();
+      ArrayList newEntries = new ArrayList();
+      for( int i = 0; i < entries.length; i++ ) {
+        if( !Maven2ClasspathContainer.isMaven2ClasspathContainer( entries[i].getPath() ) ) {
+          newEntries.add( entries[i] );
+        }
+      }
+      newEntries.add( JavaCore.newContainerEntry( new Path( Maven2Plugin.CONTAINER_ID ) ) );
+      javaProject.setRawClasspath( ( IClasspathEntry[] ) newEntries.toArray( new IClasspathEntry[newEntries.size()] ), null );
+    }
+  }
+  */
+
+  /**
+   * Provides the ability to update the source folders on a given project based upon the information in the 
+   * Maven Project Object Model (POM)
+   * 
+   * @param project
+   */
+  /*
+  // TODO this is not ready to be a public API.
+     This method should actually have code from UpdateSourcesJob and that job should be 
+     using it to avoid cyclic dependencies between classes. See resolveClasspathEntries() method.
+     
+  public void updateSourceFolders( IProject project ) {
+    UpdateSourcesAction.UpdateSourcesJob job = new UpdateSourcesAction.UpdateSourcesJob(project);
+    try {
+      job.join();
+    } catch (Exception e) {
+      throw new RuntimeException("Unable to update source folders on project "+project.getName(),e);
+    }
+  }
+  */
   
 }
 
