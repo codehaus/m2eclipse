@@ -115,6 +115,26 @@
                id="org.maven.ide.eclipse.disableAction">
          </action>
       </objectContribution>
+      <!--
+      <objectContribution
+            adaptable="true"
+            objectClass="org.eclipse.core.resources.IProject"
+            id="org.maven.ide.eclipse.projectMenus">
+         <visibility>
+            <objectState
+                  name="nature"
+                  value="org.maven.ide.eclipse.maven2Nature">
+            </objectState>
+         </visibility>
+         <action
+               class="org.maven.ide.eclipse.actions.LifeCycleAction"
+               enablesFor="1"
+               id="org.maven.ide.eclipse.actions.LifeCycleAction"
+               label="%m2.popup.project.lifecycle.label"
+               menubarPath="maven2/natureGroup"
+               style="pulldown"/>
+      </objectContribution>
+      -->
 
       <objectContribution
             adaptable="true"
