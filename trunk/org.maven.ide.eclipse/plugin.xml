@@ -327,23 +327,23 @@
       <wizard
             category="org.maven.ide.eclipse"
             class="org.maven.ide.eclipse.wizards.Maven2PomWizard"
-            icon="icons/sample.gif"
+            icon="icons/new_m2_pom.gif"
             id="org.maven.ide.eclipse.wizards.Maven2PomWizard"
             name="%m2.wizard.pom.name">
          <selection class="org.eclipse.core.resources.IProject"/>
          <selection class="org.eclipse.core.resources.IResource"/>
       </wizard>
 
-      <!-- wait for archetype support
+      <!-- wait for archetype support -->
       <wizard
             category="org.maven.ide.eclipse"
             class="org.maven.ide.eclipse.wizards.Maven2ProjectWizard"
-            icon="icons/sample.gif"
+            icon="icons/new_m2_project.gif"
             id="org.maven.ide.eclipse.wizards.Maven2ProjectWizard"
             name="%m2.wizard.project.name"
             project="true">
+         <description>%m2.wizard.project.description</description>
       </wizard>
-      -->
       
    </extension>
 

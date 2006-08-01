@@ -294,7 +294,11 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
   }
 
-  public void addDependency(final IFile pomFile, final Dependency dependency) {
+  public void addDependency( final IFile pomFile, final Dependency dependency ) {
+    addDependencies( pomFile, Collections.singletonList( dependency ) );
+  }
+
+  public void addDependencies( final IFile pomFile, final List dependencies ) {
     // IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
 
     executeInEmbedder(new MavenEmbedderCallback() {
@@ -303,8 +307,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
           try {
             Model model = mavenEmbedder.readModel( pom);
             
-            List dependencies = model.getDependencies();
-            dependencies.add(dependency);
+            model.getDependencies().addAll(dependencies);
             
             StringWriter w = new StringWriter();
             mavenEmbedder.writeModel( w, model);

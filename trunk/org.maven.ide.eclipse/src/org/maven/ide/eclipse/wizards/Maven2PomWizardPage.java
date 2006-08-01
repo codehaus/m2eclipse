@@ -1,4 +1,3 @@
-
 package org.maven.ide.eclipse.wizards;
 
 import org.apache.maven.model.Model;
@@ -46,11 +45,6 @@ public class Maven2PomWizardPage extends WizardPage {
   private Maven2ArtifactComponent pomComponent;
 
 
-  /**
-   * Constructor for SampleNewWizardPage.
-   * 
-   * @param pageName
-   */
   public Maven2PomWizardPage( ISelection selection) {
     super( "wizardPage");
     setTitle( "Maven2 POM");
@@ -58,13 +52,9 @@ public class Maven2PomWizardPage extends WizardPage {
     this.selection = selection;
   }
 
-  /**
-   * @see IDialogPage#createControl(Composite)
-   */
   public void createControl( Composite parent) {
     GridLayout layout = new GridLayout();
     layout.numColumns = 3;
-    layout.verticalSpacing = 5;
     layout.makeColumnsEqualWidth = false;
 
     Composite container = new Composite( parent, SWT.NULL);
@@ -77,7 +67,8 @@ public class Maven2PomWizardPage extends WizardPage {
     };
 
     GridData gridData = new GridData();
-    gridData.horizontalIndent = 7;
+    gridData.horizontalIndent = 5;
+    // gridData.horizontalIndent = 7;
     Label label = new Label( container, SWT.NULL);
     label.setLayoutData(gridData);
     label.setText( "&Project:");
@@ -97,11 +88,11 @@ public class Maven2PomWizardPage extends WizardPage {
         }
       });
 
-    gridData = new GridData( GridData.FILL, GridData.FILL, true, true, 3, 1);
-    gridData.verticalIndent = 5;
+    gridData = new GridData( SWT.FILL, SWT.FILL, true, true, 3, 1);
     
-    pomComponent = new Maven2ArtifactComponent(container, SWT.NONE, modifyingListener);
+    pomComponent = new Maven2ArtifactComponent(container, SWT.NONE);
     pomComponent.setLayoutData(gridData);
+    pomComponent.setModifyingListener( modifyingListener );
     
     initialize();
     dialogChanged();
@@ -112,7 +103,7 @@ public class Maven2PomWizardPage extends WizardPage {
    * Tests if the current workbench selection is a suitable container to use.
    */
   private void initialize() {
-    if( selection != null && selection.isEmpty() == false && 
+    if( selection != null && !selection.isEmpty() && 
         selection instanceof IStructuredSelection) {
       IStructuredSelection ssel = ( IStructuredSelection) selection;
       if( ssel.size() > 1) {
@@ -128,12 +119,12 @@ public class Maven2PomWizardPage extends WizardPage {
         }
         projectText.setText( container.getFullPath().toString());
         pomComponent.setArtifactId( container.getName());
+        pomComponent.setGroupId( container.getName());
       }
     }
     
-    pomComponent.setVersion( "0.0.1");
-    pomComponent.setPackaging( "jar");
-    // TODO
+    pomComponent.setVersion( Maven2ArtifactComponent.DEFAULT_VERSION );
+    pomComponent.setPackaging( Maven2ArtifactComponent.DEFAULT_PACKAGING );
   }
 
   /**
@@ -166,9 +157,13 @@ public class Maven2PomWizardPage extends WizardPage {
     dialog.setMessage("Choose project where POM will be created"); 
     dialog.setElements(projects);
     
-    IJavaProject javaProject = javaModel.getJavaProject( getProject());
-    if (javaProject!=null) {
-      dialog.setInitialSelections(new Object[] { javaProject });
+    
+    String projectName = getProject();
+    if(projectName!=null && projectName.length()>0) {
+      IJavaProject javaProject = javaModel.getJavaProject( projectName);
+      if (javaProject!=null) {
+        dialog.setInitialSelections(new Object[] { javaProject });
+      }
     }
     
     if (dialog.open() == Window.OK) {     
