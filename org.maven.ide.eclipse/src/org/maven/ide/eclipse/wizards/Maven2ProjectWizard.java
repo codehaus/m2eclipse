@@ -1,150 +1,386 @@
 
 package org.maven.ide.eclipse.wizards;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+
+import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.model.Model;
 
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.launching.JavaRuntime;
+import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.wizard.Wizard;
 import org.eclipse.ui.INewWizard;
 import org.eclipse.ui.IWorkbench;
 import org.maven.ide.eclipse.Maven2Plugin;
-
+import org.maven.ide.eclipse.MavenEmbedderCallback;
+import org.maven.ide.eclipse.Messages;
 
 /**
- * TODO
- * 
- * This is a sample new wizard. Its role is to create a new file 
- * resource in the provided container. If the container resource
- * (a folder or a project) is selected in the workspace 
- * when the wizard is opened, it will accept it as the target
- * container. The wizard creates one file with the extension
- * "pom.xml". If a sample multi-page editor (also available
- * as a template) is registered for the same extension, it will
- * be able to open it.
- */
+ * Simple project wizard for creating a new Maven2 project.
+ *
+ * <p>
+ * The wizard provides the following functionality to the user:
+ * <ul>
+ *   <li>Create the project in the workspace or at some external location.</li>
+ *   <li>Provide information about the Maven2 artifact to create.</li>
+ *   <li>Choose directories of the default Maven2 directory structure to create.</li>
+ *   <li>Choose a set of Maven2 dependencies for the project.</li>
+ * </ul>
+ * </p>
+ * <p>
+ * Once the wizard has finished, the following resources are created and
+ * configured:
+ * <ul>
+ *   <li>A POM file containing the given artifact information and the chosen dependencies.</li>
+ *   <li>The chosen Maven2 directories.</li>
+ *   <li>The .classpath file is configured to hold appropriate entries for
+ *       the Maven2 directories created as well as the Java and Maven2 classpath
+ *       containers.</li>
+ * </ul>
+ * </p>
+*/
 public class Maven2ProjectWizard extends Wizard implements INewWizard {
-	private Maven2ProjectWizardPage page;
-  private IStructuredSelection selection;
+  /** The name of the default wizard page image. */
+  private static final String DEFAULT_PAGE_IMAGE_NAME =
+    "icons/new_m2_project_wizard.gif";
+  /** The default wizard page image. */
+  private static final ImageDescriptor DEFAULT_PAGE_IMAGE =
+    Maven2Plugin.getImageDescriptor( DEFAULT_PAGE_IMAGE_NAME );
+  /** The wizard page for gathering general project information. */
+  private Maven2ProjectWizardLocationPage projectPage;
+  /** The wizard page for gathering Maven2 project information. */
+  private Maven2ProjectWizardArtifactPage artifactPage;
+  /** The wizard page for choosing the Maven2 dependencies to use. */
+  private Maven2DependenciesWizardPage wizardPage;
 
-	/**
-	 * Constructor for Maven2PomWizard.
-	 */
-	public Maven2ProjectWizard() {
-		super();
-		setNeedsProgressMonitor(true);
-	}
-	
-	/**
-	 * Adding the page to the wizard.
-	 */
+  /**
+   * Default constructor.
+   *
+   * Sets the title and image of the wizard.
+   */
+  public Maven2ProjectWizard() {
+    super();
+    setWindowTitle( Messages.getString( "wizard.project.title" ) );
+    setDefaultPageImageDescriptor( DEFAULT_PAGE_IMAGE );
+    setNeedsProgressMonitor( true );
+  }
 
-	public void addPages() {
-		page = new Maven2ProjectWizardPage(selection);
-		addPage(page);
-	}
+  public void addPages() {
+    projectPage = new Maven2ProjectWizardLocationPage();
+    artifactPage = new Maven2ProjectWizardArtifactPage();
+    wizardPage = new Maven2DependenciesWizardPage();
 
-	/**
-	 * This method is called when 'Finish' button is pressed in
-	 * the wizard. We will create an operation and run it
-	 * using wizard as execution context.
-	 */
-	public boolean performFinish() {
-//		final String projectName = page.getProject();
-//		final Model model = page.getModel();
-//		
-//        IRunnableWithProgress op = new IRunnableWithProgress() {
-//			public void run(IProgressMonitor monitor) throws InvocationTargetException {
-//				try {
-//					doFinish(projectName, model, monitor);
-//				} catch (CoreException e) {
-//					throw new InvocationTargetException(e);
-//				} finally {
-//					monitor.done();
-//				}
-//			}
-//		};
-//		
-//        try {
-//			getContainer().run(true, false, op);
-//		} catch (InterruptedException e) {
-//			return false;
-//		} catch (InvocationTargetException e) {
-//			Throwable realException = e.getTargetException();
-//			MessageDialog.openError(getShell(), "Error", realException.getMessage());
-//			return false;
-//		}
-		return true;
-	}
-	
-	/**
-	 * The worker method. It will find the container, create the
-	 * file if missing or just replace its contents, and open
-	 * the editor on the newly created file.
-	 */
-	private void doFinish( String projectName, Model model, IProgressMonitor monitor) throws CoreException {
-		// monitor.beginTask("Creating " + fileName, 2);
-		IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
-        
-		IResource resource = root.findMember(new Path(projectName));
-		if (!resource.exists() || !(resource instanceof IContainer)) {
-			throwCoreException("Project \"" + projectName + "\" does not exist.");
-		}
-        
-		IContainer container = (IContainer) resource;
-		final IFile file = container.getFile(new Path(Maven2Plugin.POM_FILE_NAME));
-        
-        // TODO Write model
-        
-//		try {
-//			InputStream stream = openContentStream();
-//			if (file.exists()) {
-//				file.setContents(stream, true, true, monitor);
-//			} else {
-//				file.create(stream, true, monitor);
-//			}
-//			stream.close();
-//		} catch (IOException e) {
-//		}
-        
-//		monitor.worked(1);
+    projectPage.setMavenArtifactPage( artifactPage );
 
-//		monitor.setTaskName("Opening file for editing...");
-//		getShell().getDisplay().asyncExec(new Runnable() {
-//			public void run() {
-//				IWorkbenchPage page =
-//					PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-//				try {
-//					IDE.openEditor(page, file, true);
-//				} catch (PartInitException e) {
-//				}
-//			}
-//		});
-//		monitor.worked(1);
-	}
-	
-	private void throwCoreException(String message) throws CoreException {
-		IStatus status = new Status(IStatus.ERROR, "org.maven.ide.eclipse", IStatus.OK, message, null);
-		throw new CoreException(status);
-	}
+    addPage( projectPage );
+    addPage( artifactPage );
+    addPage( wizardPage );
+  }
 
-	/**
-	 * We will accept the selection in the workbench to see if
-	 * we can initialize from it.
-	 * @see IWorkbenchWizard#init(IWorkbench, IStructuredSelection)
-	 */
-	public void init(IWorkbench workbench, IStructuredSelection selection) {
-		this.selection = selection;
-	}
-    
+  /**
+   * Creates the actual project resource for the given <code>project</code>
+   * at the provided <code>location</code>.
+   *
+   * <p>
+   * Note that the project is merely created but not yet configured, i.e. no
+   * project nature is set on the project at this point as this would eventually
+   * already trigger the builder on the project.
+   * </p>
+   * <p>
+   * Once the project is created, it is also opened.
+   * </p>
+   *
+   * @param project   The project for which the actual project resource is to
+   *                  be created.
+   * @param location  The path at which the project resource is to be created.
+   *
+   * @throws CoreException if some error occurs while creating or opening the project.
+   *
+   * @see org.eclipse.core.resources.IProject#create(org.eclipse.core.resources.IProjectDescription, org.eclipse.core.runtime.IProgressMonitor)
+   * @see org.eclipse.core.resources.IProject#open(org.eclipse.core.runtime.IProgressMonitor)
+   */
+  private static void createProject( IProject project, IPath location ) throws CoreException {
+    IProjectDescription description =
+      ResourcesPlugin.getWorkspace().newProjectDescription( project.getName() );
+
+    description.setLocation( location );
+
+    project.create( description, null );
+    project.open( null );
+  }
+
+  /**
+   * Creates the actual Maven2 project by creating a normal Java project based
+   * on the given <code>project</code> and setting the Java as well as the
+   * Maven2 natures on the project. The Java and Maven2 classpath containers
+   * as well as the whole Java classpath are also set up.
+   *
+   * @param project           The project handle for the already existing
+   *                          but unconfigured project resource.
+   * @param classpathEntries  The classpath entries to include in the Java
+   *                          project.
+   * @param outputPath        The default output location path to set in the
+   *                          .classpath file.
+   *
+   * @throws CoreException if some error occurs while configuring the Maven2 project.
+   */
+  private static void createMaven2Project( IProject project, IClasspathEntry[] classpathEntries, IPath outputPath ) throws CoreException {
+    IProjectDescription description = project.getDescription();
+    description.setNatureIds( new String[] { JavaCore.NATURE_ID, Maven2Plugin.NATURE_ID } );
+    project.setDescription( description, null );
+
+    IJavaProject javaProject = JavaCore.create( project );
+
+    javaProject.setRawClasspath(
+        addContainersToClasspath( classpathEntries ),
+        outputPath,
+        new NullProgressMonitor() );
+  }
+
+  /**
+   * Creates the given <code>directories</code> in the provided <code>project</code>
+   * resource which must already exist.
+   *
+   * @param project      The project in which the directories are to be created.
+   * @param directories  The directories to create inside the project.
+   *
+   * @throws CoreException if creating any of the folders fails.
+   */
+  private static void createDirectories( IProject project, String[] directories ) throws CoreException {
+    for ( int i = 0; i < directories.length; i++ ) {
+      createFolder( project.getFolder( directories[i] ) );
+    }
+  }
+
+  /**
+   * Helper method which creates a folder and, recursively, all its parent
+   * folders.
+   *
+   * @param folder  The folder to create.
+   *
+   * @throws CoreException if creating the given <code>folder</code> or any of
+   *                       its parents fails.
+   */
+  private static void createFolder( IFolder folder ) throws CoreException {
+    // Recurse until we find a parent folder which already exists.
+    if ( !folder.exists() ) {
+      IContainer parent = folder.getParent();
+      // First, make sure that all parent folders exist.
+      if ( parent instanceof IFolder ) {
+        createFolder( ( IFolder ) parent );
+      }
+      folder.create( false, true, null );
+    }
+  }
+
+  /**
+   * Creates a POM file for the given <code>model</code> inside the provided
+   * <code>project</code>.
+   *
+   * @param project  The project for which to create the POM file.
+   * @param model    The POM to write to file.
+   * @param dependencies 
+   *
+   * @throws CoreException if a POM file already exists in the given project
+   *                       or if creating the file fails.
+   */
+  private static void createPOMFile( final IProject project, final Model model ) throws CoreException {
+    final IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME ) );
+
+    if ( file.exists() ) {
+      throwCoreException( Messages.getString( "wizard.project.error.pomExists" ) );
+    }
+
+    final File pom = file.getLocation().toFile();
+
+    try {
+      final StringWriter w = new StringWriter();
+      Maven2Plugin.getDefault().executeInEmbedder( new MavenEmbedderCallback() {
+        public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+          try {
+            mavenEmbedder.writeModel( w, model );
+          } catch ( IOException ex ) {
+            Maven2Plugin.log( "Unable to write POM " + pom + "; " + ex.getMessage(), ex );
+          }
+          return null;
+        }
+      }, new NullProgressMonitor() );
+
+      file.create( new ByteArrayInputStream( w.toString().getBytes( "ASCII" ) ), true, null );
+    } catch ( Exception ex ) {
+      Maven2Plugin.log( "Unable to create POM " + pom + "; " + ex.getMessage(), ex );
+    }
+  }
+
+  /**
+   * Adds the Java and Maven2 classpath containers to the given classpath
+   * <code>entries</code>.
+   *
+   * @param entries  A given set of classpath entries.
+   * @return         An array containing all of the initially provided classpath
+   *                 <code>entries</code> as well as the Java and Maven2
+   *                 classpath containers.
+   *                 Is never <code>null</code>.
+   */
+  private static IClasspathEntry[] addContainersToClasspath( IClasspathEntry[] entries ) {
+    IClasspathEntry[] classpath = new IClasspathEntry[entries.length + 2];
+    System.arraycopy( entries, 0, classpath, 0, entries.length );
+
+    classpath[classpath.length - 2] = JavaCore.newContainerEntry( new Path( JavaRuntime.JRE_CONTAINER ) );
+    classpath[classpath.length - 1] = JavaCore.newContainerEntry( new Path( Maven2Plugin.CONTAINER_ID ) );
+
+    return classpath;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * To perform the actual project creation, an operation is created and run
+   * using this wizard as execution context. That way, messages about the
+   * progress of the project creation are displayed inside the wizard.
+   */
+  public boolean performFinish() {
+    // First of all, we extract all the information from the wizard pages.
+    // Note that this should not be done inside the operation we will run
+    // since many of the wizard pages' methods can only be invoked from within
+    // the SWT event dispatcher thread. However, the operation spawns a new
+    // separate thread to perform the actual work, i.e. accessing SWT elements
+    // from withing that thread would lead to an exception.
+
+    final IProject project = projectPage.getProjectHandle();
+
+    // Get the location where to create the project. For some reason, when using
+    // the default workspace location for a project, we have to pass null
+    // instead of the actual location.
+    final IPath location = projectPage.isInWorkspace() ? null : projectPage.getLocationPath();
+
+    final String[] directories = artifactPage.getDirectories();
+
+    final Model model = artifactPage.getModel();
+    model.getDependencies().addAll( Arrays.asList( wizardPage.getDependencies() ) );
+
+    final IClasspathEntry[] classpathEntries = artifactPage.getClasspathEntries( project.getFullPath() );
+
+    final IPath outputPath = artifactPage.getDefaultOutputLocationPath( project.getFullPath() );
+
+    // Run the actual operation for creating the project.
+    IRunnableWithProgress op = new IRunnableWithProgress() {
+      public void run( IProgressMonitor monitor ) throws InvocationTargetException {
+        try {
+          doFinish( project, location, directories, model, classpathEntries, outputPath, monitor );
+        } catch( CoreException e ) {
+          throw new InvocationTargetException( e );
+        } finally {
+          monitor.done();
+        }
+      }
+    };
+
+    try {
+      getContainer().run( true, false, op );
+    } catch ( InterruptedException e ) {
+      return false;
+    } catch ( InvocationTargetException e ) {
+      Throwable realException = e.getTargetException();
+      MessageDialog.openError( getShell(), "Error", realException.getMessage() );
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Performs the actual project creation.
+   *
+   * <p>
+   * The following steps are executed in the given order:
+   * <ul>
+   *   <li>Create the actual project resource without configuring it yet.</li>
+   *   <li>Create the required Maven2 directories.</li>
+   *   <li>Create the POM file.</li>
+   *   <li>Configure the Maven2 project.</li>
+   *   <li>Add the Maven2 dependencies to the project.</li>
+   * </ul>
+   * </p>
+   *
+   * @param project           The handle for the project to create.
+   * @param location          The location at which to create the project.
+   * @param directories       The Maven2 directories to create.
+   * @param model             The POM containing the project artifact information.
+   * @param classpathEntries  The classpath entries of the project.
+   * @param outputPath        The default output location path to set in the
+   *                          .classpath file of the project.
+   * @param monitor           The monitor for displaying the project creation
+   *                          progress.
+   *
+   * @throws CoreException if any of the above listed actions fails.
+   */
+  private static void doFinish(
+      IProject project,
+      IPath location,
+      String[] directories,
+      Model model,
+      IClasspathEntry[] classpathEntries,
+      IPath outputPath,
+      IProgressMonitor monitor ) throws CoreException {
+    monitor.beginTask( Messages.getString( "wizard.project.monitor.create" ), 5 );
+
+    monitor.subTask( Messages.getString( "wizard.project.monitor.createProject" ) );
+    createProject( project, location );
+    monitor.worked( 1 );
+
+    monitor.subTask( Messages.getString( "wizard.project.monitor.createDirectories" ) );
+    createDirectories( project, directories );
+    monitor.worked( 1 );
+
+    monitor.subTask( Messages.getString( "wizard.project.monitor.createPOM" ) );
+    createPOMFile( project, model );
+    monitor.worked( 1 );
+
+    monitor.subTask( Messages.getString( "wizard.project.monitor.configureMaven2" ) );
+    createMaven2Project( project, classpathEntries, outputPath );
+    monitor.worked( 1 );
+  }
+
+  /**
+   * Helper method which throws a <code>CoreException</code> while setting
+   * an appropriate error status.
+   *
+   * @param message  An error message indicating the reason of the exception.
+   *
+   * @throws CoreException by definition ;)
+   */
+  private static void throwCoreException( String message ) throws CoreException {
+    IStatus status = new Status( IStatus.ERROR, "org.maven.ide.eclipse", IStatus.OK, message, null );
+    throw new CoreException( status );
+  }
+
+  /** {@inheritDoc} */
+  public void init( IWorkbench workbench, IStructuredSelection selection ) {
+    // do nothing
+  }
 }
-

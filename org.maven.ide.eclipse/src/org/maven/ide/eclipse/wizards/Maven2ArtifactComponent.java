@@ -13,14 +13,19 @@ import org.eclipse.swt.widgets.Text;
 
 
 public class Maven2ArtifactComponent extends Composite {
+  public static final String DEFAULT_PACKAGING = "jar";
+  public static final String DEFAULT_VERSION = "0.0.1";
+  
   private Text groupIdText;
   private Text artifactIdText;
   private Text versionText;
   private Text descriptionText;
   private Combo packagingCombo;
+  
+  private ModifyListener modifyingListener;
 
   
-  public Maven2ArtifactComponent(Composite parent, int styles, ModifyListener modifyingListener) {
+  public Maven2ArtifactComponent(Composite parent, int styles) {
     super(parent, styles);
 
     GridLayout gridLayout = new GridLayout();
@@ -32,6 +37,8 @@ public class Maven2ArtifactComponent extends Composite {
     artifactGroup.setLayout(gridLayout);
 
     GridLayout layout = new GridLayout();
+    layout.marginWidth = 0;
+    layout.marginHeight = 0;
     layout.numColumns = 2;
     setLayout(layout);
     
@@ -40,21 +47,18 @@ public class Maven2ArtifactComponent extends Composite {
 
     groupIdText = new Text(artifactGroup, SWT.BORDER);
     groupIdText.setLayoutData(new GridData(GridData.FILL, GridData.CENTER, true, false));
-    groupIdText.addModifyListener(modifyingListener);
 
     Label artifactIdLabel = new Label(artifactGroup, SWT.NONE);
     artifactIdLabel.setText("Artifact Id:");
 
     artifactIdText = new Text(artifactGroup, SWT.BORDER);
     artifactIdText.setLayoutData(new GridData(GridData.FILL, GridData.CENTER, false, false));
-    artifactIdText.addModifyListener(modifyingListener);
 
     Label versionLabel = new Label(artifactGroup, SWT.NONE);
     versionLabel.setText("Version:");
 
     versionText = new Text(artifactGroup, SWT.BORDER);
     versionText.setLayoutData(new GridData(50, SWT.DEFAULT));
-    versionText.addModifyListener(modifyingListener);
 
     Label packagingLabel = new Label(artifactGroup, SWT.NONE);
     packagingLabel.setText("Packaging:");
@@ -62,7 +66,6 @@ public class Maven2ArtifactComponent extends Composite {
     packagingCombo = new Combo(artifactGroup, SWT.NONE);
     packagingCombo.setItems(new String[] {"jar", "war", "ear", "rar"});
     packagingCombo.setLayoutData(new GridData(50, SWT.DEFAULT));
-    packagingCombo.addModifyListener(modifyingListener);
 
     Label descriptionLabel = new Label(artifactGroup, SWT.NONE);
     descriptionLabel.setLayoutData(new GridData(GridData.BEGINNING, GridData.BEGINNING, false, false));
@@ -70,6 +73,26 @@ public class Maven2ArtifactComponent extends Composite {
 
     descriptionText = new Text(artifactGroup, SWT.BORDER);
     descriptionText.setLayoutData(new GridData(GridData.FILL, GridData.FILL, false, true));
+  }
+  
+  public void setModifyingListener( ModifyListener modifyingListener ) {
+    this.modifyingListener = modifyingListener;
+
+    groupIdText.addModifyListener(modifyingListener);
+    artifactIdText.addModifyListener(modifyingListener);
+    versionText.addModifyListener(modifyingListener);
+    packagingCombo.addModifyListener(modifyingListener);
+  }
+  
+  public void dispose() {
+    super.dispose();
+   
+    if(modifyingListener!=null) {
+      groupIdText.removeModifyListener( modifyingListener );
+      artifactIdText.removeModifyListener(modifyingListener);
+      versionText.removeModifyListener(modifyingListener);
+      packagingCombo.removeModifyListener(modifyingListener);
+    }
   }
 
   public String getArtifactId() {
@@ -93,7 +116,7 @@ public class Maven2ArtifactComponent extends Composite {
   }
   
   public void setGroupId( String groupId) {
-    this.artifactIdText.setText(groupId);
+    this.groupIdText.setText(groupId);
   }
   
   public void setArtifactId( String artifact) {

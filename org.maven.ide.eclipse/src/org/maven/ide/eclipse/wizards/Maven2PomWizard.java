@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.model.Model;
@@ -50,8 +51,10 @@ import org.maven.ide.eclipse.MavenEmbedderCallback;
  * be able to open it.
  */
 public class Maven2PomWizard extends Wizard implements INewWizard {
-	private Maven2PomWizardPage page;
-	private ISelection selection;
+	private Maven2PomWizardPage artifactPage;
+	private Maven2DependenciesWizardPage dependenciesPage;
+
+  private ISelection selection;
   private IWorkbench workbench;
 
 	/**
@@ -67,8 +70,11 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
 	 */
 
 	public void addPages() {
-		page = new Maven2PomWizardPage(selection);
-		addPage(page);
+		artifactPage = new Maven2PomWizardPage(selection);
+		dependenciesPage = new Maven2DependenciesWizardPage();
+		
+    addPage(artifactPage);
+    addPage(dependenciesPage);
 	}
 
 	/**
@@ -77,8 +83,9 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
 	 * using wizard as execution context.
 	 */
 	public boolean performFinish() {
-    final String projectName = page.getProject();
-    final Model model = page.getModel();
+    final String projectName = artifactPage.getProject();
+    final Model model = artifactPage.getModel();
+    model.getDependencies().addAll( Arrays.asList( dependenciesPage.getDependencies() ) );
 
     IRunnableWithProgress op = new IRunnableWithProgress() {
       public void run( IProgressMonitor monitor ) throws InvocationTargetException {
