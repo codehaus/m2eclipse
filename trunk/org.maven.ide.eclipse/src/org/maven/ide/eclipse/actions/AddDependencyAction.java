@@ -8,6 +8,7 @@ import org.apache.maven.project.MavenProject;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -39,15 +40,24 @@ public class AddDependencyAction implements IObjectActionDelegate {
       return;
     }
 
-    Maven2Plugin plugin = getPlugin();
-    MavenProject mavenProject = ( MavenProject ) plugin.executeInEmbedder( "Read Project", new Maven2Plugin.ReadProjectTask(file) ); 
+    MavenProject mavenProject;
+    try {
+      mavenProject = ( MavenProject ) Maven2Plugin.getDefault().executeInEmbedder( "Read Project", new Maven2Plugin.ReadProjectTask(file) );
+    } catch( CoreException ex ) {
+      return;
+    } 
+
     Set artifacts = mavenProject==null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
     
-    Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( getShell(), plugin.getIndexes(), artifacts, Indexer.JAR_NAME );
+    Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( getShell(), Maven2Plugin.getDefault().getIndexes(), artifacts, Indexer.JAR_NAME );
     if( dialog.open() == Window.OK ) {
       Indexer.FileInfo fileInfo = ( FileInfo ) dialog.getFirstResult();
       if( fileInfo != null ) {
-        plugin.addDependency( file, fileInfo.getDependency() );
+        try {
+          Maven2Plugin.getDefault().addDependency( file, fileInfo.getDependency() );
+        } catch( Exception ex ) {
+          // ignore
+        }
       }
     }
   }
@@ -68,17 +78,13 @@ public class AddDependencyAction implements IObjectActionDelegate {
   protected Shell getShell() {
     if( shell != null ) return shell;
 
-    IWorkbench workbench = getPlugin().getWorkbench();
+    IWorkbench workbench = Maven2Plugin.getDefault().getWorkbench();
     if( workbench == null ) return null;
 
     IWorkbenchWindow window = workbench.getActiveWorkbenchWindow();
     if( window == null ) return null;
 
     return window.getShell();
-  }
-
-  protected Maven2Plugin getPlugin() {
-    return Maven2Plugin.getDefault();
   }
 
 }

@@ -10,6 +10,7 @@ import org.apache.maven.project.MavenProject;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.compiler.IProblem;
@@ -102,7 +103,12 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
       IProject project = cu.getJavaProject().getProject();
       IFile pomFile = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
       
-      MavenProject mavenProject = ( MavenProject ) plugin.executeInEmbedder( "Read Project", new Maven2Plugin.ReadProjectTask(pomFile) ); 
+      MavenProject mavenProject = null;
+      try {
+        mavenProject = ( MavenProject ) plugin.executeInEmbedder( "Read Project", new Maven2Plugin.ReadProjectTask(pomFile) );
+      } catch( CoreException ex ) {
+        // ignore
+      } 
       Set artifacts = mavenProject==null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
 
       IWorkbench workbench = plugin.getWorkbench();
@@ -130,7 +136,7 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
             activeEditor.doSave(null);
   
           } catch( Exception e ) {
-            Maven2Plugin.log( "Build error", e);
+            Maven2Plugin.getDefault().getConsole().logError( "Build error; " + e.getMessage());
             return;
             
           }

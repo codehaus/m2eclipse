@@ -9,14 +9,11 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.variables.VariablesPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -49,7 +46,6 @@ import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.dialogs.ContainerSelectionDialog;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.MavenEmbedderCallback;
 import org.maven.ide.eclipse.Messages;
 import org.maven.ide.eclipse.util.ITraceable;
 import org.maven.ide.eclipse.util.Tracer;
@@ -196,14 +192,8 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
 				}
         final Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell(), Messages.getString("launch.goalsDialog.title"));  //$NON-NLS-1$
         dialog.setAllowMultiple(false);
-        
-        Object res = Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
-            public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
-              dialog.setInput(mavenEmbedder);
-              return new Integer(dialog.open());
-            }
-          }, new NullProgressMonitor());
-        int rc = ((Integer) res).intValue();
+        dialog.setInput(new Object());
+        int rc = dialog.open();
         if (rc == IDialogConstants.OK_ID) {
             Object[] o = dialog.getResult();
             StringBuffer sb = new StringBuffer();
