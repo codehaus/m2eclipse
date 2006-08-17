@@ -13,7 +13,6 @@ import org.apache.maven.model.Model;
 
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -122,9 +121,9 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
 		// monitor.beginTask("Creating " + fileName, 2);
 		IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
 		IResource resource = root.findMember(new Path(projectName));
-		if( !resource.exists() || !( resource instanceof IProject ) ) {
+		if( !resource.exists() || resource.getType()!=IResource.FOLDER ) {
       // TODO show warning popup
-      throwCoreException( "Project \"" + projectName + "\" does not exist." );
+      throwCoreException( "Folder \"" + projectName + "\" does not exist." );
     }
 
 		IContainer container = (IContainer) resource;

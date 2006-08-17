@@ -178,15 +178,15 @@ public class Maven2PomWizardPage extends WizardPage {
     IResource container = ResourcesPlugin.getWorkspace().getRoot().findMember( new Path( getProject()));
 
     if( getProject().length() == 0) {
-      updateStatus( "Project must be specified");
+      updateStatus( "Project or folder must be specified");
       return;
     }
-    if( container==null || ( container.getType() & IResource.PROJECT)==0) {
-      updateStatus( "Project must exist");
+    if( container==null || ( container.getType() & IResource.FOLDER)==0) {
+      updateStatus( "Folder must exist");
       return;
     }
     if( !container.isAccessible()) {
-      updateStatus( "Project must be writable");
+      updateStatus( "Folder must be writable");
       return;
     }
 
