@@ -30,13 +30,13 @@ public class MavenModelManager {
   }
 
   public Model getMavenModel(IFile pomFile) {
-    return (Model) models.get(pomFile);
+    return (Model) models.get(pomFile.getLocation().toString());
   }
   
   public Model updateMavenModel(IFile pomFile) throws CoreException {
     Model model = readMavenModel(pomFile);
-    models.put( pomFile, model );
-    String artifactKey = getArtifactKey( model );
+    models.put(pomFile.getLocation().toString(), model);
+    String artifactKey = getArtifactKey(model);
     artifacts.put(artifactKey, pomFile);
     
     Maven2Plugin.getDefault().getConsole().logMessage("Updated model " + pomFile.getFullPath().toString() +" : " + artifactKey);
@@ -63,7 +63,12 @@ public class MavenModelManager {
       groupId = model.getParent().getGroupId();
     }
     
-    return groupId + ":" + model.getArtifactId() + ":" + model.getVersion();
+    String version = model.getVersion();
+    if(version==null) {
+      version = model.getParent().getVersion();
+    }
+    
+    return groupId + ":" + model.getArtifactId() + ":" + version;
   }
 
   /**

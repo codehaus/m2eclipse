@@ -125,7 +125,8 @@ public class EclipseArtifactResolver extends DefaultArtifactResolver {
     MavenModelManager modelManager = Maven2Plugin.getDefault().getMavenModelManager();    
     IFile file = modelManager.getArtfactFile( artifact );
     if( file==null || !file.exists() ) {
-      console.logMessage( artifact.getId() + ": no POM file in Eclipse workspace" );
+      // TODO enable it back, but only when "debug" is turned on in preferences
+      // console.logMessage( artifact.getId() + ": no POM file in Eclipse workspace" );
       return false;
     }
 
