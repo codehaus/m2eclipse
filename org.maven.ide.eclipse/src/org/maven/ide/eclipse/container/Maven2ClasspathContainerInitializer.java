@@ -3,6 +3,7 @@ package org.maven.ide.eclipse.container;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashSet;
 
 import org.codehaus.plexus.util.FileUtils;
@@ -36,14 +37,33 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
 
   public void initialize( IPath containerPath, final IJavaProject project ) {
     if( Maven2ClasspathContainer.isMaven2ClasspathContainer( containerPath ) ) {
+      IClasspathContainer container;
       try {
-        Maven2ClasspathContainer container = new Maven2ClasspathContainer();
-        JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { project },
-            new IClasspathContainer[] { container }, new NullProgressMonitor() );
-      } catch( JavaModelException ex ) {
-        Maven2Plugin.log( ex );
+        container = JavaCore.getClasspathContainer(containerPath, project);
+      } catch(JavaModelException ex) {
+        Maven2Plugin.getDefault().getConsole().logError("Unable to get container for "+containerPath.toString()+"; "+ex.getMessage());
+        return;
       }
 
+      Maven2ClasspathContainer mavenContainer;
+      if(container==null) {
+        mavenContainer = new Maven2ClasspathContainer();
+      } else {
+        mavenContainer = new Maven2ClasspathContainer(new HashSet(Arrays.asList(container.getClasspathEntries())));
+      }
+
+      try {
+        JavaCore.setClasspathContainer( containerPath, new IJavaProject[] { project },
+              new IClasspathContainer[] { mavenContainer }, new NullProgressMonitor() );
+      } catch(JavaModelException ex) {
+        Maven2Plugin.getDefault().getConsole().logError("Unable to set container for "+containerPath.toString()+"; "+ex.getMessage());
+        return;
+      }
+
+      if(container!=null) {
+        return;
+      }
+      
       new Job( "Initializing "+project.getProject().getName() ) {
         protected IStatus run( IProgressMonitor monitor ) {
           IFile pomFile = project.getProject().getFile( Maven2Plugin.POM_FILE_NAME );
