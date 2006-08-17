@@ -8,8 +8,10 @@ import java.util.Set;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.resources.IResourceDeltaVisitor;
+import org.eclipse.core.resources.IResourceVisitor;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -33,12 +35,16 @@ public class Maven2Builder extends IncrementalProjectBuilder {
     if( project.getNature( Maven2Plugin.NATURE_ID ) == null )
       return null;
 
-    if( kind == AUTO_BUILD || kind == INCREMENTAL_BUILD ) {
-      Verifier verifier = new Verifier();
-      getDelta( project ).accept( verifier, IContainer.EXCLUDE_DERIVED );
-      if( !verifier.updated ) {
-        return null;
-      }
+    // if( kind == AUTO_BUILD || kind == INCREMENTAL_BUILD ) {
+    Verifier verifier = new Verifier();
+    IResourceDelta delta = getDelta(project);
+    if(delta == null) {
+      getProject().accept(verifier, IResource.DEPTH_INFINITE, IContainer.EXCLUDE_DERIVED);
+    } else {
+      delta.accept(verifier, IContainer.EXCLUDE_DERIVED);
+    }
+    if(!verifier.updated) {
+      return null;
     }
 
     updateClasspath( monitor, project );
@@ -47,8 +53,6 @@ public class Maven2Builder extends IncrementalProjectBuilder {
   }
 
   private void updateClasspath( IProgressMonitor monitor, IProject project ) throws JavaModelException {
-    IJavaProject javaProject = JavaCore.create( project );
-    
 //    IClasspathEntry[] classPaths = javaProject.getRawClasspath();
 //    for( int i = 0; i < classPaths.length && !monitor.isCanceled(); i++ ) {
 //      IClasspathEntry entry = classPaths[i];
@@ -56,25 +60,39 @@ public class Maven2Builder extends IncrementalProjectBuilder {
 
     Set entries = new HashSet();
     Set moduleArtifacts = new HashSet();
-    IFile pomFile = javaProject.getProject().getFile( Maven2Plugin.POM_FILE_NAME );
+    IFile pomFile = project.getFile( Maven2Plugin.POM_FILE_NAME );
     Maven2Plugin.getDefault().resolveClasspathEntries( entries, moduleArtifacts, pomFile, true, monitor );
 
     Maven2ClasspathContainer container = new Maven2ClasspathContainer( entries );
-    JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { javaProject },
+    JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { JavaCore.create( project ) },
         new IClasspathContainer[] { container }, monitor );
 
 //      }
 //    }
   }
 
-  private static final class Verifier implements IResourceDeltaVisitor {
+  static final class Verifier implements IResourceDeltaVisitor, IResourceVisitor {
     boolean updated;
 
     public boolean visit( IResourceDelta delta ) {
-      if( Maven2Plugin.POM_FILE_NAME.equals( delta.getResource().getName() ) ) {
+      IResource resource = delta.getResource();
+      return visit(resource);
+    }
+
+    public boolean visit(IResource resource) {
+      if( resource.getType()==IResource.FILE && Maven2Plugin.POM_FILE_NAME.equals( resource.getName() ) ) {
         updated = true;
+        
+        // update model cache 
+        Maven2Plugin plugin = Maven2Plugin.getDefault();
+        try {
+          plugin.getMavenModelManager().updateMavenModel((IFile) resource);
+          plugin.deleteMarkers(resource);
+        } catch( CoreException ex ) {
+          // TODO ignore or add resource marker for the failure
+        }
       }
-      return !updated; // finish earlier if at least one pom found
+      return true;
     }
 
   }

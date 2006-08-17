@@ -23,6 +23,9 @@ import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
+import org.apache.maven.artifact.resolver.ArtifactResolver;
+import org.apache.maven.embedder.ContainerCustomizer;
+import org.apache.maven.embedder.DefaultMavenEmbedRequest;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
 import org.apache.maven.embedder.MavenEmbedderLogger;
@@ -37,7 +40,9 @@ import org.apache.maven.project.validation.ModelValidationResult;
 import org.apache.maven.settings.Settings;
 import org.apache.maven.wagon.events.TransferListener;
 
+import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
+import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IResource;
@@ -98,6 +103,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
 
   /** console */
   private Maven2Console console;
+
+  private MavenModelManager mavenModelManager = new MavenModelManager();
   
   /**
    * The constructor.
@@ -162,16 +169,15 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
           this.mavenEmbedder = createEmbedder();
       }
       return this.mavenEmbedder;
-    } else {
-      return createEmbedder();
     }
+    return createEmbedder();
   }
 
   public void resetMavenEmbedder() {
     stopEmbedder();
   }
 
-  public Object executeInEmbedder(MavenEmbedderCallback template, IProgressMonitor monitor) {
+  public Object executeInEmbedder(MavenEmbedderCallback template, IProgressMonitor monitor) throws Exception {
     try {
       return template.run(getMavenEmbedder(), monitor);
     } finally {
@@ -179,21 +185,28 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
   }
   
-  public Object executeInEmbedder(String name, MavenEmbedderCallback template) {
+  public Object executeInEmbedder(String name, MavenEmbedderCallback template) throws CoreException {
     try {
       EmbedderJob job = new EmbedderJob( name, template, getMavenEmbedder() );
       job.schedule();
       try {
         job.join();
-        // TODO check job.getResult()
-        return job.getCallbackResult();        
+        
+        IStatus status = job.getResult();
+        if(status.isOK()) {
+          return job.getCallbackResult(); 
+        }
+        
+        getConsole().logError( "Job " + name + " failed; "+status.getException().toString());
+        throw new CoreException(status);
+        
       } catch( InterruptedException ex ) {
-        getConsole().logError( "Interrupted "+ex.toString());
-        return null;
+        getConsole().logError( "Job " + name +" interrupted "+ex.toString());
       }
     } finally {
       if(!REUSE_EMBEDDER) stopEmbedder();
     }
+    return null;
   }  
   
   
@@ -256,7 +269,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     
     // File localRepositoryDirectory = mavenEmbedder.getLocalRepositoryDirectory();
     String localRepositoryDir = store.getString( Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR);
-    if( localRepositoryDir!=null) {
+    if( localRepositoryDir!=null && localRepositoryDir.length()>0) {
       localRepositoryDir = localRepositoryDir.trim();
       if(new File(localRepositoryDir).exists()) { 
         embedder.setLocalRepositoryDirectory( new File(localRepositoryDir.trim()));
@@ -269,13 +282,20 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     if( globalChecksumPolicy!=null && globalChecksumPolicy.trim().length()>0) {
       embedder.setGlobalChecksumPolicy(globalChecksumPolicy);
     }
- 
+
     embedder.setOffline(store.getBoolean( Maven2PreferenceConstants.P_OFFLINE));
 //    embedder.setCheckLatestPluginVersion(store.getBoolean( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION));
 //    embedder.setUpdateSnapshots(store.getBoolean( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS));
 
     try {
-      embedder.start();
+      DefaultMavenEmbedRequest embedRequest = new DefaultMavenEmbedRequest();
+      embedRequest.setConfigurationCustomizer( new ContainerCustomizer() {
+          public void customize( PlexusContainer container ) {
+            container.getComponentDescriptor(ArtifactResolver.ROLE).setImplementation(EclipseArtifactResolver.class.getName());
+          }
+        });
+      
+      embedder.start(embedRequest);
     } catch( MavenEmbedderException ex ) {
       log( "Unable to start MavenEmbedder", ex );
     }
@@ -299,14 +319,11 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   }
 
   public void addDependencies( final IFile pomFile, final List dependencies ) {
-    // IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
-
-    executeInEmbedder(new MavenEmbedderCallback() {
+    MavenEmbedderCallback callback = new MavenEmbedderCallback() {
         public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
           final File pom = pomFile.getLocation().toFile();
           try {
-            Model model = mavenEmbedder.readModel( pom);
-            
+            Model model = mavenEmbedder.readModel( pom);            
             model.getDependencies().addAll(dependencies);
             
             StringWriter w = new StringWriter();
@@ -314,13 +331,18 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
             
             pomFile.setContents( new ByteArrayInputStream( w.toString().getBytes( "ASCII")), true, true, null);
             pomFile.refreshLocal( IResource.DEPTH_ONE, null); // TODO ???
-          } 
-          catch (Exception ex) {
-            log( "Unable to update POM: "+pom+"; "+ex.getMessage(), ex);
+          } catch (Exception ex) {
+            getConsole().logError( "Unable to update POM: "+pom+"; "+ex.getMessage());
           }
           return null;
         }
-      }, new NullProgressMonitor());  // TODO
+      };
+          
+    try {
+      executeInEmbedder( callback, new NullProgressMonitor() ); // TODO
+    } catch( Exception e ) {
+      // ignore
+    }
   }
 
 
@@ -364,7 +386,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         return;
       }
     
-      deleteMarkers(pomFile);
+      // deleteMarkers(pomFile);
       // TODO use version?
       moduleArtifacts.add( mavenProject.getGroupId()+":"+mavenProject.getArtifactId() );
       
@@ -372,7 +394,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       boolean offline = prefs.getBoolean( Maven2PreferenceConstants.P_OFFLINE );
       boolean downloadSources = !offline & prefs.getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_SOURCES );
       boolean downloadJavadoc = !offline & prefs.getBoolean( Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC );
-      
+
       Set artifacts = mavenProject.getArtifacts();
       for( Iterator it = artifacts.iterator(); it.hasNext();) {
         if(monitor.isCanceled()) {
@@ -384,56 +406,52 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         monitor.subTask( "Processing " + a.getId() );
         String artifactLocation = a.getFile().getAbsolutePath();
         
+        // The artifact filename cannot be used here to determine
+        // the type because eclipse project artifacts don't have jar or zip file names.
         // TODO use version?
         if(!moduleArtifacts.contains(a.getGroupId()+":"+a.getArtifactId()) &&
-           (artifactLocation.endsWith("jar") || artifactLocation.endsWith("zip"))) {
-          // TODO add a lookup through workspace projects
-          
-          Path srcPath = 
-            materializeArtifactPath(
-              mavenProject, a, 
-              "java-source", "sources", downloadSources,
-              monitor);
-          
-          Path javadocPath = 
-            materializeArtifactPath(
-                mavenProject, a, 
-                "java-doc", "javadoc", downloadJavadoc,
-                monitor);
+           ("jar".equals(a.getType()) || "zip".equals(a.getType()))) {
+          IFile artfactFile = getMavenModelManager().getArtfactFile( a );
+          if (artfactFile != null) {
+            libraryEntries.add(JavaCore.newProjectEntry(artfactFile.getProject().getFullPath(), true));
+            continue;
+          }
+            
+          Path srcPath = materializeArtifactPath( mavenProject, a, "java-source", "sources", downloadSources, monitor );
+          Path javadocPath = materializeArtifactPath( mavenProject, a, "java-doc", "javadoc", downloadJavadoc, monitor );
+
           IClasspathAttribute javadocAttr = null;
           if (javadocPath != null) {
-            javadocAttr = 
-              JavaCore.newClasspathAttribute(
-                  IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, 
-                  javadocPath.toOSString());
+            javadocAttr = JavaCore.newClasspathAttribute( IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME,
+                javadocPath.toOSString() );
           }
           
           libraryEntries.add(
               JavaCore.newLibraryEntry(
                   new Path(artifactLocation), srcPath, null,
                   new IAccessRule[0],
-                  javadocAttr != null ? new IClasspathAttribute[]{javadocAttr} : new IClasspathAttribute[0],
-                  false/*not exported*/));
+                  javadocAttr != null ? new IClasspathAttribute[] {javadocAttr} : new IClasspathAttribute[0],
+                  false /*not exported*/));
         }
       }
       
-//      if(recursive) {
-//        IContainer parent = pomFile.getParent();
-//        
-//        List modules = mavenProject.getModules();
-//        for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
-//          if(monitor.isCanceled()) {
-//            throw new OperationCanceledException();
-//          }
-//
-//          String module = ( String ) it.next();
-//          IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
-//          if(memberPom!=null && memberPom.getType() == IResource.FILE) {
-//            resolveClasspathEntries(libraryEntries, moduleArtifacts, (IFile)memberPom, true, 
-//                new SubProgressMonitor(monitor, 1));
-//          }
-//        }    
-//      }
+      if(recursive) {
+        IContainer parent = pomFile.getParent();
+        
+        List modules = mavenProject.getModules();
+        for( Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled(); ) {
+          if(monitor.isCanceled()) {
+            throw new OperationCanceledException();
+          }
+
+          String module = ( String ) it.next();
+          IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
+          if(memberPom!=null && memberPom.getType() == IResource.FILE) {
+            resolveClasspathEntries(libraryEntries, moduleArtifacts, (IFile)memberPom, true, 
+                new SubProgressMonitor(monitor, 1));
+          }
+        }    
+      }
 
     } catch(OperationCanceledException ex) {
       throw ex;
@@ -457,7 +475,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   private Path materializeArtifactPath(
       final MavenProject mavenProject, final Artifact a, 
       final String type, final String suffix, boolean download,
-      IProgressMonitor monitor) {
+      IProgressMonitor monitor) throws Exception {
     String artifactLocation = a.getFile().getAbsolutePath();
     // artifactLocation ends on '.jar' or '.zip'
     File file = new File(artifactLocation.substring(0, artifactLocation.length()-4) + "-" + suffix + ".jar");
@@ -552,8 +570,11 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         return null;
       
       } catch( AbstractArtifactResolutionException ex ) {
-        String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
-        String msg = ex.getOriginalMessage()+" "+name;
+        // String name = ex.getGroupId()+":"+ex.getArtifactId()+"-"+ex.getVersion()+"."+ex.getType();
+        String msg = ex.getMessage()
+            .replaceAll("----------", "")
+            .replaceAll("\r\n\r\n", "\n")
+            .replaceAll("\n\n", "\n");
         Maven2Plugin.getDefault().deleteMarkers(this.file);
         Maven2Plugin.getDefault().addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR);
         Maven2Plugin.getDefault().getConsole().logError(msg);
@@ -617,13 +638,18 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     }
 
     protected IStatus run( IProgressMonitor monitor ) {
-      callbackResult = this.template.run(this.embedder, monitor);
-      return Status.OK_STATUS;
+      try {
+        callbackResult = this.template.run(this.embedder, monitor);
+        return Status.OK_STATUS;
+      } catch( Exception ex ) {
+        return new Status(IStatus.ERROR, PLUGIN_ID, IStatus.ERROR, ex.getMessage(), ex);
+      }
     }
     
     public Object getCallbackResult() {
       return this.callbackResult;
     }
+    
   }
 
 
@@ -790,6 +816,10 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     return executionRequest;
   }
 
+  public MavenModelManager getMavenModelManager() {
+    return mavenModelManager;
+  }
+  
   /**
    * Helper method that can be used to add the Maven2 natures (to enable the
    * tooling) to a given eclipse project, this is useful as it allows other

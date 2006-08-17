@@ -7,6 +7,7 @@ import java.util.Iterator;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.ActionContributionItem;
@@ -127,10 +128,14 @@ public class LifeCycleAction implements IObjectActionDelegate, IMenuCreator {
             if( !pom.exists() ) {
               Maven2Plugin.getDefault().getConsole().logError( "Project "+project+" does not have pm.xml" );
             } else {
-              File pomFile = new File( pom.getLocation().toOSString() );
+              File pomFile = pom.getLocation().toFile();
               
-              Maven2Plugin.getDefault().executeInEmbedder( "Executing "+goalName+" on "+project, 
-                  new GoalExecutionCallBack( pomFile, Collections.singletonList( goalName ), null));
+              try {
+                Maven2Plugin.getDefault().executeInEmbedder( "Executing "+goalName+" on "+project, 
+                    new GoalExecutionCallBack( pomFile, Collections.singletonList( goalName ), null));
+              } catch( CoreException ex ) {
+                // ignore
+              }
             }
           }
         }

@@ -9,6 +9,6 @@ import org.eclipse.core.runtime.IProgressMonitor;
 
 public interface MavenEmbedderCallback {
 
-  Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor);
+  Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor) throws Exception;
   
 }

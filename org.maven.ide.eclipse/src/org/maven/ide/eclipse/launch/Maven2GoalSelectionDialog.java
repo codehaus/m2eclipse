@@ -2,16 +2,18 @@
 package org.maven.ide.eclipse.launch;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.maven.embedder.MavenEmbedder;
-import org.apache.maven.embedder.MavenEmbedderException;
 import org.apache.maven.embedder.SummaryPluginDescriptor;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.plugin.descriptor.PluginDescriptor;
 
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.LabelProvider;
@@ -20,6 +22,7 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.dialogs.ElementTreeSelectionDialog;
 import org.eclipse.ui.dialogs.ISelectionStatusValidator;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.MavenEmbedderCallback;
 import org.maven.ide.eclipse.Messages;
 
 
@@ -32,7 +35,7 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
   }
 
   
-  private static class GoalsSelectionValidator implements ISelectionStatusValidator {
+  static class GoalsSelectionValidator implements ISelectionStatusValidator {
     public IStatus validate( Object[] selection ) {
       if( selection.length == 0 ) {
         return new Status( IStatus.ERROR, Maven2Plugin.PLUGIN_ID, IStatus.ERROR, "", null );
@@ -51,7 +54,7 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
   }
 
   
-  private static class GoalsLabelProvider extends LabelProvider {
+  static class GoalsLabelProvider extends LabelProvider {
     public String getText( Object element ) {
       if( element instanceof LifecyclePhases ) {
         return ( ( LifecyclePhases ) element ).getName();
@@ -69,42 +72,28 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
   }
 
   
-  private static class GoalsContentProvider implements ITreeContentProvider {
-    private MavenEmbedder mavenEmbedder;
-
+  static class GoalsContentProvider implements ITreeContentProvider {
     private static Object[] EMPTY = new Object[0];
 
     public Object[] getChildren( Object parentElement ) {
       if( parentElement instanceof LifecyclePhases ) {
         try {
-          List lifecyclePhases = mavenEmbedder.getLifecyclePhases();
-          List result = new ArrayList();
-          for( Iterator iter = lifecyclePhases.iterator(); iter.hasNext(); ) {
-            result.add( new LifecyclePhase( ( String ) iter.next() ) );
-          }
-          return result.toArray();
-        } catch( MavenEmbedderException e ) {
-          String msg = "Exception in getLifecyclePhases()";
-          Maven2Plugin.log( msg, e );
-          return new Object[] { msg };
+          return ( Object[] ) Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
+            public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) throws Exception {
+              List lifecyclePhases = mavenEmbedder.getLifecyclePhases();
+              List result = new ArrayList();
+              for( Iterator it = lifecyclePhases.iterator(); it.hasNext(); ) {
+                result.add( new LifecyclePhase( ( String ) it.next() ) );
+              }
+              return result.toArray();
+            }
+          }, new NullProgressMonitor());
+        } catch( Exception e ) {
+          Maven2Plugin.getDefault().getConsole().logError( "Unable to get lifecycle phases" );
         }
       } else if( parentElement instanceof SummaryPluginDescriptor ) {
-        SummaryPluginDescriptor summaryPluginDescriptor = ( SummaryPluginDescriptor ) parentElement;
-        PluginDescriptor pluginDescriptor;
-        try {
-          pluginDescriptor = this.mavenEmbedder.getPluginDescriptor( summaryPluginDescriptor );
-        } catch( MavenEmbedderException e ) {
-          String msg = "Exception in getPluginDescriptor() for " + summaryPluginDescriptor.getName();
-          Maven2Plugin.log( msg, e );
-          return new Object[] { msg };
-        }
-        List components = pluginDescriptor.getComponents();
-        List result = new ArrayList();
-        for( Iterator iterator = components.iterator(); iterator.hasNext(); ) {
-          MojoDescriptor mojoDescriptor = ( MojoDescriptor ) iterator.next();
-          result.add( mojoDescriptor );
-        }
-        return result.toArray();
+        List components = getPluginComponents( ( SummaryPluginDescriptor ) parentElement );
+        return components.toArray();  // MojoDescriptor
       }
       return EMPTY;
     }
@@ -118,46 +107,53 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
       if( element instanceof LifecyclePhases ) {
         return true;
       } else if( element instanceof SummaryPluginDescriptor ) {
-        SummaryPluginDescriptor summaryPluginDescriptor = ( SummaryPluginDescriptor ) element;
-        try {
-          PluginDescriptor pluginDescriptor = this.mavenEmbedder.getPluginDescriptor( summaryPluginDescriptor );
-          List components = pluginDescriptor.getComponents();
-          return ( components.size() > 0 );
-        } catch( MavenEmbedderException e ) {
-          String msg = "Exception in getPluginDescriptor() for " + summaryPluginDescriptor.getName();
-          Maven2Plugin.log( msg, e );
-          // IStatus status = new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID,
-          // 0, msg, e);
-          // ErrorDialog.openError((Shell)null, "getPluginDescription", msg,
-          // status, IStatus.ERROR);
-        }
+        return getPluginComponents( ( SummaryPluginDescriptor ) element ).size()>0;
       }
       return false;
     }
 
     public Object[] getElements( Object inputElement ) {
-      if( inputElement instanceof MavenEmbedder ) {
-        MavenEmbedder mavenEmbedder = ( MavenEmbedder ) inputElement;
-        List availablePlugins = mavenEmbedder.getAvailablePlugins();
-        List result = new ArrayList();
-        // placeholder for phases
-        result.add( new LifecyclePhases() );
-
-        for( Iterator iter = availablePlugins.iterator(); iter.hasNext(); ) {
-          SummaryPluginDescriptor summaryPluginDescriptor = ( SummaryPluginDescriptor ) iter.next();
-          result.add( summaryPluginDescriptor );
-        }
-        return result.toArray();
+      try {
+        return ( Object[] ) Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
+            public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+              List result = new ArrayList();
+              // placeholder for phases
+              result.add( new LifecyclePhases() );
+              List availablePlugins = mavenEmbedder.getAvailablePlugins();
+              for( Iterator it = availablePlugins.iterator(); it.hasNext(); ) {
+                result.add( it.next() );  // SummaryPluginDescriptor
+              }
+              return result.toArray();
+            }
+          }, new NullProgressMonitor());
+      } catch( Exception ex ) {
+        return EMPTY;
       }
-      return EMPTY;
     }
 
     public void dispose() {
     }
 
     public void inputChanged( Viewer viewer, Object oldInput, Object newInput ) {
-      this.mavenEmbedder = ( MavenEmbedder ) newInput;
+      // ???
     }
+
+    private List getPluginComponents( final SummaryPluginDescriptor summaryPluginDescriptor ) {
+      try {
+        return (List) Maven2Plugin.getDefault().executeInEmbedder( new MavenEmbedderCallback() {
+          public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) throws Exception {
+            PluginDescriptor pluginDescriptor;
+            pluginDescriptor = mavenEmbedder.getPluginDescriptor( summaryPluginDescriptor );
+            return pluginDescriptor.getComponents();
+          }
+        }, new NullProgressMonitor() );        
+      } catch( Exception e ) {
+        String msg = "Unable to get components for " + summaryPluginDescriptor.getName();
+        Maven2Plugin.getDefault().getConsole().logError( msg );
+        return Collections.EMPTY_LIST;
+      }
+    }
+    
   }
 
   
