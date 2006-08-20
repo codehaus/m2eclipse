@@ -45,6 +45,7 @@ import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -177,9 +178,11 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     stopEmbedder();
   }
 
-  public Object executeInEmbedder(MavenEmbedderCallback template, IProgressMonitor monitor) throws Exception {
+  public Object executeInEmbedder(MavenEmbedderCallback template, IProgressMonitor monitor) throws CoreException {
     try {
       return template.run(getMavenEmbedder(), monitor);
+    } catch(Exception ex) {
+      throw new CoreException(new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, IStatus.ERROR, ex.getMessage(), ex));
     } finally {
       if(!REUSE_EMBEDDER) stopEmbedder();
     }
@@ -193,12 +196,16 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         job.join();
         
         IStatus status = job.getResult();
-        if(status.isOK()) {
-          return job.getCallbackResult(); 
+        if(status==null) {
+          getConsole().logError( "Job " + name + " terminated; "+job);
+        } else {
+          if(status.isOK()) {
+            return job.getCallbackResult(); 
+          }
+          
+          getConsole().logError( "Job " + name + " failed; "+status.getException().toString());
+          throw new CoreException(status);
         }
-        
-        getConsole().logError( "Job " + name + " failed; "+status.getException().toString());
-        throw new CoreException(status);
         
       } catch( InterruptedException ex ) {
         getConsole().logError( "Job " + name +" interrupted "+ex.toString());
@@ -373,6 +380,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     Tracer.trace(this, "resolveClasspathEntries from pom:"+pomFile);
     String msg = "Reading "+pomFile.getFullPath();
     getConsole().logMessage( msg);
+
+    IProject currentProject = pomFile.getProject();
     
     monitor.beginTask( "Reading "+pomFile.getFullPath(), IProgressMonitor.UNKNOWN );
     try {
@@ -411,9 +420,16 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         // TODO use version?
         if(!moduleArtifacts.contains(a.getGroupId()+":"+a.getArtifactId()) &&
            ("jar".equals(a.getType()) || "zip".equals(a.getType()))) {
-          IFile artfactFile = getMavenModelManager().getArtfactFile( a );
-          if (artfactFile != null) {
-            libraryEntries.add(JavaCore.newProjectEntry(artfactFile.getProject().getFullPath(), true));
+          IFile artifactFile = getMavenModelManager().getArtifactFile( a );
+          if (artifactFile != null) {
+            IProject artifactProject = artifactFile.getProject();
+            if(artifactProject.getFullPath().equals(currentProject.getFullPath())) {
+              // This is another artifact in our current project so we should not
+              // add our own project to ourself
+              continue;
+            }
+                        
+            libraryEntries.add(JavaCore.newProjectEntry(artifactProject.getFullPath(), true));
             continue;
           }
             
@@ -641,8 +657,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       try {
         callbackResult = this.template.run(this.embedder, monitor);
         return Status.OK_STATUS;
-      } catch( Exception ex ) {
-        return new Status(IStatus.ERROR, PLUGIN_ID, IStatus.ERROR, ex.getMessage(), ex);
+      } catch( Throwable t ) {
+        return new Status(IStatus.ERROR, PLUGIN_ID, IStatus.ERROR, t.getMessage(), t);
       }
     }
     

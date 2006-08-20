@@ -52,7 +52,7 @@ public class EclipseArtifactResolver extends DefaultArtifactResolver {
   private void addProjectParentPom( Set artifacts, Artifact originatingArtifact ) {
     MavenModelManager modelManager = Maven2Plugin.getDefault().getMavenModelManager();
     
-    IFile pomFile = modelManager.getArtfactFile( originatingArtifact );
+    IFile pomFile = modelManager.getArtifactFile( originatingArtifact );
     if( pomFile == null ) {
       return;
     }
@@ -123,7 +123,7 @@ public class EclipseArtifactResolver extends DefaultArtifactResolver {
     }
           
     MavenModelManager modelManager = Maven2Plugin.getDefault().getMavenModelManager();    
-    IFile file = modelManager.getArtfactFile( artifact );
+    IFile file = modelManager.getArtifactFile( artifact );
     if( file==null || !file.exists() ) {
       // TODO enable it back, but only when "debug" is turned on in preferences
       // console.logMessage( artifact.getId() + ": no POM file in Eclipse workspace" );
