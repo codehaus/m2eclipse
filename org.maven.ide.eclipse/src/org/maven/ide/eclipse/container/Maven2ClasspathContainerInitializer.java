@@ -45,11 +45,14 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
         return;
       }
 
+      Maven2Plugin.getDefault().getMavenModelManager().initMavenModel(new NullProgressMonitor());
+      
       Maven2ClasspathContainer mavenContainer;
       if(container==null) {
         mavenContainer = new Maven2ClasspathContainer();
       } else {
-        mavenContainer = new Maven2ClasspathContainer(new HashSet(Arrays.asList(container.getClasspathEntries())));
+        IClasspathEntry[] classpathEntries = container.getClasspathEntries();
+        mavenContainer = new Maven2ClasspathContainer(new HashSet(Arrays.asList(classpathEntries)));
       }
 
       try {
@@ -88,7 +91,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       }.schedule();
     }
   }
-  
+
   public boolean canUpdateClasspathContainer( IPath containerPath, IJavaProject project ) {
     return Maven2ClasspathContainer.isMaven2ClasspathContainer( containerPath );
   }
