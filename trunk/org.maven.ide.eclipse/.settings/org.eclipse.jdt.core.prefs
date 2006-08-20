@@ -1,4 +1,4 @@
-#Wed Aug 16 23:08:40 EDT 2006
+#Sun Aug 20 12:00:15 EDT 2006
 eclipse.preferences.version=1
 org.eclipse.jdt.core.builder.cleanOutputFolder=clean
 org.eclipse.jdt.core.builder.duplicateResourceTask=warning
@@ -116,7 +116,7 @@ org.eclipse.jdt.core.formatter.brace_position_for_method_declaration=end_of_line
 org.eclipse.jdt.core.formatter.brace_position_for_switch=end_of_line
 org.eclipse.jdt.core.formatter.brace_position_for_type_declaration=end_of_line
 org.eclipse.jdt.core.formatter.comment.clear_blank_lines=true
-org.eclipse.jdt.core.formatter.comment.format_comments=true
+org.eclipse.jdt.core.formatter.comment.format_comments=false
 org.eclipse.jdt.core.formatter.comment.format_header=false
 org.eclipse.jdt.core.formatter.comment.format_html=true
 org.eclipse.jdt.core.formatter.comment.format_source_code=true
