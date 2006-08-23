@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.maven.embedder.MavenEmbedder;
+import org.apache.maven.execution.MavenExecutionRequest;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.maven.ide.eclipse.Maven2Plugin;
@@ -13,8 +14,7 @@ import org.maven.ide.eclipse.MavenEmbedderCallback;
 
 
 /**
- * Simple Goal Callback that is designed to work in conjunction with the Maven2
- * Plugin embedder
+ * Simple Goal Callback that is designed to work in conjunction with the Maven Embedder
  */
 class GoalExecutionCallBack implements MavenEmbedderCallback {
   private File pomFile;
@@ -36,7 +36,12 @@ class GoalExecutionCallBack implements MavenEmbedderCallback {
    */
   public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
     try {
-      mavenEmbedder.execute( Maven2Plugin.getDefault().getMavenExecutionRequest( mavenEmbedder, pomFile, properties, goals ) );
+      MavenExecutionRequest executionRequest = Maven2Plugin.getDefault().createMavenExecutionRequest()
+          .setGoals(goals)
+          .setProperties(properties)
+          .setPomFile(pomFile.getAbsolutePath());
+      
+      mavenEmbedder.execute(executionRequest);
     } catch( Exception ex ) {
       Maven2Plugin.getDefault().getConsole().logError( ex.toString() );
     }

@@ -49,13 +49,13 @@ public class AddDependencyAction implements IObjectActionDelegate {
 
     Set artifacts = mavenProject==null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
     
-    Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog( getShell(), Maven2Plugin.getDefault().getIndexes(), artifacts, Indexer.JAR_NAME );
-    if( dialog.open() == Window.OK ) {
-      Indexer.FileInfo fileInfo = ( FileInfo ) dialog.getFirstResult();
-      if( fileInfo != null ) {
+    Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog(getShell(), artifacts, Indexer.JAR_NAME);
+    if(dialog.open() == Window.OK) {
+      Indexer.FileInfo fileInfo = (FileInfo) dialog.getFirstResult();
+      if(fileInfo != null) {
         try {
-          Maven2Plugin.getDefault().addDependency( file, fileInfo.getDependency() );
-        } catch( Exception ex ) {
+          Maven2Plugin.getDefault().addDependency(file, fileInfo.getDependency());
+        } catch(Exception ex) {
           // ignore
         }
       }

@@ -27,7 +27,6 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
-import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.Messages;
 import org.maven.ide.eclipse.actions.Maven2RepositorySearchDialog;
 import org.maven.ide.eclipse.index.Indexer;
@@ -165,13 +164,7 @@ public class Maven2DependenciesWizardPage extends WizardPage {
 
     addDependencyButton.addSelectionListener( new SelectionAdapter() {
       public void widgetSelected( SelectionEvent e ) {
-        Maven2RepositorySearchDialog dialog =
-          new Maven2RepositorySearchDialog(
-              getShell(),
-              Maven2Plugin.getDefault().getIndexes(),
-              Collections.EMPTY_SET,
-              Indexer.JAR_NAME );
-        
+        Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog(getShell(), Collections.EMPTY_SET, Indexer.JAR_NAME);
         if ( dialog.open() == Window.OK ) {
           Object result = dialog.getFirstResult();
           if ( result instanceof Indexer.FileInfo ) {

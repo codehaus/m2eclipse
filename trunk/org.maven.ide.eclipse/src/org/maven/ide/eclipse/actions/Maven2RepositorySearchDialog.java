@@ -50,6 +50,11 @@ import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.index.Indexer.FileInfo;
 
 
+/**
+ * Maven2RepositorySearchDialog
+ *
+ * @author Eugene Kuleshov
+ */
 public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
   private static final String DIALOG_SETTINGS = Maven2RepositorySearchDialog.class.getName();
   private static final String KEY_WIDTH = "width"; //$NON-NLS-1$
@@ -64,7 +69,6 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
   Text searchText = null;
   TreeViewer searchResultViewer = null;
 
-  File[] indexes;
   Set artifacts;
   
   SearchJob searchJob;
@@ -72,12 +76,11 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
   private String queryField;
   
 
-  public Maven2RepositorySearchDialog(Shell parent, File[] indexes, Set artifacts, String queryField) {
+  public Maven2RepositorySearchDialog(Shell parent, Set artifacts, String queryField) {
     super( parent);
-    this.indexes = indexes;
     this.artifacts = artifacts;
     this.queryField = queryField;
-    
+
     setShellStyle( getShellStyle() | SWT.RESIZE);
     setStatusLineAboveButtons( true);
     setTitle( "Repository Search");
@@ -242,6 +245,7 @@ public class Maven2RepositorySearchDialog extends SelectionStatusDialog {
   protected void scheduleSearch(String query) {
     if(query!=null && query.length()>0) {
       if(searchJob==null) {
+        File[] indexes = Maven2Plugin.getDefault().getMavenRepositoryIndexManager().getIndexes();
         searchJob = new SearchJob(queryField, indexes, this);
       }
       
