@@ -480,8 +480,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
               try {
                 Artifact f = 
                   mavenEmbedder.createArtifactWithClassifier(
-                      a.getGroupId(), a.getArtifactId(), a.getVersion(), 
-                      type, suffix);
+                      a.getGroupId(), a.getArtifactId(), a.getVersion(), type, suffix);
                 if (f != null) {
                   mavenEmbedder.resolve(f, mavenProject.getRemoteArtifactRepositories(), mavenEmbedder.getLocalRepository());
                   return new Path(f.getFile().getAbsolutePath());
