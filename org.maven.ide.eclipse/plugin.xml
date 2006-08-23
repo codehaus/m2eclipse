@@ -36,9 +36,10 @@
           %m2.decorator.description
        </description>
        <enablement>
-          <objectState
-                name="nature"
-                value="org.maven.ide.eclipse.maven2Nature"/>
+          <or>
+	          <objectState name="nature" value="org.maven.ide.eclipse.maven2Nature"/>
+	          <objectState name="name" value="pom.xml"/>
+	        </or>
        </enablement>
      </decorator>
    </extension>
@@ -159,7 +160,41 @@
                id="org.maven.ide.eclipse.addDependencyAction"
                label="%m2.popup.project.add-dependency.label"
                menubarPath="maven2/natureGroup"/>
-      </objectContribution>      
+      </objectContribution>
+
+      <!-- DownloadSourcesAction
+      <objectContribution
+            objectClass="org.eclipse.jdt.core.IPackageFragmentRoot"
+            id="org.maven.ide.eclipse.jarMenu"
+            nameFilter="*.jar">
+         <menu
+               id="maven2"
+               label="%m2.popup.project.label"
+               path="additions">
+            <separator name="natureGroup"/>
+            <separator name="enable"/>
+         </menu>
+         <action
+               enablesFor="1"
+               class="org.maven.ide.eclipse.actions.DownloadSourcesAction"
+               id="org.maven.ide.eclipse.downloadSourcesAction"
+               label="Download Sources"
+               menubarPath="maven2/natureGroup"/>
+      </objectContribution>
+
+      <objectContribution
+            adaptable="true"
+            id="org.maven.ide.eclipse.containerMenu"
+            objectClass="org.eclipse.jdt.core.IClasspathContainer">
+         <action
+               enablesFor="1"
+               class="org.maven.ide.eclipse.actions.DownloadSourcesAction"
+               id="org.maven.ide.eclipse.downloadSourcesAction"
+               label="Download Sources"
+               />
+      </objectContribution>
+      -->
+
    </extension>
 
 	<extension point="org.eclipse.debug.ui.launchShortcuts">
