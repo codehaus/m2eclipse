@@ -3,25 +3,16 @@ package org.maven.ide.eclipse;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.StringWriter;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 import org.apache.maven.SettingsConfigurationException;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
-import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
 import org.apache.maven.artifact.resolver.ArtifactResolver;
 import org.apache.maven.embedder.ContainerCustomizer;
@@ -65,14 +56,12 @@ import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
-
-import org.maven.ide.eclipse.index.Indexer;
+import org.maven.ide.eclipse.container.Maven2ClasspathContainerInitializer;
+import org.maven.ide.eclipse.index.MavenRepositoryIndexManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
 import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 import org.maven.ide.eclipse.util.ITraceable;
 import org.maven.ide.eclipse.util.Tracer;
-
-import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 
 
@@ -80,7 +69,7 @@ import org.osgi.framework.BundleContext;
  * Maven2Plugin main plugin class.
  */
 public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
-  private static final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/plugin")).booleanValue();
+  private static final boolean TRACE_ENABLED = Boolean.getBoolean(Platform.getDebugOption("org.maven.ide.eclipse/plugin"));
 
   public static final String PLUGIN_ID = Maven2Plugin.class.getPackage().getName();
   public static final String CONTAINER_ID = PLUGIN_ID + ".MAVEN2_CLASSPATH_CONTAINER"; //$NON-NLS-1$
@@ -90,26 +79,22 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
 
   public static final String POM_FILE_NAME = "pom.xml"; //$NON-NLS-1$
 
-  public static final String[] DEFAULT_INDEXES = { "central"};  // default indexes //$NON-NLS-1$
-
-  /** reise embedder instance or create new one on every operation */
+  /** 
+   * Reuse embedder instance or create new one on every operation 
+   */
   private static final boolean REUSE_EMBEDDER = false;
   
   // The shared instance.
   private static Maven2Plugin plugin;
 
   private MavenEmbedder mavenEmbedder;
+  private Settings mavenSettings;
 
-  protected List indexes = Collections.synchronizedList( new ArrayList() );  
-
-  /** console */
   private Maven2Console console;
+  private MavenModelManager mavenModelManager;
+  private MavenRepositoryIndexManager mavenRepositoryIndexManager;
 
-  private MavenModelManager mavenModelManager = new MavenModelManager();
   
-  /**
-   * The constructor.
-   */
   public Maven2Plugin() {
     plugin = this;
   }
@@ -117,31 +102,18 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   /**
    * This method is called upon plug-in activation
    */
-  public void start( final BundleContext context) throws Exception {
-    super.start( context);
+  public void start(final BundleContext context) throws Exception {
+    super.start(context);
 
     try {
       this.console = new Maven2Console();
-    } catch (RuntimeException ex) {
-      log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to start console: "+ex.toString(), ex));
+    } catch(RuntimeException ex) {
+      log(new Status(IStatus.ERROR, PLUGIN_ID, -1, "Unable to start console: " + ex.toString(), ex));
     }
-    
-    String repositoryDir = ( String ) executeInEmbedder(new MavenEmbedderCallback() {
-        public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
-          ArtifactRepository localRepository = mavenEmbedder.getLocalRepository();
-          return localRepository==null ? null : localRepository.getBasedir();
-        }
-      }, new NullProgressMonitor());
-    
-    if(repositoryDir!=null) {
-      IndexerJob indexerJob = new IndexerJob("local", repositoryDir, getIndexDir(), indexes);
-      indexerJob.setPriority( Job.LONG );
-      indexerJob.schedule(1000L);
-    }
-    
-    UnpackerJob unpackerJob = new UnpackerJob(context.getBundle(), getIndexDir(), indexes);
-    unpackerJob.setPriority( Job.LONG );
-    unpackerJob.schedule(2000L);
+
+    this.mavenModelManager = new MavenModelManager(this);
+
+    this.mavenRepositoryIndexManager = new MavenRepositoryIndexManager(this);
   }
 
   /**
@@ -237,28 +209,6 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
     log( new Status( IStatus.ERROR, PLUGIN_ID, 0, msg, t));
   }
   
-  public File[] getIndexes() {
-    String[] indexNames = getIndexNames();
-    
-    File[] indexes = new File[ indexNames.length];
-    for( int i = 0; i < indexes.length; i++ ) {
-      indexes[ i] = new File( getIndexDir(), indexNames[ i]);
-    }
-    
-    return indexes;
-  }
-
-  public String getIndexDir() {
-    return new File( getStateLocation().toFile(), "index").getAbsolutePath();
-  }
-  
-  // TODO implement index registry
-  private String[] getIndexNames() {
-    return ( String[] ) indexes.toArray( new String[indexes.size()] );
-  }
-
-  // TODO verify if index had been updated
-
   
   private MavenEmbedder createEmbedder() {
     IPreferenceStore store = this.getPreferenceStore();
@@ -420,6 +370,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
         // TODO use version?
         if(!moduleArtifacts.contains(a.getGroupId()+":"+a.getArtifactId()) &&
            ("jar".equals(a.getType()) || "zip".equals(a.getType()))) {
+          
+          moduleArtifacts.add(a.getGroupId()+":"+a.getArtifactId());
+          
           IFile artifactFile = getMavenModelManager().getArtifactFile( a );
           if (artifactFile != null) {
             IProject artifactProject = artifactFile.getProject();
@@ -429,27 +382,32 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
               continue;
             }
                         
-            libraryEntries.add(JavaCore.newProjectEntry(artifactProject.getFullPath(), true));
+            libraryEntries.add(JavaCore.newProjectEntry(artifactProject.getFullPath(), false));
             continue;
           }
             
-          Path srcPath = materializeArtifactPath( mavenProject, a, "java-source", "sources", downloadSources, monitor );
-          Path javadocPath = materializeArtifactPath( mavenProject, a, "java-doc", "javadoc", downloadJavadoc, monitor );
-
-          IClasspathAttribute javadocAttr = null;
-          if (javadocPath != null) {
-            javadocAttr = JavaCore.newClasspathAttribute( IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME,
-                javadocPath.toOSString() );
+          Path srcPath = materializeArtifactPath(mavenProject, a, "java-source", "sources", downloadSources, monitor);
+          
+          IClasspathAttribute[] attributes = new IClasspathAttribute[0];
+          if(srcPath==null) {  // no need to search for javadoc if we have source code
+            Path javadocPath = materializeArtifactPath(mavenProject, a, "java-doc", "javadoc", downloadJavadoc, monitor);
+            String javaDocUrl = null;
+            if(javadocPath != null) {
+              javaDocUrl = Maven2ClasspathContainerInitializer.getJavaDocUrl(javadocPath.toString());
+            } else {
+              javaDocUrl = getJavaDocUrl(artifactLocation, monitor);
+            }
+            if(javaDocUrl!=null) {
+              attributes = new IClasspathAttribute[] {
+                  JavaCore.newClasspathAttribute(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, javaDocUrl)};
+            }
           }
           
-          libraryEntries.add(
-              JavaCore.newLibraryEntry(
-                  new Path(artifactLocation), srcPath, null,
-                  new IAccessRule[0],
-                  javadocAttr != null ? new IClasspathAttribute[] {javadocAttr} : new IClasspathAttribute[0],
-                  false /*not exported*/));
+          libraryEntries.add(JavaCore.newLibraryEntry(new Path(artifactLocation), srcPath, null, 
+              new IAccessRule[0], attributes, false /*not exported*/));
         }
       }
+
       
       if(recursive) {
         IContainer parent = pomFile.getParent();
@@ -463,7 +421,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
           String module = ( String ) it.next();
           IResource memberPom = parent.findMember( module+"/"+POM_FILE_NAME); //$NON-NLS-1$
           if(memberPom!=null && memberPom.getType() == IResource.FILE) {
-            resolveClasspathEntries(libraryEntries, moduleArtifacts, (IFile)memberPom, true, 
+            resolveClasspathEntries(libraryEntries, moduleArtifacts, (IFile) memberPom, true, 
                 new SubProgressMonitor(monitor, 1));
           }
         }    
@@ -485,13 +443,29 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
       
     }
   }
-  
-  
+
+  private String getJavaDocUrl(String artifactLocation, IProgressMonitor monitor) throws CoreException {
+    // guess the javadoc url from the project url in the artifact's pom.xml
+    File file = new File(artifactLocation.substring(0, artifactLocation.length()-4) + ".pom");
+    if(file.exists()) {
+      Model model = getMavenModelManager().readMavenModel(file, monitor);
+      String url = model.getUrl();
+      if(url!=null) {
+        url = url.trim();
+        if(url.length()>0) {
+          if(!url.endsWith("/")) url += "/";
+          return url + "apidocs/";  // assuming project is used maven-generated site
+        }
+      }              
+    }
+    return null;
+  }
+
   // type = "java-source"
   private Path materializeArtifactPath(
-      final MavenProject mavenProject, final Artifact a, 
-      final String type, final String suffix, boolean download,
-      IProgressMonitor monitor) throws Exception {
+        final MavenProject mavenProject, final Artifact a, 
+        final String type, final String suffix, boolean download,
+        IProgressMonitor monitor) throws Exception {
     String artifactLocation = a.getFile().getAbsolutePath();
     // artifactLocation ends on '.jar' or '.zip'
     File file = new File(artifactLocation.substring(0, artifactLocation.length()-4) + "-" + suffix + ".jar");
@@ -669,113 +643,6 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
   }
 
 
-  private static class IndexerJob extends Job {
-    private String repositoryName;
-    private String repositoryDir;
-    private String indexDir;
-    private List indexes;
-    
-    public IndexerJob( String repositoryName, String repositoryDir, String indexDir, List indexes ) {
-      super("Indexing "+repositoryName);
-      this.repositoryName = repositoryName;
-      this.repositoryDir = repositoryDir;
-      this.indexDir = indexDir;
-      this.indexes = indexes;
-    }
-
-    protected IStatus run( IProgressMonitor monitor ) {
-      try {
-        File file = new File(indexDir, repositoryName);
-        if(!file.exists()) {
-          file.mkdirs();
-        }
-      
-        Indexer indexer = new Indexer();
-        indexer.reindex( file.getAbsolutePath(), repositoryDir, repositoryName , monitor);
-        indexes.add( repositoryName );
-        return Status.OK_STATUS;
-        
-      } catch( IOException ex ) {
-        return new Status(IStatus.ERROR, PLUGIN_ID, -1, "Indexing error", ex);
-      
-      }
-    }
-    
-  }
-
-  
-  private static class UnpackerJob extends Job {
-    private final Bundle bundle;
-    private final String indexDir;
-    private final List indexes;
-
-    public UnpackerJob( Bundle bundle, String indexDir, List indexes ) {
-      super("Initializing indexes");
-      this.bundle = bundle;
-      this.indexDir = indexDir;
-      this.indexes = indexes;
-    }
-
-    protected IStatus run( IProgressMonitor monitor ) {
-      String[] indexNames = DEFAULT_INDEXES;
-      for( int i = 0; i < indexNames.length; i++ ) {
-        String name = indexNames[ i];
-        
-        File index = new File( indexDir, name);
-        if(!index.exists()) {
-          index.mkdirs();
-        }
-        
-        monitor.subTask( name );
-        URL indexArchive = bundle.getEntry( name+".zip");
-        InputStream is = null;
-        ZipInputStream zis = null;
-        try {
-          is = indexArchive.openStream();
-          zis = new ZipInputStream( is );
-          ZipEntry entry;
-          byte[] buf = new byte[4096];
-          while( ( entry = zis.getNextEntry() ) != null ) {
-            File indexFile = new File( index, entry.getName() );
-            FileOutputStream fos = null;
-            try {
-              fos = new FileOutputStream( indexFile );
-              int n = 0;
-              while( ( n = zis.read( buf ) ) != -1 ) {
-                fos.write( buf, 0, n );
-              }
-            } finally {
-              close( fos );
-            }
-          }
-          indexes.add(name);
-        } catch( Exception ex ) {
-          log( new Status( IStatus.ERROR, PLUGIN_ID, -1, "Unable to initialize indexes", ex));
-
-        } finally {
-          close(zis);
-          close(is);
-        }
-      }
-      return Status.OK_STATUS;
-    }
-  
-    private void close(InputStream is) {
-      try {
-        if(is!=null) is.close();
-      } catch(IOException ex) {
-      }
-    }
-    
-    private void close(OutputStream os) {
-      try {
-        if(os!=null) os.close();
-      } catch(IOException ex) {
-      }
-    }
-  
-  }
-  
   /**
    * Provides a clean mechanism to allow the construction of a
    * MavenExectionRequest for the given embedder, pom and with goals and
@@ -789,51 +656,78 @@ public class Maven2Plugin extends AbstractUIPlugin implements ITraceable {
    * @param goals
    * @throws SettingsConfigurationException
    */
-  public MavenExecutionRequest getMavenExecutionRequest( MavenEmbedder embedder, File pomFile, Properties properties,
-      List goals ) throws SettingsConfigurationException {
-
+  public MavenExecutionRequest createMavenExecutionRequest() {
     PluginConsoleEventMonitor consoleEventMonitor = new PluginConsoleEventMonitor();
     TransferListener transferListener = new ConsoleTransferMonitor();
-
-    File userSettingsPath = embedder.getUserSettingsPath( null );
-    File globalSettingsFile = embedder.getGlobalSettingsPath();
-
-    Settings settings = embedder.buildSettings( userSettingsPath, globalSettingsFile, false, // interactive
-        false, // offline,
-        false, // usePluginRegistry,
-        Boolean.FALSE ); // pluginUpdateOverride );
-
-    String localRepositoryPath = System.getProperty( Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR );
-    if( localRepositoryPath == null || localRepositoryPath.trim().length() == 0 ) {
-      localRepositoryPath = embedder.getLocalRepositoryPath( settings );
-    }
-
-    MavenExecutionRequest executionRequest = new DefaultMavenExecutionRequest().setPomFile( pomFile.getAbsolutePath() )
-        .setBasedir(pomFile.getParentFile())
-        .setGoals(goals)
-        .setProperties(properties==null ? System.getProperties() : properties)
-        .setSettings(settings)
-        .setLocalRepositoryPath(localRepositoryPath)
-        .setReactorActive( false )
+    
+    MavenExecutionRequest executionRequest = new DefaultMavenExecutionRequest()
+        .setSettings(getMavenSettings())
+        // .setPomFile(pomFile.getAbsolutePath())
+        // .setBasedir(pomFile.getParentFile())
+        // .setProperties(properties==null ? System.getProperties() : properties)
+        // .setLocalRepositoryPath(localRepositoryPath)  // ?????????????
+        .setReactorActive(false)
         .setRecursive(true)
         .setInteractive(false)
-        .setTransferListener(transferListener)
-        .addEventMonitor(consoleEventMonitor)
-        // .activateDefaultEventMonitor()
         .setShowErrors(true) // TODO make configurable
         .setLoggingLevel(MavenExecutionRequest.LOGGING_LEVEL_INFO) // TODO make configurable
         .setFailureBehavior(MavenExecutionRequest.REACTOR_FAIL_AT_END) // TODO make configurable
-        // .addActiveProfiles( activeProfiles ) // TODO make configurable
-        // .addInactiveProfiles( inactiveProfiles ) // TODO make configurable
-        .setOffline(Boolean.getBoolean(Maven2PreferenceConstants.P_OFFLINE))
-        .setGlobalChecksumPolicy(System.getProperty(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY))
-        // .setUpdateSnapshots( updateSnapshots ) // TODO make configurable
+        // .setOffline(offline)  // TODO make configurable
+        // .setUpdateSnapshots(updateSnapshots) // TODO make configurable
+        // .setGlobalChecksumPolicy(globalChecksumPolicy)  // TODO
+        // .addActiveProfiles(activeProfiles ) // TODO make configurable
+        // .addInactiveProfiles(inactiveProfiles ) // TODO make configurable
+        .setTransferListener(transferListener)
+        .addEventMonitor(consoleEventMonitor)
         ;
     return executionRequest;
+  }
+  
+  public Settings getMavenSettings() {
+    if(mavenSettings==null) {
+      loadMavenSettings();
+    }
+    return mavenSettings;
+  }
+
+  public void invalidateMavenSettings() {
+    mavenSettings = null;
+  }
+  
+  private void loadMavenSettings() {
+    try {
+      mavenSettings = (Settings) executeInEmbedder(new MavenEmbedderCallback() {
+          public Object run(MavenEmbedder embedder, IProgressMonitor monitor) throws Exception {
+            File userSettingsPath = embedder.getUserSettingsPath( null );  // TODO
+            File globalSettingsFile = embedder.getGlobalSettingsPath();
+
+            Settings settings = embedder.buildSettings( 
+                            userSettingsPath, 
+                            globalSettingsFile, 
+                            false, // interactive
+                            false, // offline,
+                            false, // usePluginRegistry,
+                            Boolean.FALSE );  // pluginUpdateOverride );
+            
+            if(settings.getLocalRepository()==null) {
+              settings.setLocalRepository(embedder.getLocalRepositoryPath(settings));
+            }
+            
+            return settings;
+          }
+        }, new NullProgressMonitor());
+    } catch(CoreException ex) {
+      getConsole().logError("Unable to load Maven settings; "+ex.getMessage()); 
+    }
   }
 
   public MavenModelManager getMavenModelManager() {
     return mavenModelManager;
+  }
+
+  public MavenRepositoryIndexManager getMavenRepositoryIndexManager() {
+    // TODO Auto-generated method getIndexManager
+    return mavenRepositoryIndexManager;
   }
   
   /**

@@ -1,6 +1,7 @@
 
 package org.maven.ide.eclipse;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -27,8 +28,14 @@ import org.eclipse.core.runtime.OperationCanceledException;
  * @author Eugene Kuleshov
  */
 public class MavenModelManager {
+  private final Maven2Plugin plugin;
+
   private Map models;
   private Map artifacts;
+
+  public MavenModelManager(Maven2Plugin plugin) {
+    this.plugin = plugin;
+  }
 
   public IFile getArtifactFile(Artifact a) {
     return (IFile) artifacts.get(getArtifactKey(a));
@@ -53,21 +60,21 @@ public class MavenModelManager {
         if(project.isOpen() && project.hasNature(Maven2Plugin.NATURE_ID)) {
           IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
           if(pomFile == null) {
-            Maven2Plugin.getDefault().getConsole().logError("Project " + project.getName() + " is missing pom.xml");
+            plugin.getConsole().logError("Project " + project.getName() + " is missing pom.xml");
           } else {
             updateMavenModel(pomFile, true, monitor);
           }
         }
       } catch(CoreException ex) {
-        Maven2Plugin.getDefault().getConsole().logError("Unable to read project " + project.getName() + "; " + ex.getMessage());
+        plugin.getConsole().logError("Unable to read project " + project.getName() + "; " + ex.getMessage());
       }
     }
   }
 
   public Model updateMavenModel(IFile pomFile, boolean recursive, IProgressMonitor monitor) throws CoreException {
-    Model mavenModel = readMavenModel(pomFile, monitor);
+    Model mavenModel = readMavenModel(pomFile.getLocation().toFile(), monitor);
     if(mavenModel == null) {
-      Maven2Plugin.getDefault().getConsole().logMessage("Unable to read model for " + pomFile.getFullPath().toString());
+      plugin.getConsole().logMessage("Unable to read model for " + pomFile.getFullPath().toString());
       return null;
     }
 
@@ -75,7 +82,7 @@ public class MavenModelManager {
     String artifactKey = getArtifactKey(mavenModel);
     artifacts.put(artifactKey, pomFile);
 
-    Maven2Plugin.getDefault().getConsole().logMessage(
+    plugin.getConsole().logMessage(
         "Updated model " + pomFile.getFullPath().toString() + " : " + artifactKey);
 
     if(recursive) {
@@ -95,10 +102,10 @@ public class MavenModelManager {
     return mavenModel;
   }
 
-  private Model readMavenModel(final IFile pomFile, IProgressMonitor monitor) throws CoreException {
-    return (Model) Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
+  public Model readMavenModel(final File pomFile, IProgressMonitor monitor) throws CoreException {
+    return (Model) plugin.executeInEmbedder(new MavenEmbedderCallback() {
       public Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor) throws Exception {
-        return mavenEmbedder.readModel(pomFile.getLocation().toFile());
+        return mavenEmbedder.readModel(pomFile);
       }
     }, monitor);
   }
