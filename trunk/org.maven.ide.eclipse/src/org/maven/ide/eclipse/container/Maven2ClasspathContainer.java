@@ -25,8 +25,9 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
     this.entries = new IClasspathEntry[0];
   }
   
-  public Maven2ClasspathContainer(Set entries) {
-    IClasspathEntry[] e = ( IClasspathEntry[]) entries.toArray( new IClasspathEntry[ entries.size()]);
+  public Maven2ClasspathContainer(IClasspathEntry[] entries) {
+    IClasspathEntry[] e = new IClasspathEntry[entries.length]; 
+    System.arraycopy(entries, 0, e, 0, entries.length);
     Arrays.sort( e, new Comparator() {
       public int compare( Object o1, Object o2) {
         return o1.toString().compareTo( o2.toString());
@@ -35,6 +36,10 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
     this.entries = e;
   }
   
+  public Maven2ClasspathContainer(Set entrySet) {
+    this((IClasspathEntry[]) entrySet.toArray(new IClasspathEntry[entrySet.size()]));
+  }
+
   public synchronized IClasspathEntry[] getClasspathEntries() {
     return entries;
   }
