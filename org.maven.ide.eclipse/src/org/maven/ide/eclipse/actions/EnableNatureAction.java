@@ -2,6 +2,7 @@
 package org.maven.ide.eclipse.actions;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 
 import org.eclipse.core.resources.IFile;
@@ -10,6 +11,7 @@ import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.jdt.core.IClasspathContainer;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
@@ -24,12 +26,12 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.container.Maven2ClasspathContainer;
+import org.maven.ide.eclipse.container.Maven2ClasspathContainerInitializer;
 import org.maven.ide.eclipse.wizards.Maven2PomWizard;
 
 
 public class EnableNatureAction implements IObjectActionDelegate {
   private ISelection selection;
-  private IWorkbenchPart targetPart;
 
   /*
    * (non-Javadoc)
@@ -68,7 +70,6 @@ public class EnableNatureAction implements IObjectActionDelegate {
    *      org.eclipse.ui.IWorkbenchPart)
    */
   public void setActivePart( IAction action, IWorkbenchPart targetPart) {
-    this.targetPart = targetPart;
   }
 
   private void enableNature( IProject project, boolean isSingle) {
@@ -89,6 +90,8 @@ public class EnableNatureAction implements IObjectActionDelegate {
           return;
         }
       }
+
+      
       
       ArrayList newNatures = new ArrayList();
       newNatures.add(JavaCore.NATURE_ID);
@@ -96,27 +99,37 @@ public class EnableNatureAction implements IObjectActionDelegate {
       
       IProjectDescription description = project.getDescription();
       String[] natures = description.getNatureIds();
-      for( int i = 0; i < natures.length; ++i) {
-        String id = natures[ i];
-        if( !Maven2Plugin.NATURE_ID.equals( id) && !JavaCore.NATURE_ID.equals( natures[ i])) {
+      for(int i = 0; i < natures.length; ++i) {
+        String id = natures[i];
+        if(!Maven2Plugin.NATURE_ID.equals(id) && !JavaCore.NATURE_ID.equals(natures[i])) {
           newNatures.add(natures[i]);
         }
       }
-      description.setNatureIds( ( String[] ) newNatures.toArray( new String[ newNatures.size() ] ));
-      project.setDescription( description, null);
+      description.setNatureIds((String[]) newNatures.toArray(new String[newNatures.size()]));
+      project.setDescription(description, null);
       
       IJavaProject javaProject = JavaCore.create(project);
       if(javaProject!=null) {
-        // remove classpatch container from JavaProject
+        IClasspathContainer maven2ClasspathContainer = Maven2ClasspathContainerInitializer.getMaven2ClasspathContainer(javaProject);
+        IClasspathEntry[] containerEntries = maven2ClasspathContainer.getClasspathEntries();
+        HashSet containerEntrySet = new HashSet();
+        for(int i = 0; i < containerEntries.length; i++ ) {
+          containerEntrySet.add(containerEntries[i].getPath().toString());
+        }
+      
+        // remove classpath container from JavaProject
         IClasspathEntry[] entries = javaProject.getRawClasspath();
         ArrayList newEntries = new ArrayList();
         for( int i = 0; i < entries.length; i++) {
-          if( !Maven2ClasspathContainer.isMaven2ClasspathContainer( entries[ i].getPath())) {
-            newEntries.add(entries[i]);
+          IClasspathEntry entry = entries[i];
+          if(!Maven2ClasspathContainer.isMaven2ClasspathContainer(entry.getPath()) &&
+              !containerEntrySet.contains(entry.getPath().toString())) {
+            newEntries.add(entry);
           }
         }
-        newEntries.add(JavaCore.newContainerEntry( new Path( Maven2Plugin.CONTAINER_ID)));
-        javaProject.setRawClasspath(( IClasspathEntry[] ) newEntries.toArray( new IClasspathEntry[newEntries.size()]), null);
+        newEntries.add(JavaCore.newContainerEntry(new Path(Maven2Plugin.CONTAINER_ID)));
+
+        javaProject.setRawClasspath((IClasspathEntry[]) newEntries.toArray(new IClasspathEntry[newEntries.size()]), null);
       }
       
     } catch( CoreException ex) {
