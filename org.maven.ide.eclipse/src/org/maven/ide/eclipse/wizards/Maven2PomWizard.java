@@ -50,38 +50,38 @@ import org.maven.ide.eclipse.MavenEmbedderCallback;
  * be able to open it.
  */
 public class Maven2PomWizard extends Wizard implements INewWizard {
-	private Maven2PomWizardPage artifactPage;
-	private Maven2DependenciesWizardPage dependenciesPage;
+  private Maven2PomWizardPage artifactPage;
+  private Maven2DependenciesWizardPage dependenciesPage;
 
   private ISelection selection;
   private IWorkbench workbench;
 
-	/**
-	 * Constructor for Maven2PomWizard.
-	 */
-	public Maven2PomWizard() {
-		super();
-		setNeedsProgressMonitor(true);
-	}
-	
-	/**
-	 * Adding the page to the wizard.
-	 */
+  /**
+   * Constructor for Maven2PomWizard.
+   */
+  public Maven2PomWizard() {
+    super();
+    setNeedsProgressMonitor(true);
+  }
+  
+  /**
+   * Adding the page to the wizard.
+   */
 
-	public void addPages() {
-		artifactPage = new Maven2PomWizardPage(selection);
-		dependenciesPage = new Maven2DependenciesWizardPage();
-		
+  public void addPages() {
+    artifactPage = new Maven2PomWizardPage(selection);
+    dependenciesPage = new Maven2DependenciesWizardPage();
+    
     addPage(artifactPage);
     addPage(dependenciesPage);
-	}
+  }
 
-	/**
-	 * This method is called when 'Finish' button is pressed in
-	 * the wizard. We will create an operation and run it
-	 * using wizard as execution context.
-	 */
-	public boolean performFinish() {
+  /**
+   * This method is called when 'Finish' button is pressed in
+   * the wizard. We will create an operation and run it
+   * using wizard as execution context.
+   */
+  public boolean performFinish() {
     final String projectName = artifactPage.getProject();
     final Model model = artifactPage.getModel();
     model.getDependencies().addAll( Arrays.asList( dependenciesPage.getDependencies() ) );
@@ -111,26 +111,26 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
     }
     return true;
   }
-	
-	/**
-	 * The worker method. It will find the container, create the
-	 * file if missing or just replace its contents, and open
-	 * the editor on the newly created file.
-	 */
-	void doFinish( String projectName, final Model model, IProgressMonitor monitor) throws CoreException {
-		// monitor.beginTask("Creating " + fileName, 2);
-		IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
-		IResource resource = root.findMember(new Path(projectName));
-		if( !resource.exists() || resource.getType()!=IResource.FOLDER ) {
+  
+  /**
+   * The worker method. It will find the container, create the
+   * file if missing or just replace its contents, and open
+   * the editor on the newly created file.
+   */
+  void doFinish( String projectName, final Model model, IProgressMonitor monitor) throws CoreException {
+    // monitor.beginTask("Creating " + fileName, 2);
+    IWorkspaceRoot root = ResourcesPlugin.getWorkspace().getRoot();
+    IResource resource = root.findMember(new Path(projectName));
+    if(!resource.exists() || (resource.getType() & IResource.FOLDER | IResource.PROJECT) == 0) {
       // TODO show warning popup
-      throwCoreException( "Folder \"" + projectName + "\" does not exist." );
+      throwCoreException("Folder \"" + projectName + "\" does not exist.");
     }
 
-		IContainer container = (IContainer) resource;
-		final IFile file = container.getFile(new Path(Maven2Plugin.POM_FILE_NAME));
-		if( file.exists()) {
+    IContainer container = (IContainer) resource;
+    final IFile file = container.getFile(new Path(Maven2Plugin.POM_FILE_NAME));
+    if( file.exists()) {
       // TODO show warning popup
-		  throwCoreException( "POM already exists");
+      throwCoreException( "POM already exists");
     }
     
     final File pom = file.getLocation().toFile();
@@ -138,12 +138,11 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
     try {
       final StringWriter w = new StringWriter();
       Maven2Plugin.getDefault().executeInEmbedder(new MavenEmbedderCallback() {
-        public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
+        public Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor) {
           try {
-            mavenEmbedder.writeModel( w, model );
-          } 
-          catch( IOException ex ) {
-            Maven2Plugin.log( "Unable to write POM "+pom+"; "+ex.getMessage(), ex);
+            mavenEmbedder.writeModel(w, model);
+          } catch(IOException ex) {
+            Maven2Plugin.log("Unable to write POM " + pom + "; " + ex.getMessage(), ex);
           }
           return null;
         }
@@ -169,22 +168,22 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
       Maven2Plugin.log( "Unable to create POM "+pom+"; "+ex.getMessage(), ex);
     
     }
-	}
-	
-	private void throwCoreException(String message) throws CoreException {
-		IStatus status = new Status(IStatus.ERROR, "org.maven.ide.eclipse", IStatus.OK, message, null);
-		throw new CoreException(status);
-	}
+  }
+  
+  private void throwCoreException(String message) throws CoreException {
+    IStatus status = new Status(IStatus.ERROR, "org.maven.ide.eclipse", IStatus.OK, message, null);
+    throw new CoreException(status);
+  }
 
-	/**
-	 * We will accept the selection in the workbench to see if
-	 * we can initialize from it.
-	 * @see IWorkbenchWizard#init(IWorkbench, IStructuredSelection)
-	 */
-	public void init(IWorkbench workbench, IStructuredSelection selection) {
-		this.workbench = workbench;
+  /**
+   * We will accept the selection in the workbench to see if
+   * we can initialize from it.
+   * @see IWorkbenchWizard#init(IWorkbench, IStructuredSelection)
+   */
+  public void init(IWorkbench workbench, IStructuredSelection selection) {
+    this.workbench = workbench;
     this.selection = selection;
-	}
+  }
     
 }
 
