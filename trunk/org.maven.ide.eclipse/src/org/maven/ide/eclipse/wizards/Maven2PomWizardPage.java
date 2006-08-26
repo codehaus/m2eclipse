@@ -181,7 +181,7 @@ public class Maven2PomWizardPage extends WizardPage {
       updateStatus( "Project or folder must be specified");
       return;
     }
-    if( container==null || ( container.getType() & IResource.FOLDER)==0) {
+    if( container==null || ( container.getType() & IResource.FOLDER | IResource.PROJECT)==0) {
       updateStatus( "Folder must exist");
       return;
     }
