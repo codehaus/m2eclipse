@@ -32,7 +32,7 @@ import org.maven.ide.eclipse.util.Tracer;
 public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2LaunchConstants, ITraceable {
   private static final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/launcher")).booleanValue();
   
-  private static final String MAVEN_EXECUTOR_CLASS = "org.maven.ide.eclipse.Maven2Executor";
+  private static final String MAVEN_EXECUTOR_CLASS = org.maven.ide.eclipse.Maven2Executor.class.getName();
   private static final String[] CLASSPATH_ENTRY = {
     "lib/maven-embedder-2.1-20060530210557-dep.jar",
     "bin",
@@ -120,16 +120,15 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
 
   /**
    * Construct string with properties to pass to JVM as system properties 
+   * @throws CoreException 
    */
   private String getProperties(ILaunchConfiguration configuration) {
     List properties = null;
     try {
       properties = configuration.getAttribute(ATTR_PROPERTIES, Collections.EMPTY_LIST);
-    } 
-    catch(CoreException e) {
-      String msg = "Exception while getting attribute "+ATTR_PROPERTIES+" from configuration";
+    } catch(CoreException e) {
+      String msg = "Exception while getting configuration attribute "+ATTR_PROPERTIES;
       Maven2Plugin.log(msg, e);
-      return "";
     }
     
     StringBuffer sb = new StringBuffer();
@@ -143,6 +142,17 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
         v = '"'+v+'"';
       }
       sb.append(" -D").append(n).append("=").append(v);
+    }
+    
+    String profiles;
+    try {
+      profiles = configuration.getAttribute(ATTR_PROFILES, (String) null);
+      if(profiles!=null) {
+        sb.append(" -D").append(ATTR_PROFILES).append("=").append(profiles);
+      }
+    } catch(CoreException ex) {
+      String msg = "Exception while getting configuration attribute "+ATTR_PROFILES;
+      Maven2Plugin.log(msg, ex);
     }
     
     return sb.toString();

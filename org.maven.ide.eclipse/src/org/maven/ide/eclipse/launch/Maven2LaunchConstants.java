@@ -9,6 +9,7 @@ public interface Maven2LaunchConstants {
     // pom directory automatically became working directory for maven embedder launch
     public final String ATTR_POM_DIR = IJavaLaunchConfigurationConstants.ATTR_WORKING_DIRECTORY;
     public final String ATTR_GOALS = "M2_GOALS";
+    public final String ATTR_PROFILES = "M2_PROFILES";
     public final String ATTR_PROPERTIES = "M2_PROPERTIES";
 
 }
