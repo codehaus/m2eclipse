@@ -3,6 +3,7 @@ package org.maven.ide.eclipse;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -42,8 +43,7 @@ public class Maven2Executor implements Maven2LaunchConstants {
       ConsoleMavenEmbeddedLogger logger = new ConsoleMavenEmbeddedLogger();
       if (Boolean.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT)) {
         logger.setThreshold(MavenEmbedderLogger.LEVEL_DEBUG);
-      }
-      else {
+      } else {
         logger.setThreshold(MavenEmbedderLogger.LEVEL_INFO);
       }
       embedder.setLogger(logger);
@@ -103,6 +103,11 @@ public class Maven2Executor implements Maven2LaunchConstants {
           .setGlobalChecksumPolicy(System.getProperty(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY));
           // .setUpdateSnapshots( updateSnapshots )  // TODO make configurable
           ;
+          
+      String profiles = System.getProperty(Maven2LaunchConstants.ATTR_PROFILES);
+      if(profiles!=null) {
+        executionRequest.addActiveProfiles(Arrays.asList(profiles.split(", ")));
+      }
       
       embedder.execute( executionRequest );
       
