@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <project name="Maven">
   <bannerLeft>
-    <name>Mergere</name>
-    <src>http://www.mergere.com/_design/images/mergere_logo.gif</src>
-    <href>http://www.mergere.com</href>
+    <name>Tycho: The Maven Eclipse Extension</name>
   </bannerLeft>
   <bannerRight>
     <name>Codehaus</name>
@@ -16,13 +14,10 @@
       <item name="Apache Maven" href="http://Maven.apache.org/"/>
       <item name="Codehaus" href="http://www.codehaus.org/" />
       <item name="Eclipse" href="http://www.eclipse.org/" />
-      <item name="Mergere" href="http://www.mergere.com" />
     </links>
 
     <menu name="Maven 2.x Plug-in for Eclipse">
       <item name="About" href="/index.html" />
     </menu>
-
-    ${reports}
   </body>
 </project>
