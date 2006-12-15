@@ -8,23 +8,19 @@
 
 Tycho: The Maven Extension for Eclipse
 
+ We are feverishing working away on creating a new version of the Maven Embedder so that we can release <<<0.0.10>>>. This version
+ should fix many problem as much work as been happening in Maven and Plexus targeted at addressing problem with the Maven Embedder.
+
 * Binaries and Installation
 
- You can install the Maven 2.x Plug-in for Eclipse by using the following
- update site from within Eclipse:
+ You can install the Maven Extension for Eclipse by using the following update site from within Eclipse:
  
  {{http://m2eclipse.codehaus.org/}}
 
  Individual versions can be downloaded manually:
 
 *--------------+
-| {{{http://m2eclipse.codehaus.org/features/org.maven.ide.eclipse.feature_0.0.5.jar}org.maven.ide.eclipse.feature - 0.0.5}} |
-*--------------+
-| {{{http://m2eclipse.codehaus.org/features/org.maven.ide.eclipse.feature_0.0.4.jar}org.maven.ide.eclipse.feature - 0.0.4}} |
-*--------------+
-| {{{http://m2eclipse.codehaus.org/features/org.maven.ide.eclipse.feature_0.0.3.jar}org.maven.ide.eclipse.feature - 0.0.3}} |
-*--------------+
-| {{{http://m2eclipse.codehaus.org/features/org.maven.ide.eclipse.feature_0.0.2.jar}org.maven.ide.eclipse.feature - 0.0.2}} |
+| {{{http://m2eclipse.codehaus.org/features/org.maven.ide.eclipse.feature_0.0.9.jar}org.maven.ide.eclipse.feature - 0.0.9}} |
 *--------------+
 
 * Flash Demos
@@ -34,18 +30,18 @@ Tycho: The Maven Extension for Eclipse
  
  {{http://m2eclipse.codehaus.org/Installing_Maven_2.0_plugin_for_Eclipse.html}}
  
- You can see what the Maven 2.x Plug-in for Eclipse can do by viewing the
+ You can see what the Maven Extension for Eclipse can do by viewing the
  following demo in Flash:
 
  {{http://m2eclipse.codehaus.org/Maven_2.0_Plugin_for_Eclipse.html}}
 
 * Source Code
   
- You can view the source code for the Maven 2.x Plug-in for Eclipse here:
+ You can view the source code for the Maven Extension for Eclipse here:
   
  {{http://svn.codehaus.org/trunk/?root=m2eclipse}}
 
- If you would like to checkout the sources of the Maven 2.x Plug-in for
+ If you would like to checkout the sources of the Maven Extension for
  Eclipse you can do so using the following:
  
 -----
