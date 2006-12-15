@@ -4,20 +4,27 @@
   <artifactId>m2eclipse-site</artifactId>
   <groupId>org.codehaus.m2eclipse</groupId>
   <version>1</version>
-  
   <scm>
     <connection>scm:svn:https://m2eclipse.codehaus.org/trunk/</connection>
     <developerConnection>scm:svn:https://m2eclipse.codehaus.org/trunk/</developerConnection>
     <url>http://cvs.codehaus.org/viewrep/m2eclipse/trunk/</url>
   </scm>
-
-  <distributionManagement>
-    <site>
-      <id>m2eclipse.website</id>
-      <url>scp://beaver.codehaus.org/home/projects/m2eclipse/public_html/</url>
-    </site>
-  </distributionManagement>
-
+  <distributionManagement>                                                                                                                                      
+   <site>                                                                                                                                                       
+      <id>m2eclipse-site</id>
+      <name>Eclipse Maven 2.x Extension</name>                                                                                                                               
+      <url>dav:https://dav.codehaus.org/m2eclipse/</url>
+    </site>                                                                                                                                                     
+  </distributionManagement>                      
+  <build>
+    <extensions>                                                                                                                                                
+      <extension>                                                                                                                                               
+        <groupId>org.apache.maven.wagon</groupId>                                                                                                               
+        <artifactId>wagon-webdav</artifactId>                                                                                                                   
+        <version>1.0-beta-1</version>                                                                                                                           
+      </extension>                                                                                                                                              
+    </extensions>   
+  </build>
   <mailingLists>
     <mailingList>
       <name>Users List</name>
