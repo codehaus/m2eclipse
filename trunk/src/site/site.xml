@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <project name="Maven">
   <bannerLeft>
-    <name>Tycho: The Maven Eclipse Extension</name>
+    <name>Tycho: The Maven Extension for Eclipse</name>
   </bannerLeft>
   <bannerRight>
     <name>Codehaus</name>
@@ -16,7 +16,7 @@
       <item name="Eclipse" href="http://www.eclipse.org/" />
     </links>
 
-    <menu name="Maven 2.x Plug-in for Eclipse">
+    <menu name="Maven Extension for Eclipse">
       <item name="About" href="/index.html" />
     </menu>
   </body>
