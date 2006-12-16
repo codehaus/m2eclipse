@@ -9,7 +9,8 @@
 Tycho: The Maven Extension for Eclipse
 
  We are feverishing working away on creating a new version of the Maven Embedder so that we can release <<<0.0.10>>>. This version
- should fix many problem as much work as been happening in Maven and Plexus targeted at addressing problem with the Maven Embedder.
+ should fix many problem as much work as been happening in Maven and Plexus targeted at addressing problems with the Maven Embedder that
+ are causing everyone grief.
 
 * Binaries and Installation
 
