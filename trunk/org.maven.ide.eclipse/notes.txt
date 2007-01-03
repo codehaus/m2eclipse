@@ -1,4 +1,5 @@
 
+
   To build Eclipse plugin you would need to checkout the following 
   modules into Eclipse workbench:
     org.maven.ide.eclipse
@@ -46,7 +47,10 @@
   "mvn assembly:assembly"
     maven-embedder
   
-  Outdated example how to run embedder:
-  http://svn.apache.org/viewcvs.cgi/maven/components/trunk/maven-embedder/Plugin.java?rev=293482&view=markup
-  
-    
+  Code to run embedder:
+  http://svn.apache.org/repos/asf/maven/components/trunk/maven-cli/src/main/java/org/apache/maven/cli/MavenCli.java
+  http://svn.codehaus.org/mevenide/trunk/mevenide2/netbeans/libs/embedder/src/main/java/org/codehaus/mevenide/netbeans/embedder/
+
+  Central repository on maven.org
+  /home/maven/repository-staging/to-ibiblio/maven2
+
