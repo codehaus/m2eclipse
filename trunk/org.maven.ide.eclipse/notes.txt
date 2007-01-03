@@ -1,5 +1,4 @@
 
-
   To build Eclipse plugin you would need to checkout the following 
   modules into Eclipse workbench:
     org.maven.ide.eclipse
