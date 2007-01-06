@@ -28,4 +28,5 @@ Require-Bundle:
 Eclipse-AutoStart: true
 Bundle-ClassPath: m2plugin.jar,
  lib/lucene-core-2.0.0.jar,
- lib/maven-embedder-2.1-20060530210557-dep.jar
+ lib/maven-embedder-2.1.0.v20061231-1929-dep.jar
+Bundle-RequiredExecutionEnvironment: J2SE-1.4

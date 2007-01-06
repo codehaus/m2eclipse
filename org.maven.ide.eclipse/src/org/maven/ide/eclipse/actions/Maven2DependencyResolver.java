@@ -28,6 +28,8 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.embedder.ClassPathResolver;
+import org.maven.ide.eclipse.embedder.MavenEmbedderManager;
 import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.index.Indexer.FileInfo;
 
@@ -85,12 +87,13 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
   
   static public final class OpenBuildPathCorrectionProposal extends ChangeCorrectionProposal {
     private final String query;
+
     private final IInvocationContext context;
+
     private final boolean organizeImports;
 
-    
     OpenBuildPathCorrectionProposal(String query, IInvocationContext context, int relevance, boolean organizeImports) {
-      super("Search dependency for "+query, null, relevance, Maven2Plugin.getImageDescriptor("icons/mjar.gif").createImage());
+      super("Search dependency for " + query, null, relevance, Maven2Plugin.getImage("icons/mjar.gif"));
       this.query = query;
       this.context = context;
       this.organizeImports = organizeImports;
@@ -98,18 +101,20 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
 
     public void apply(IDocument document) {
       Maven2Plugin plugin = Maven2Plugin.getDefault();
-      
+      MavenEmbedderManager embedderManager = plugin.getMavenEmbedderManager();
+
       ICompilationUnit cu = context.getCompilationUnit();
       IProject project = cu.getJavaProject().getProject();
-      IFile pomFile = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME));
-      
+      IFile pomFile = project.getFile(new Path(Maven2Plugin.POM_FILE_NAME));
+
       MavenProject mavenProject = null;
       try {
-        mavenProject = ( MavenProject ) plugin.executeInEmbedder( "Read Project", new Maven2Plugin.ReadProjectTask(pomFile) );
-      } catch( CoreException ex ) {
-        // ignore
-      } 
-      Set artifacts = mavenProject==null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
+        mavenProject = (MavenProject) embedderManager.executeInEmbedder("Read Project", new ClassPathResolver.ReadProjectTask(
+            pomFile, plugin.getConsole(), plugin.getMavenRepositoryIndexManager(), plugin.getPreferenceStore()));
+      } catch(CoreException ex) {
+        Maven2Plugin.log(ex);
+      }
+      Set artifacts = mavenProject == null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
 
       IWorkbench workbench = plugin.getWorkbench();
       Shell shell = workbench.getDisplay().getActiveShell();
@@ -117,31 +122,31 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
       Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog(shell, artifacts, Indexer.NAMES);
       dialog.setQuery(query);
 
-      if( dialog.open()==Window.OK) {
+      if(dialog.open() == Window.OK) {
         FileInfo fileInfo = (FileInfo) dialog.getFirstResult();
-        
-        plugin.addDependency(pomFile, fileInfo.getDependency());
-        
+
+        embedderManager.addDependency(pomFile, fileInfo.getDependency());
+
         if(organizeImports) {
           IWorkbenchWindow window = workbench.getActiveWorkbenchWindow();
           IWorkbenchPage page = window.getActivePage();
-  
+
           try {
             // plugin.update(pomFile, null);
-            
+
             // organize imports
             IEditorPart activeEditor = page.getActiveEditor();
             OrganizeImportsAction organizeImportsAction = new OrganizeImportsAction(activeEditor.getEditorSite());
             organizeImportsAction.run(cu);
             activeEditor.doSave(null);
-  
-          } catch( Exception e ) {
-            Maven2Plugin.getDefault().getConsole().logError( "Build error; " + e.getMessage());
+
+          } catch(Exception e) {
+            Maven2Plugin.getDefault().getConsole().logError("Build error; " + e.getMessage());
             return;
-            
+
           }
         }
-        
+
       }
     }
 

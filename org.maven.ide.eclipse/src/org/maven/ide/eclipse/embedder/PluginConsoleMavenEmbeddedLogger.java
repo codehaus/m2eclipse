@@ -1,19 +1,26 @@
-/* $Id: ConsoleMavenEmbeddedLogger.java 30 2006-01-14 22:22:52 -0500 (Sat, 14 Jan 2006) maxim $ */
 
-package org.maven.ide.eclipse;
+package org.maven.ide.eclipse.embedder;
 
 import org.apache.maven.embedder.MavenEmbedderLogger;
 
+import org.maven.ide.eclipse.launch.console.Maven2Console;
 
-class PluginConsoleMavenEmbeddedLogger implements MavenEmbedderLogger {
-  private int treshold = LEVEL_DEBUG;
+
+public class PluginConsoleMavenEmbeddedLogger implements MavenEmbedderLogger {
+  private Maven2Console console;
+  private int treshold;
   
+  public PluginConsoleMavenEmbeddedLogger(Maven2Console console, boolean debug) {
+    this.console = console;
+    this.treshold = debug ? LEVEL_DEBUG : LEVEL_INFO;
+  }
+
   private void out(String s) {
-    Maven2Plugin.getDefault().getConsole().logMessage(s);
+    console.logMessage(s);
   }
 
   private void outError(String s) {
-    Maven2Plugin.getDefault().getConsole().logError(s);
+    console.logError(s);
   }
   
   public void debug( String msg ) {

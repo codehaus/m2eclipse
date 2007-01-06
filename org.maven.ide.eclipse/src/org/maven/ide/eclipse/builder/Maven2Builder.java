@@ -21,10 +21,23 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.container.Maven2ClasspathContainer;
+import org.maven.ide.eclipse.embedder.MavenModelManager;
+import org.maven.ide.eclipse.launch.console.Maven2Console;
+import org.maven.ide.eclipse.util.Util;
 
 
 public class Maven2Builder extends IncrementalProjectBuilder {
+  private Maven2Plugin plugin;
+  private Maven2Console  console;
+  private MavenModelManager mavenModelManager;
 
+  
+  public Maven2Builder() {
+    plugin = Maven2Plugin.getDefault();
+    console = plugin.getConsole();
+    mavenModelManager = plugin.getMavenModelManager();
+  }
+  
   /*
    * (non-Javadoc)
    * 
@@ -36,14 +49,14 @@ public class Maven2Builder extends IncrementalProjectBuilder {
     if(project.hasNature(Maven2Plugin.NATURE_ID)) {
 
       // if( kind == AUTO_BUILD || kind == INCREMENTAL_BUILD ) {
-      Verifier verifier = new Verifier(monitor);
+      Verifier verifier = new Verifier(monitor, mavenModelManager);
       IResourceDelta delta = getDelta(project);
       if(delta == null) {
         IFile pomFile = getProject().getFile(Maven2Plugin.POM_FILE_NAME);
         if(pomFile==null) {
-          Maven2Plugin.getDefault().getConsole().logError("Project "+getProject().getName()+" is missing pom.xml");
+          console.logError("Project "+getProject().getName()+" is missing pom.xml");
         }
-        Maven2Plugin.getDefault().getMavenModelManager().updateMavenModel(pomFile, true, monitor);
+        mavenModelManager.updateMavenModel(pomFile, true, monitor);
       } else {
         delta.accept(verifier, IContainer.EXCLUDE_DERIVED);
         if(!verifier.updated) {
@@ -57,31 +70,27 @@ public class Maven2Builder extends IncrementalProjectBuilder {
   }
 
   private void updateClasspath(IProgressMonitor monitor, IProject project) throws JavaModelException {
-    // IClasspathEntry[] classPaths = javaProject.getRawClasspath();
-    // for( int i = 0; i < classPaths.length && !monitor.isCanceled(); i++ ) {
-    //   IClasspathEntry entry = classPaths[i];
-    //   if(Maven2ClasspathContainer.isMaven2ClasspathContainer(entry.getPath())) {
-
     Set entries = new HashSet();
     Set moduleArtifacts = new HashSet();
     IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
-    Maven2Plugin.getDefault().resolveClasspathEntries(entries, moduleArtifacts, pomFile, true, monitor);
+    plugin.getClasspathResolver().resolveClasspathEntries(entries, moduleArtifacts, pomFile, true, monitor);
 
     Maven2ClasspathContainer container = new Maven2ClasspathContainer(entries);
+
     JavaCore.setClasspathContainer(container.getPath(), new IJavaProject[] {JavaCore.create(project)},
         new IClasspathContainer[] {container}, monitor);
-
-    //   }
-    // }
   }
 
   
   static final class Verifier implements IResourceDeltaVisitor {
-    boolean updated;
     private final IProgressMonitor monitor;
+    private final MavenModelManager mavenModelManager;
 
-    public Verifier(IProgressMonitor monitor) {
+    boolean updated;
+
+    public Verifier(IProgressMonitor monitor, MavenModelManager mavenModelManager) {
       this.monitor = monitor;
+      this.mavenModelManager = mavenModelManager;
     }
 
     public boolean visit(IResourceDelta delta) {
@@ -89,14 +98,11 @@ public class Maven2Builder extends IncrementalProjectBuilder {
       if(resource.getType() == IResource.FILE && Maven2Plugin.POM_FILE_NAME.equals(resource.getName())) {
         updated = true;
 
-        // update model cache
-        Maven2Plugin plugin = Maven2Plugin.getDefault();
+        Util.deleteMarkers(resource);
         try {
-          plugin.getMavenModelManager().updateMavenModel((IFile) resource, true, monitor);
-          plugin.deleteMarkers(resource);
+          mavenModelManager.updateMavenModel((IFile) resource, true, monitor);
         } catch(CoreException ex) {
-          plugin.deleteMarkers(resource);
-          plugin.addMarker(resource, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
+          Util.addMarker(resource, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
         }
       }
       return true;

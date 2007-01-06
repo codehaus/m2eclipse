@@ -1,5 +1,5 @@
 
-package org.maven.ide.eclipse;
+package org.maven.ide.eclipse.embedder;
 
 import org.apache.maven.wagon.WagonConstants;
 import org.apache.maven.wagon.events.TransferEvent;
@@ -7,6 +7,8 @@ import org.apache.maven.wagon.events.TransferListener;
 import org.apache.maven.wagon.resource.Resource;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.maven.ide.eclipse.index.MavenRepositoryIndexManager;
+import org.maven.ide.eclipse.launch.console.Maven2Console;
 
 
 /**
@@ -16,11 +18,16 @@ import org.eclipse.core.runtime.IProgressMonitor;
  */
 public final class TransferListenerAdapter implements TransferListener {
   private final IProgressMonitor monitor;
+  private final Maven2Console console;
+  private final MavenRepositoryIndexManager indexManager;
 
   private long complete = 0;
 
-  public TransferListenerAdapter(IProgressMonitor monitor) {
+
+  public TransferListenerAdapter(IProgressMonitor monitor, Maven2Console console, MavenRepositoryIndexManager indexManager) {
     this.monitor = monitor;
+    this.console = console;
+    this.indexManager = indexManager;
   }
 
   public void transferInitiated(TransferEvent e) {
@@ -29,7 +36,7 @@ public final class TransferListenerAdapter implements TransferListener {
   }
 
   public void transferStarted(TransferEvent e) {
-    Maven2Plugin.getDefault().getConsole().logMessage("Downloading " + e.getWagon().getRepository() + "/" + e.getResource().getName());
+    console.logMessage("Downloading " + e.getWagon().getRepository() + "/" + e.getResource().getName());
     // monitor.beginTask("0% "+e.getWagon().getRepository()+"/"+e.getResource().getName(), IProgressMonitor.UNKNOWN);
     monitor.subTask("0% " + e.getWagon().getRepository() + "/" + e.getResource().getName());
   }
@@ -57,7 +64,7 @@ public final class TransferListenerAdapter implements TransferListener {
   }
 
   public void transferCompleted( TransferEvent e) {
-    Maven2Plugin.getDefault().getConsole().logMessage("Downloaded "+e.getWagon().getRepository()+"/"+e.getResource().getName());
+    console.logMessage("Downloaded "+e.getWagon().getRepository()+"/"+e.getResource().getName());
     
     // monitor.subTask("100% "+e.getWagon().getRepository()+"/"+e.getResource().getName());
     monitor.subTask("");
@@ -66,11 +73,11 @@ public final class TransferListenerAdapter implements TransferListener {
     String repository = e.getWagon().getRepository().getName();
     Resource resource = e.getResource();
     
-    Maven2Plugin.getDefault().getMavenRepositoryIndexManager().updateIndex(e.getLocalFile(), repository, resource.getName(), resource.getContentLength(), resource.getLastModified());
+    indexManager.updateIndex(e.getLocalFile(), repository, resource.getName(), resource.getContentLength(), resource.getLastModified());
   }
 
   public void transferError(TransferEvent e) {
-    Maven2Plugin.getDefault().getConsole().logMessage("Unable to download " + e.getWagon().getRepository() + "/" + e.getResource().getName() + ": " + e.getException());
+    console.logMessage("Unable to download " + e.getWagon().getRepository() + "/" + e.getResource().getName() + ": " + e.getException());
     monitor.subTask("error " + e.getWagon().getRepository() + "/" + e.getResource().getName());
   }
 

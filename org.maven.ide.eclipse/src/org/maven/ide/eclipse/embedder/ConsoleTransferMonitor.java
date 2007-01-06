@@ -1,6 +1,5 @@
-/* $Id$ */
 
-package org.maven.ide.eclipse;
+package org.maven.ide.eclipse.embedder;
 
 import org.apache.maven.wagon.events.TransferEvent;
 import org.apache.maven.wagon.events.TransferListener;

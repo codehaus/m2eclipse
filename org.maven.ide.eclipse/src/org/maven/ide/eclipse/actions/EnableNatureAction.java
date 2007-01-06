@@ -133,9 +133,7 @@ public class EnableNatureAction implements IObjectActionDelegate {
       }
       
     } catch( CoreException ex) {
-      Maven2Plugin.getDefault().getConsole().logError( "Can't enable nature "+ex.toString() );
       Maven2Plugin.log(ex);
-    
     }
   }
 

@@ -1,15 +1,16 @@
 
-package org.maven.ide.eclipse;
+package org.maven.ide.eclipse.embedder;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.maven.artifact.Artifact;
-import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.model.Model;
 
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
@@ -17,7 +18,11 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.core.runtime.Status;
+import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.launch.console.Maven2Console;
 
 
 /**
@@ -28,13 +33,16 @@ import org.eclipse.core.runtime.OperationCanceledException;
  * @author Eugene Kuleshov
  */
 public class MavenModelManager {
-  private final Maven2Plugin plugin;
+  private final MavenEmbedderManager embedderManager;
+  private final Maven2Console console;
 
   private Map models;
   private Map artifacts;
 
-  public MavenModelManager(Maven2Plugin plugin) {
-    this.plugin = plugin;
+
+  public MavenModelManager(MavenEmbedderManager embedderManager, Maven2Console console) {
+    this.embedderManager = embedderManager;
+    this.console = console;
   }
 
   public IFile getArtifactFile(Artifact a) {
@@ -60,21 +68,21 @@ public class MavenModelManager {
         if(project.isOpen() && project.hasNature(Maven2Plugin.NATURE_ID)) {
           IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
           if(pomFile == null) {
-            plugin.getConsole().logError("Project " + project.getName() + " is missing pom.xml");
+            console.logError("Project " + project.getName() + " is missing pom.xml");
           } else {
             updateMavenModel(pomFile, true, monitor);
           }
         }
       } catch(CoreException ex) {
-        plugin.getConsole().logError("Unable to read project " + project.getName() + "; " + ex.getMessage());
+        console.logError("Unable to read project " + project.getName() + "; " + ex.getMessage());
       }
     }
   }
 
   public Model updateMavenModel(IFile pomFile, boolean recursive, IProgressMonitor monitor) throws CoreException {
-    Model mavenModel = readMavenModel(pomFile.getLocation().toFile(), monitor);
+    Model mavenModel = readMavenModel(pomFile.getLocation().toFile());
     if(mavenModel == null) {
-      plugin.getConsole().logMessage("Unable to read model for " + pomFile.getFullPath().toString());
+      console.logMessage("Unable to read model for " + pomFile.getFullPath().toString());
       return null;
     }
 
@@ -82,8 +90,7 @@ public class MavenModelManager {
     String artifactKey = getArtifactKey(mavenModel);
     artifacts.put(artifactKey, pomFile);
 
-    plugin.getConsole().logMessage(
-        "Updated model " + pomFile.getFullPath().toString() + " : " + artifactKey);
+    console.logMessage("Updated model " + pomFile.getFullPath().toString() + " : " + artifactKey);
 
     if(recursive) {
       IContainer parent = pomFile.getParent();
@@ -102,12 +109,18 @@ public class MavenModelManager {
     return mavenModel;
   }
 
-  public Model readMavenModel(final File pomFile, IProgressMonitor monitor) throws CoreException {
-    return (Model) plugin.executeInEmbedder(new MavenEmbedderCallback() {
-      public Object run(MavenEmbedder mavenEmbedder, IProgressMonitor monitor) throws Exception {
-        return mavenEmbedder.readModel(pomFile);
-      }
-    }, monitor);
+  public Model readMavenModel(File pomFile) throws CoreException {
+    try {
+      return embedderManager.getProjectEmbedder().readModel(pomFile);
+    } catch(XmlPullParserException ex) {
+      String msg = "Parsing error " + pomFile.getAbsolutePath()+"; " + ex.toString();
+      console.logError(msg);
+      throw new CoreException(new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, IStatus.ERROR, msg, ex));
+    } catch(IOException ex) {
+      String msg = "Can't read model " + pomFile.getAbsolutePath()+"; " + ex.toString();
+      console.logError(msg);
+      throw new CoreException(new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, IStatus.ERROR, msg, ex));
+    }
   }
 
   private String getArtifactKey(Model model) {
