@@ -2,8 +2,6 @@
 package org.maven.ide.eclipse.launch;
 
 import java.io.File;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -22,7 +20,6 @@ import org.eclipse.debug.ui.AbstractLaunchConfigurationTab;
 import org.eclipse.debug.ui.StringVariableSelectionDialog;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.MessageDialog;
-import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.DoubleClickEvent;
 import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.TableViewer;
@@ -52,6 +49,7 @@ import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.Messages;
 import org.maven.ide.eclipse.util.ITraceable;
 import org.maven.ide.eclipse.util.Tracer;
+import org.maven.ide.eclipse.util.Util;
 
 
 /**
@@ -61,8 +59,7 @@ import org.maven.ide.eclipse.util.Tracer;
  * @author Eugene Kuleshov
  */
 public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implements Maven2LaunchConstants, ITraceable {
-  private static final boolean TRACE_ENABLED = Boolean.valueOf(
-      Platform.getDebugOption("org.maven.ide.eclipse/launcher")).booleanValue();
+  private static final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/launcher")).booleanValue();
 
   public static final String ID_EXTERNAL_TOOLS_LAUNCH_GROUP = "org.eclipse.ui.externaltools.launchGroup"; //$NON-NLS-1$
 
@@ -79,14 +76,7 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
   }
 
   public Image getImage() {
-    final URL rootURL = Maven2Plugin.getDefault().getRootURL();
-    try {
-      ImageDescriptor descriptor = ImageDescriptor.createFromURL(new URL(rootURL, "icons/main_tab.gif")); //$NON-NLS-1$
-      return descriptor.createImage();
-    } catch(MalformedURLException ex) {
-      ex.printStackTrace();
-    }
-    return null;
+    return Maven2Plugin.getImage("icons/main_tab.gif");
   }
 
   public void createControl(Composite parent) {
@@ -194,14 +184,15 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
     browseGoalsButton.setText(Messages.getString("launch.goals")); //$NON-NLS-1$
     browseGoalsButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
-        String fileName = Maven2Plugin.substituteVar(fPomDirName.getText());
+        String fileName = Util.substituteVar(fPomDirName.getText());
         if(!isDirectoryExist(fileName)) {
-          MessageDialog.openError(getShell(), Messages.getString("launch.errorPomMissing"), Messages
-              .getString("launch.errorSelectPom")); //$NON-NLS-1$ //$NON-NLS-2$
+          MessageDialog.openError(getShell(), Messages.getString("launch.errorPomMissing"), 
+              Messages.getString("launch.errorSelectPom")); //$NON-NLS-1$ //$NON-NLS-2$
           return;
         }
-        final Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell(), Messages
-            .getString("launch.goalsDialog.title")); //$NON-NLS-1$
+        Maven2Plugin plugin = Maven2Plugin.getDefault();
+        Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell(), 
+            Messages.getString("launch.goalsDialog.title"), plugin.getMavenEmbedderManager()); //$NON-NLS-1$
         dialog.setAllowMultiple(false);
         dialog.setInput(new Object());
         int rc = dialog.open();
@@ -463,7 +454,7 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
     if(name == null || name.trim().length() == 0) {
       return false;
     }
-    File pomDir = new File(Maven2Plugin.substituteVar(name));
+    File pomDir = new File(Util.substituteVar(name));
     if(!pomDir.exists()) {
       return false;
     }

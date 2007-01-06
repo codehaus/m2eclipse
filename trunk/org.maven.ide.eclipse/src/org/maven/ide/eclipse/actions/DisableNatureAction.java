@@ -24,8 +24,6 @@ import org.maven.ide.eclipse.container.Maven2ClasspathContainer;
 public class DisableNatureAction implements IObjectActionDelegate {
   private ISelection selection;
 
-  private IWorkbenchPart targetPart;
-
   /*
    * (non-Javadoc)
    * @see org.eclipse.ui.IActionDelegate#run(org.eclipse.jface.action.IAction)
@@ -63,7 +61,6 @@ public class DisableNatureAction implements IObjectActionDelegate {
    *      org.eclipse.ui.IWorkbenchPart)
    */
   public void setActivePart(IAction action, IWorkbenchPart targetPart) {
-    this.targetPart = targetPart;
   }
 
   private void disableNature(IProject project, boolean isSingle) {
@@ -95,9 +92,7 @@ public class DisableNatureAction implements IObjectActionDelegate {
       }
 
     } catch(CoreException ex) {
-      Maven2Plugin.getDefault().getConsole().logError("Can't disable nature " + ex.toString());
       Maven2Plugin.log(ex);
-
     }
   }
 

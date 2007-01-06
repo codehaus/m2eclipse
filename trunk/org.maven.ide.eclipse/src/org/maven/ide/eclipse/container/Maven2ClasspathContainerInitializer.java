@@ -41,54 +41,55 @@ import org.maven.ide.eclipse.Maven2Plugin;
  */
 public class Maven2ClasspathContainerInitializer extends ClasspathContainerInitializer {
 
-  public void initialize( IPath containerPath, final IJavaProject project ) {
-    if( Maven2ClasspathContainer.isMaven2ClasspathContainer( containerPath ) ) {
+  public void initialize(IPath containerPath, final IJavaProject project) {
+    if(Maven2ClasspathContainer.isMaven2ClasspathContainer(containerPath)) {
       IClasspathContainer container;
+      final Maven2Plugin plugin = Maven2Plugin.getDefault();
       try {
         container = JavaCore.getClasspathContainer(containerPath, project);
       } catch(JavaModelException ex) {
-        Maven2Plugin.getDefault().getConsole().logError("Unable to get container for "+containerPath.toString()+"; "+ex.getMessage());
+        Maven2Plugin.log("Unable to get container for " + containerPath.toString(), ex);
         return;
       }
 
-      Maven2Plugin.getDefault().getMavenModelManager().initMavenModel(new NullProgressMonitor());
-      
+      plugin.getMavenModelManager().initMavenModel(new NullProgressMonitor());
+
       Maven2ClasspathContainer mavenContainer;
-      if(container==null) {
+      if(container == null) {
         mavenContainer = new Maven2ClasspathContainer();
       } else {
         mavenContainer = new Maven2ClasspathContainer(container.getClasspathEntries());
       }
 
       try {
-        JavaCore.setClasspathContainer( containerPath, new IJavaProject[] { project },
-              new IClasspathContainer[] { mavenContainer }, new NullProgressMonitor() );
+        JavaCore.setClasspathContainer(containerPath, new IJavaProject[] {project},
+            new IClasspathContainer[] {mavenContainer}, new NullProgressMonitor());
       } catch(JavaModelException ex) {
-        Maven2Plugin.getDefault().getConsole().logError("Unable to set container for "+containerPath.toString()+"; "+ex.getMessage());
+        Maven2Plugin.log("Unable to set container for " + containerPath.toString(), ex);
         return;
       }
 
-      if(container!=null) {
+      if(container != null) {
         return;
       }
       
-      new Job( "Initializing "+project.getProject().getName() ) {
-        protected IStatus run( IProgressMonitor monitor ) {
-          IFile pomFile = project.getProject().getFile( Maven2Plugin.POM_FILE_NAME );
+      new Job("Initializing " + project.getProject().getName()) {
+        protected IStatus run(IProgressMonitor monitor) {
+          IFile pomFile = project.getProject().getFile(Maven2Plugin.POM_FILE_NAME);
 
-          monitor.beginTask( "Initializing", 2 );
-          
+          monitor.beginTask("Initializing", 2);
+
           HashSet entries = new HashSet();
           HashSet moduleArtifacts = new HashSet();
-          Maven2Plugin.getDefault().resolveClasspathEntries(entries, moduleArtifacts, pomFile, true,
+          plugin.getClasspathResolver().resolveClasspathEntries(entries, moduleArtifacts, pomFile, true,
               new SubProgressMonitor(monitor, 1, 0));
 
-          Maven2ClasspathContainer container = new Maven2ClasspathContainer( entries );
+          Maven2ClasspathContainer container = new Maven2ClasspathContainer(entries);
           try {
-            JavaCore.setClasspathContainer( container.getPath(), new IJavaProject[] { project },
-                new IClasspathContainer[] { container }, new SubProgressMonitor(monitor, 1, 0) );
-          } catch( JavaModelException ex ) {
-            Maven2Plugin.log( ex );
+            JavaCore.setClasspathContainer(container.getPath(), new IJavaProject[] {project},
+                new IClasspathContainer[] {container}, new SubProgressMonitor(monitor, 1, 0));
+          } catch(JavaModelException ex) {
+            Maven2Plugin.log("Can't set classpath container", ex);
           }
 
           return Status.OK_STATUS;
@@ -97,27 +98,27 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
     }
   }
 
-  public boolean canUpdateClasspathContainer( IPath containerPath, IJavaProject project ) {
-    return Maven2ClasspathContainer.isMaven2ClasspathContainer( containerPath );
+  public boolean canUpdateClasspathContainer(IPath containerPath, IJavaProject project) {
+    return Maven2ClasspathContainer.isMaven2ClasspathContainer(containerPath);
   }
   
-  public void requestClasspathContainerUpdate( IPath containerPath, final IJavaProject project, final IClasspathContainer containerSuggestion ) throws CoreException {
+  public void requestClasspathContainerUpdate(IPath containerPath, final IJavaProject project,
+      final IClasspathContainer containerSuggestion) throws CoreException {
     final IClasspathContainer currentContainer = getMaven2ClasspathContainer(project);
-    if(currentContainer==null) {
-      Maven2Plugin.getDefault().getConsole().logError( "Unable to find Maven classpath container" );
+    if(currentContainer == null) {
+      Maven2Plugin.getDefault().getConsole().logError("Unable to find Maven classpath container");
       return;
     }
-    
-    Display display = Maven2Plugin.getStandardDisplay();
-    BundleUpdater bundleUpdater = new BundleUpdater(display, currentContainer.getClasspathEntries(), containerSuggestion.getClasspathEntries());
+
+    Display display = Maven2Plugin.getDefault().getWorkbench().getDisplay();
+    BundleUpdater bundleUpdater = new BundleUpdater(display, currentContainer.getClasspathEntries(),
+        containerSuggestion.getClasspathEntries());
     display.syncExec(bundleUpdater);
-    
+
     if(bundleUpdater.containerUpdated) {
       try {
-        JavaCore.setClasspathContainer(containerSuggestion.getPath(), 
-            new IJavaProject[] {project},
-            new IClasspathContainer[] {new Maven2ClasspathContainer(bundleUpdater.newEntries)}, 
-            null);
+        JavaCore.setClasspathContainer(containerSuggestion.getPath(), new IJavaProject[] {project},
+            new IClasspathContainer[] {new Maven2ClasspathContainer(bundleUpdater.newEntries)}, null);
       } catch(JavaModelException ex) {
         Maven2Plugin.getDefault().getConsole().logError(ex.getMessage());
       }
@@ -252,7 +253,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
         }
       } else {
         if(newFile==null) {
-          entryUpdated = removeBundle(oldFile, Maven2Plugin.getStandardDisplay());
+          entryUpdated = removeBundle(oldFile, this.display);
         } else if(!oldFile.equals(newFile)) {
           entryUpdated = installBundle(newFile, entryPath, suffix, this.display);
         }

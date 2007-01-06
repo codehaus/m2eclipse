@@ -1,11 +1,15 @@
 
-package org.maven.ide.eclipse;
+package org.maven.ide.eclipse.embedder;
 
 import org.apache.maven.embedder.MavenEmbedderLogger;
 
 
 class ConsoleMavenEmbeddedLogger implements MavenEmbedderLogger {
   private int treshold = LEVEL_DEBUG;
+
+  public ConsoleMavenEmbeddedLogger(boolean debug) {
+    this.treshold = debug ? LEVEL_DEBUG : LEVEL_INFO;
+  }
 
   private void out(String s) {
     System.out.println(s);

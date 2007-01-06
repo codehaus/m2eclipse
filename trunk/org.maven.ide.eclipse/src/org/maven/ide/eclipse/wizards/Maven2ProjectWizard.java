@@ -3,7 +3,6 @@ package org.maven.ide.eclipse.wizards;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.IOException;
 import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
@@ -36,8 +35,8 @@ import org.eclipse.jface.wizard.Wizard;
 import org.eclipse.ui.INewWizard;
 import org.eclipse.ui.IWorkbench;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.MavenEmbedderCallback;
 import org.maven.ide.eclipse.Messages;
+
 
 /**
  * Simple project wizard for creating a new Maven2 project.
@@ -62,18 +61,20 @@ import org.maven.ide.eclipse.Messages;
  *       containers.</li>
  * </ul>
  * </p>
-*/
+ */
 public class Maven2ProjectWizard extends Wizard implements INewWizard {
   /** The name of the default wizard page image. */
-  private static final String DEFAULT_PAGE_IMAGE_NAME =
-    "icons/new_m2_project_wizard.gif";
+  private static final String DEFAULT_PAGE_IMAGE_NAME = "icons/new_m2_project_wizard.gif";
+
   /** The default wizard page image. */
-  private static final ImageDescriptor DEFAULT_PAGE_IMAGE =
-    Maven2Plugin.getImageDescriptor( DEFAULT_PAGE_IMAGE_NAME );
+  private static final ImageDescriptor DEFAULT_PAGE_IMAGE = Maven2Plugin.getImageDescriptor(DEFAULT_PAGE_IMAGE_NAME);
+
   /** The wizard page for gathering general project information. */
   private Maven2ProjectWizardLocationPage projectPage;
+
   /** The wizard page for gathering Maven2 project information. */
   private Maven2ProjectWizardArtifactPage artifactPage;
+
   /** The wizard page for choosing the Maven2 dependencies to use. */
   private Maven2DependenciesWizardPage wizardPage;
 
@@ -84,9 +85,9 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
    */
   public Maven2ProjectWizard() {
     super();
-    setWindowTitle( Messages.getString( "wizard.project.title" ) );
-    setDefaultPageImageDescriptor( DEFAULT_PAGE_IMAGE );
-    setNeedsProgressMonitor( true );
+    setWindowTitle(Messages.getString("wizard.project.title"));
+    setDefaultPageImageDescriptor(DEFAULT_PAGE_IMAGE);
+    setNeedsProgressMonitor(true);
   }
 
   public void addPages() {
@@ -94,11 +95,11 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
     artifactPage = new Maven2ProjectWizardArtifactPage();
     wizardPage = new Maven2DependenciesWizardPage();
 
-    projectPage.setMavenArtifactPage( artifactPage );
+    projectPage.setMavenArtifactPage(artifactPage);
 
-    addPage( projectPage );
-    addPage( artifactPage );
-    addPage( wizardPage );
+    addPage(projectPage);
+    addPage(artifactPage);
+    addPage(wizardPage);
   }
 
   /**
@@ -123,14 +124,13 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
    * @see org.eclipse.core.resources.IProject#create(org.eclipse.core.resources.IProjectDescription, org.eclipse.core.runtime.IProgressMonitor)
    * @see org.eclipse.core.resources.IProject#open(org.eclipse.core.runtime.IProgressMonitor)
    */
-  private static void createProject( IProject project, IPath location ) throws CoreException {
-    IProjectDescription description =
-      ResourcesPlugin.getWorkspace().newProjectDescription( project.getName() );
+  private static void createProject(IProject project, IPath location) throws CoreException {
+    IProjectDescription description = ResourcesPlugin.getWorkspace().newProjectDescription(project.getName());
 
-    description.setLocation( location );
+    description.setLocation(location);
 
-    project.create( description, null );
-    project.open( null );
+    project.create(description, null);
+    project.open(null);
   }
 
   /**
@@ -148,17 +148,15 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
    *
    * @throws CoreException if some error occurs while configuring the Maven2 project.
    */
-  private static void createMaven2Project( IProject project, IClasspathEntry[] classpathEntries, IPath outputPath ) throws CoreException {
+  private static void createMaven2Project(IProject project, IClasspathEntry[] classpathEntries, IPath outputPath)
+      throws CoreException {
     IProjectDescription description = project.getDescription();
-    description.setNatureIds( new String[] { JavaCore.NATURE_ID, Maven2Plugin.NATURE_ID } );
-    project.setDescription( description, null );
+    description.setNatureIds(new String[] {JavaCore.NATURE_ID, Maven2Plugin.NATURE_ID});
+    project.setDescription(description, null);
 
-    IJavaProject javaProject = JavaCore.create( project );
+    IJavaProject javaProject = JavaCore.create(project);
 
-    javaProject.setRawClasspath(
-        addContainersToClasspath( classpathEntries ),
-        outputPath,
-        new NullProgressMonitor() );
+    javaProject.setRawClasspath(addContainersToClasspath(classpathEntries), outputPath, new NullProgressMonitor());
   }
 
   /**
@@ -170,9 +168,9 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
    *
    * @throws CoreException if creating any of the folders fails.
    */
-  private static void createDirectories( IProject project, String[] directories ) throws CoreException {
-    for ( int i = 0; i < directories.length; i++ ) {
-      createFolder( project.getFolder( directories[i] ) );
+  private static void createDirectories(IProject project, String[] directories) throws CoreException {
+    for(int i = 0; i < directories.length; i++ ) {
+      createFolder(project.getFolder(directories[i]));
     }
   }
 
@@ -185,15 +183,15 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
    * @throws CoreException if creating the given <code>folder</code> or any of
    *                       its parents fails.
    */
-  private static void createFolder( IFolder folder ) throws CoreException {
+  private static void createFolder(IFolder folder) throws CoreException {
     // Recurse until we find a parent folder which already exists.
-    if ( !folder.exists() ) {
+    if(!folder.exists()) {
       IContainer parent = folder.getParent();
       // First, make sure that all parent folders exist.
-      if ( parent instanceof IFolder ) {
-        createFolder( ( IFolder ) parent );
+      if(parent instanceof IFolder) {
+        createFolder((IFolder) parent);
       }
-      folder.create( false, true, null );
+      folder.create(false, true, null);
     }
   }
 
@@ -208,31 +206,23 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
    * @throws CoreException if a POM file already exists in the given project
    *                       or if creating the file fails.
    */
-  private static void createPOMFile( final IProject project, final Model model ) throws CoreException {
-    final IFile file = project.getFile( new Path( Maven2Plugin.POM_FILE_NAME ) );
+  private static void createPOMFile(final IProject project, final Model model) throws CoreException {
+    final IFile file = project.getFile(new Path(Maven2Plugin.POM_FILE_NAME));
 
-    if ( file.exists() ) {
-      throwCoreException( Messages.getString( "wizard.project.error.pomExists" ) );
+    if(file.exists()) {
+      throwCoreException(Messages.getString("wizard.project.error.pomExists"));
     }
 
     final File pom = file.getLocation().toFile();
 
     try {
-      final StringWriter w = new StringWriter();
-      Maven2Plugin.getDefault().executeInEmbedder( new MavenEmbedderCallback() {
-        public Object run( MavenEmbedder mavenEmbedder, IProgressMonitor monitor ) {
-          try {
-            mavenEmbedder.writeModel( w, model );
-          } catch ( IOException ex ) {
-            Maven2Plugin.log( "Unable to write POM " + pom + "; " + ex.getMessage(), ex );
-          }
-          return null;
-        }
-      }, new NullProgressMonitor() );
+      StringWriter w = new StringWriter();
+      MavenEmbedder mavenEmbedder = Maven2Plugin.getDefault().getMavenEmbedderManager().getProjectEmbedder();
+      mavenEmbedder.writeModel(w, model);
 
-      file.create( new ByteArrayInputStream( w.toString().getBytes( "ASCII" ) ), true, null );
-    } catch ( Exception ex ) {
-      Maven2Plugin.log( "Unable to create POM " + pom + "; " + ex.getMessage(), ex );
+      file.create(new ByteArrayInputStream(w.toString().getBytes("ASCII")), true, null);
+    } catch(Exception ex) {
+      Maven2Plugin.log("Unable to create POM " + pom + "; " + ex.getMessage(), ex);
     }
   }
 
@@ -246,12 +236,12 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
    *                 classpath containers.
    *                 Is never <code>null</code>.
    */
-  private static IClasspathEntry[] addContainersToClasspath( IClasspathEntry[] entries ) {
+  private static IClasspathEntry[] addContainersToClasspath(IClasspathEntry[] entries) {
     IClasspathEntry[] classpath = new IClasspathEntry[entries.length + 2];
-    System.arraycopy( entries, 0, classpath, 0, entries.length );
+    System.arraycopy(entries, 0, classpath, 0, entries.length);
 
-    classpath[classpath.length - 2] = JavaCore.newContainerEntry( new Path( JavaRuntime.JRE_CONTAINER ) );
-    classpath[classpath.length - 1] = JavaCore.newContainerEntry( new Path( Maven2Plugin.CONTAINER_ID ) );
+    classpath[classpath.length - 2] = JavaCore.newContainerEntry(new Path(JavaRuntime.JRE_CONTAINER));
+    classpath[classpath.length - 1] = JavaCore.newContainerEntry(new Path(Maven2Plugin.CONTAINER_ID));
 
     return classpath;
   }
@@ -281,19 +271,19 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
     final String[] directories = artifactPage.getDirectories();
 
     final Model model = artifactPage.getModel();
-    model.getDependencies().addAll( Arrays.asList( wizardPage.getDependencies() ) );
+    model.getDependencies().addAll(Arrays.asList(wizardPage.getDependencies()));
 
-    final IClasspathEntry[] classpathEntries = artifactPage.getClasspathEntries( project.getFullPath() );
+    final IClasspathEntry[] classpathEntries = artifactPage.getClasspathEntries(project.getFullPath());
 
-    final IPath outputPath = artifactPage.getDefaultOutputLocationPath( project.getFullPath() );
+    final IPath outputPath = artifactPage.getDefaultOutputLocationPath(project.getFullPath());
 
     // Run the actual operation for creating the project.
     IRunnableWithProgress op = new IRunnableWithProgress() {
-      public void run( IProgressMonitor monitor ) throws InvocationTargetException {
+      public void run(IProgressMonitor monitor) throws InvocationTargetException {
         try {
-          doFinish( project, location, directories, model, classpathEntries, outputPath, monitor );
-        } catch( CoreException e ) {
-          throw new InvocationTargetException( e );
+          doFinish(project, location, directories, model, classpathEntries, outputPath, monitor);
+        } catch(CoreException e) {
+          throw new InvocationTargetException(e);
         } finally {
           monitor.done();
         }
@@ -301,12 +291,12 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
     };
 
     try {
-      getContainer().run( true, false, op );
-    } catch ( InterruptedException e ) {
+      getContainer().run(true, false, op);
+    } catch(InterruptedException e) {
       return false;
-    } catch ( InvocationTargetException e ) {
+    } catch(InvocationTargetException e) {
       Throwable realException = e.getTargetException();
-      MessageDialog.openError( getShell(), "Error", realException.getMessage() );
+      MessageDialog.openError(getShell(), "Error", realException.getMessage());
       return false;
     }
 
@@ -339,31 +329,25 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
    *
    * @throws CoreException if any of the above listed actions fails.
    */
-  private static void doFinish(
-      IProject project,
-      IPath location,
-      String[] directories,
-      Model model,
-      IClasspathEntry[] classpathEntries,
-      IPath outputPath,
-      IProgressMonitor monitor ) throws CoreException {
-    monitor.beginTask( Messages.getString( "wizard.project.monitor.create" ), 5 );
+  static void doFinish(IProject project, IPath location, String[] directories, Model model,
+      IClasspathEntry[] classpathEntries, IPath outputPath, IProgressMonitor monitor) throws CoreException {
+    monitor.beginTask(Messages.getString("wizard.project.monitor.create"), 5);
 
-    monitor.subTask( Messages.getString( "wizard.project.monitor.createProject" ) );
-    createProject( project, location );
-    monitor.worked( 1 );
+    monitor.subTask(Messages.getString("wizard.project.monitor.createProject"));
+    createProject(project, location);
+    monitor.worked(1);
 
-    monitor.subTask( Messages.getString( "wizard.project.monitor.createDirectories" ) );
-    createDirectories( project, directories );
-    monitor.worked( 1 );
+    monitor.subTask(Messages.getString("wizard.project.monitor.createDirectories"));
+    createDirectories(project, directories);
+    monitor.worked(1);
 
-    monitor.subTask( Messages.getString( "wizard.project.monitor.createPOM" ) );
-    createPOMFile( project, model );
-    monitor.worked( 1 );
+    monitor.subTask(Messages.getString("wizard.project.monitor.createPOM"));
+    createPOMFile(project, model);
+    monitor.worked(1);
 
-    monitor.subTask( Messages.getString( "wizard.project.monitor.configureMaven2" ) );
-    createMaven2Project( project, classpathEntries, outputPath );
-    monitor.worked( 1 );
+    monitor.subTask(Messages.getString("wizard.project.monitor.configureMaven2"));
+    createMaven2Project(project, classpathEntries, outputPath);
+    monitor.worked(1);
   }
 
   /**
@@ -374,13 +358,12 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
    *
    * @throws CoreException by definition ;)
    */
-  private static void throwCoreException( String message ) throws CoreException {
-    IStatus status = new Status( IStatus.ERROR, "org.maven.ide.eclipse", IStatus.OK, message, null );
-    throw new CoreException( status );
+  private static void throwCoreException(String message) throws CoreException {
+    IStatus status = new Status(IStatus.ERROR, "org.maven.ide.eclipse", IStatus.OK, message, null);
+    throw new CoreException(status);
   }
 
-  /** {@inheritDoc} */
-  public void init( IWorkbench workbench, IStructuredSelection selection ) {
+  public void init(IWorkbench workbench, IStructuredSelection selection) {
     // do nothing
   }
 }

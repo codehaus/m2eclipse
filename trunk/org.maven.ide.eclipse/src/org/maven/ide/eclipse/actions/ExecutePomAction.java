@@ -30,6 +30,7 @@ import org.maven.ide.eclipse.launch.Maven2LaunchConstants;
 import org.maven.ide.eclipse.launch.Maven2LaunchMainTab;
 import org.maven.ide.eclipse.util.ITraceable;
 import org.maven.ide.eclipse.util.Tracer;
+import org.maven.ide.eclipse.util.Util;
 
 
 /**
@@ -115,7 +116,6 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
         String goals = launchConfiguration.getAttribute(Maven2LaunchConstants.ATTR_GOALS, (String) null);
         openDialog = goals == null || goals.trim().length() == 0;
       } catch (CoreException ex) {
-        Tracer.trace(this, "Error creating new launch configuration", "", ex);
         Maven2Plugin.log(ex);
       }
     }
@@ -145,7 +145,6 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
       return workingCopy;
     } catch(CoreException ex) {
       Tracer.trace(this, "Error creating new launch configuration", "", ex);
-      Maven2Plugin.log(ex);
     }
     return null;
   }
@@ -179,7 +178,7 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
           ILaunchConfiguration cfg = launchConfigurations[i];
           Tracer.trace(this, "Processing existing launch configuration", cfg.getName());
           // don't forget to substitute variables
-          String workDir = Maven2Plugin.substituteVar(cfg.getAttribute(Maven2LaunchConstants.ATTR_POM_DIR, (String) null));
+          String workDir = Util.substituteVar(cfg.getAttribute(Maven2LaunchConstants.ATTR_POM_DIR, (String) null));
           if(workDir == null) {
             Tracer.trace(this, "Launch configuration doesn't have workdir!");
             continue;
@@ -193,7 +192,6 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
         }
       } catch(CoreException e) {
         Tracer.trace(this, "Error scanning existing launch configurations", "", e);
-        Maven2Plugin.log(e);
       }
 
       Tracer.trace(this, "No existing configurations found, creating new");
@@ -217,7 +215,6 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
     } catch (Exception e) {
       String msg = "Error creating new launch configuration";
       Tracer.trace(this, msg, newName, e);
-      Maven2Plugin.log(msg, e);
     }
     return null;
   }

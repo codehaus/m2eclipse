@@ -1,6 +1,5 @@
-/* $Id: org.eclipse.jdt.ui.prefs,v 1.1 2005/09/30 23:08:35 eu Exp $ */
 
-package org.maven.ide.eclipse;
+package org.maven.ide.eclipse.embedder;
 
 import org.apache.maven.embedder.MavenEmbedder;
 

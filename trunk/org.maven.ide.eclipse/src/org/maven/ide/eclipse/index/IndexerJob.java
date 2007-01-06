@@ -19,14 +19,14 @@ import org.maven.ide.eclipse.Maven2Plugin;
  */
 class IndexerJob extends Job {
   private final String repositoryName;
-  private final String repositoryDir;
-  private final String indexDir;
+  private final File repositoryDir;
+  private final File indexDir;
   private final Set indexes;
 
-  public IndexerJob(String repositoryName, String repositoryDir, String indexDir, Set indexes) {
+  public IndexerJob(String repositoryName, File localRepositoryDir, File indexDir, Set indexes) {
     super("Indexing " + repositoryName);
     this.repositoryName = repositoryName;
-    this.repositoryDir = repositoryDir;
+    this.repositoryDir = localRepositoryDir;
     this.indexDir = indexDir;
     this.indexes = indexes;
     
@@ -41,7 +41,7 @@ class IndexerJob extends Job {
       }
 
       Indexer indexer = new Indexer();
-      indexer.reindex(file.getAbsolutePath(), repositoryDir, repositoryName, monitor);
+      indexer.reindex(file.getAbsolutePath(), repositoryDir.getAbsolutePath(), repositoryName, monitor);
       indexes.add(repositoryName);
       return Status.OK_STATUS;
 

@@ -1,5 +1,5 @@
 
-package org.maven.ide.eclipse;
+package org.maven.ide.eclipse.embedder;
 
 import java.util.Date;
 

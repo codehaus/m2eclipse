@@ -1,16 +1,13 @@
 
 package org.maven.ide.eclipse.preferences;
 
-import org.apache.maven.artifact.repository.ArtifactRepositoryPolicy;
-
 import org.eclipse.jface.preference.BooleanFieldEditor;
-import org.eclipse.jface.preference.DirectoryFieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
-import org.eclipse.jface.preference.RadioGroupFieldEditor;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.IWorkbench;
@@ -42,9 +39,9 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
    * knows how to save and restore itself.
    */
   public void createFieldEditors() {
-    addField(new DirectoryFieldEditor(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR, 
-        Messages.getString("preferences.localRepositoryFolder"), //$NON-NLS-1$
-        getFieldEditorParent()));
+//    addField(new DirectoryFieldEditor(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR, 
+//        Messages.getString("preferences.localRepositoryFolder"), //$NON-NLS-1$
+//        getFieldEditorParent()));
 
     // addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION, 
     //     Messages.getString( "preferences.checkLastPluginVersions" ), //$NON-NLS-1$
@@ -71,13 +68,13 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
      * public static final String CHECKSUM_POLICY_WARN = "warn"; 
      * public static final String CHECKSUM_POLICY_IGNORE = "ignore";
      */
-    addField(new RadioGroupFieldEditor(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY, 
-        Messages.getString("preferences.globalChecksumPolicy"), 1, //$NON-NLS-1$
-        new String[][] {
-            {Messages.getString("preferences.checksumPolicyFail"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_FAIL}, //$NON-NLS-1$
-            {Messages.getString("preferences.checksumPolicyIgnore"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_IGNORE}, //$NON-NLS-1$
-            {Messages.getString("preferences.checksumPolicyWarn"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_WARN}}, //$NON-NLS-1$  // DEFAULT
-        getFieldEditorParent(), true));
+//    addField(new RadioGroupFieldEditor(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY, 
+//        Messages.getString("preferences.globalChecksumPolicy"), 1, //$NON-NLS-1$
+//        new String[][] {
+//            {Messages.getString("preferences.checksumPolicyFail"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_FAIL}, //$NON-NLS-1$
+//            {Messages.getString("preferences.checksumPolicyIgnore"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_IGNORE}, //$NON-NLS-1$
+//            {Messages.getString("preferences.checksumPolicyWarn"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_WARN}}, //$NON-NLS-1$  // DEFAULT
+//        getFieldEditorParent(), true));
 
     // addField( new StringFieldEditor( Maven2PreferenceConstants.P_OFFLINE,
     // "A &text preference:",
@@ -87,16 +84,26 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
         Messages.getString("preferences.debugOutput"), //$NON-NLS-1$
         getFieldEditorParent()));
     
-    GridData gridData = new GridData(SWT.FILL);
-    gridData.horizontalSpan = 3;
-    gridData.verticalIndent = 15;
-    
-    Button button = new Button(getFieldEditorParent(), SWT.NONE);
-    button.setText("Reindex Local Repository");
-    button.setLayoutData(gridData);
-    button.addSelectionListener(new SelectionAdapter() {
+    GridData buttonsCompositeGridData = new GridData();
+    buttonsCompositeGridData.verticalIndent = 15;
+
+    Composite buttonsComposite = new Composite(getFieldEditorParent(), SWT.NONE);
+    buttonsComposite.setLayout(new RowLayout());
+    buttonsComposite.setLayoutData(buttonsCompositeGridData);
+
+    Button reindexButton = new Button(buttonsComposite, SWT.NONE);
+    reindexButton.setText("Re&index Local Repository");
+    reindexButton.addSelectionListener(new SelectionAdapter() {
         public void widgetSelected(SelectionEvent e) {
           Maven2Plugin.getDefault().getMavenRepositoryIndexManager().reindexLocal();
+        } 
+      });
+    
+    Button refreshButton = new Button(buttonsComposite, SWT.NONE);
+    refreshButton.setText("Refresh &Settings");
+    refreshButton.addSelectionListener(new SelectionAdapter() {
+        public void widgetSelected(SelectionEvent e) {
+          Maven2Plugin.getDefault().invalidateMavenSettings();
         } 
       });
   }

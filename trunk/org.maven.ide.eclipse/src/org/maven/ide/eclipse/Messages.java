@@ -1,4 +1,3 @@
-/* $Id$ */
 
 package org.maven.ide.eclipse;
 

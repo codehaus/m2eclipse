@@ -1,9 +1,11 @@
 
 package org.maven.ide.eclipse.launch;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 
@@ -11,6 +13,7 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.variables.VariablesPlugin;
@@ -27,23 +30,20 @@ import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 import org.maven.ide.eclipse.util.ITraceable;
 import org.maven.ide.eclipse.util.Tracer;
+import org.maven.ide.eclipse.util.Util;
 
 
 public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2LaunchConstants, ITraceable {
+  
   private static final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/launcher")).booleanValue();
   
-  private static final String MAVEN_EXECUTOR_CLASS = org.maven.ide.eclipse.Maven2Executor.class.getName();
-  private static final String[] CLASSPATH_ENTRY = {
-    "lib/maven-embedder-2.1-20060530210557-dep.jar",
-    "bin",
-    "m2plugin.jar"
-  };
+  private static final String MAVEN_EXECUTOR_CLASS = org.maven.ide.eclipse.embedder.Maven2Executor.class.getName();
   
   public boolean isTraceEnabled() {
     return TRACE_ENABLED;
   }
   
-  public String getMainTypeName( ILaunchConfiguration configuration ) {
+  public String getMainTypeName(ILaunchConfiguration configuration) {
     return MAVEN_EXECUTOR_CLASS;
   }
   
@@ -73,49 +73,57 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
     return new JavaSourceLocator(locationArray);
   }
   
-  public String[] getClasspath( ILaunchConfiguration configuration ) {
-    final URL rootURL = Maven2Plugin.getDefault().getRootURL(); 
-    List cp = new ArrayList();
-    
-    for(int i = 0; i < CLASSPATH_ENTRY.length; i++) {
-      try {
-        cp.add(Platform.asLocalURL(new URL(rootURL, CLASSPATH_ENTRY[i])).getFile());
+  private static String[] CLASSPATH;
+  
+  public String[] getClasspath(ILaunchConfiguration configuration) {
+    if(CLASSPATH == null) {
+      List cp = new ArrayList();
+
+      Enumeration entries = Maven2Plugin.getDefault().getBundle().findEntries("/", "*", true);
+      while(entries.hasMoreElements()) {
+        URL url = (URL) entries.nextElement();
+        String path = url.getPath();
+        if(path.endsWith(".jar") || path.endsWith("bin/")) {
+          try {
+            cp.add(FileLocator.toFileURL(url).getFile());
+          } catch(IOException ex) {
+            // TODO Auto-generated catch block
+            Tracer.trace(this, "Error adding classpath entry", url.toString() + "; " + ex.getMessage());
+          }
+        }
       }
-      catch (Exception e) {
-        //Tracer.trace(this, "Error adding classpath entry", CLASSPATH_ENTRY[i], e);
-        Tracer.trace(this, "Error adding classpath entry", CLASSPATH_ENTRY[i]+" :"+e.getMessage());
-      }
+
+      Tracer.trace(this, "classpath", cp);
+
+      CLASSPATH = (String[]) cp.toArray(new String[cp.size()]);
     }
-    Tracer.trace(this, "classpath", cp);
-    return (String[])cp.toArray(new String[0]);
+    return CLASSPATH;
   }
   
-  public String getProgramArguments( ILaunchConfiguration configuration ) throws CoreException {
-    String pomDirName = configuration.getAttribute(ATTR_POM_DIR, (String)null);
+  public String getProgramArguments(ILaunchConfiguration configuration) throws CoreException {
+    String pomDirName = configuration.getAttribute(ATTR_POM_DIR, (String) null);
     pomDirName = VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(pomDirName);
     Tracer.trace(this, "pomDirName", pomDirName);
 
     String sep = System.getProperty("file.separator"); //$NON-NLS-1$
-    if (!pomDirName.endsWith(sep)) {
+    if(!pomDirName.endsWith(sep)) {
       pomDirName += sep;
     }
-    String pomFileName = pomDirName+"pom.xml";
+    String pomFileName = pomDirName + "pom.xml";
     // wrap file path with quotes to handle spaces
-    if (pomFileName.indexOf(' ') >= 0) {
-      pomFileName = '"'+pomFileName+'"';
+    if(pomFileName.indexOf(' ') >= 0) {
+      pomFileName = '"' + pomFileName + '"';
     }
     Tracer.trace(this, "pomFileName", pomFileName);
 
     String goalsString = configuration.getAttribute(ATTR_GOALS, "");
     Tracer.trace(this, "goalsString", goalsString);
 
-    return pomFileName+" "+goalsString;
+    return pomFileName + " " + goalsString;
   }
   
-  public String getVMArguments( ILaunchConfiguration configuration ) throws CoreException {
-    return super.getVMArguments(configuration)
-      +" "+getProperties(configuration)
-      +" "+getPreferences();
+  public String getVMArguments(ILaunchConfiguration configuration) throws CoreException {
+    return super.getVMArguments(configuration) + " " + getProperties(configuration) + " " + getPreferences();
   }
 
   /**
@@ -123,38 +131,36 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
    * @throws CoreException 
    */
   private String getProperties(ILaunchConfiguration configuration) {
-    List properties = null;
+    StringBuffer sb = new StringBuffer();
+
     try {
-      properties = configuration.getAttribute(ATTR_PROPERTIES, Collections.EMPTY_LIST);
+      List properties = configuration.getAttribute(ATTR_PROPERTIES, Collections.EMPTY_LIST);
+      for(Iterator it = properties.iterator(); it.hasNext();) {
+        String[] s = ((String) it.next()).split("=");
+        String n = s[0];
+        // substitute var if any
+        String v = Util.substituteVar(s[1]);
+        // enclose in quotes if spaces
+        if(v.indexOf(' ') >= 0) {
+          v = '"' + v + '"';
+        }
+        sb.append(" -D").append(n).append("=").append(v);
+      }
     } catch(CoreException e) {
-      String msg = "Exception while getting configuration attribute "+ATTR_PROPERTIES;
+      String msg = "Exception while getting configuration attribute " + ATTR_PROPERTIES;
       Maven2Plugin.log(msg, e);
     }
-    
-    StringBuffer sb = new StringBuffer();
-    for( Iterator iter = properties.iterator(); iter.hasNext(); ) {
-      String[] s = ((String)iter.next()).split("=");
-      String n = s[0];
-      // substitute var if any
-      String v = Maven2Plugin.substituteVar(s[1]);
-      // enclose in quotes if spaces
-      if (v.indexOf(' ') >= 0) {
-        v = '"'+v+'"';
-      }
-      sb.append(" -D").append(n).append("=").append(v);
-    }
-    
-    String profiles;
+
     try {
-      profiles = configuration.getAttribute(ATTR_PROFILES, (String) null);
-      if(profiles!=null) {
+      String profiles = configuration.getAttribute(ATTR_PROFILES, (String) null);
+      if(profiles != null) {
         sb.append(" -D").append(ATTR_PROFILES).append("=").append(profiles);
       }
     } catch(CoreException ex) {
-      String msg = "Exception while getting configuration attribute "+ATTR_PROFILES;
+      String msg = "Exception while getting configuration attribute " + ATTR_PROFILES;
       Maven2Plugin.log(msg, ex);
     }
-    
+
     return sb.toString();
   }
 
@@ -165,28 +171,27 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
     StringBuffer sb = new StringBuffer();
 
     IPreferenceStore preferenceStore = Maven2Plugin.getDefault().getPreferenceStore();
-    
-    String s = preferenceStore.getString(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR);
-    if (s != null && s.trim().length() > 0) {
-      sb.append(" -D").append(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR).append("=\"").append(s).append('\"');
-    }
-    
-    s = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY);
-    if (s != null && s.trim().length() > 0) {
-      sb.append(" -D").append(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY).append("=").append(s);
-    }
-     
-    boolean b;
 
-    b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
-    sb.append(" -D").append(Maven2PreferenceConstants.P_DEBUG_OUTPUT).append("=").append(b);
-    
-    b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
-    sb.append(" -D").append(Maven2PreferenceConstants.P_OFFLINE).append("=").append(b);
-    
+//    String s = preferenceStore.getString(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR);
+//    if(s != null && s.trim().length() > 0) {
+//      sb.append(" -D").append(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR).append("=\"").append(s).append('\"');
+//    }
+
+//    String s = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY);
+//    if(s != null && s.trim().length() > 0) {
+//      sb.append(" -D").append(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY).append("=").append(s);
+//    }
+
+
+    boolean debugOutput = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
+    sb.append(" -D").append(Maven2PreferenceConstants.P_DEBUG_OUTPUT).append("=").append(debugOutput);
+
+    boolean offline = preferenceStore.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
+    sb.append(" -D").append(Maven2PreferenceConstants.P_OFFLINE).append("=").append(offline);
+
     // boolean b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION);
     // sb.append(" -D").append(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION).append("=").append(b);
-        
+
     // b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS);
     // sb.append(" -D").append(Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS).append("=").append(b);
 
