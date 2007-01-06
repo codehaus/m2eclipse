@@ -78,18 +78,32 @@ public class Indexer {
       }
     }
       
-    IndexReader[] readers = new IndexReader[ indexes.length];
-    for( int i = 0; i < indexes.length; i++ ) {
-      readers[ i] = IndexReader.open( indexes[ i]);
-    }
-    
-    IndexSearcher searcher = new IndexSearcher( new MultiReader( readers));
-    Hits hits = searcher.search( q);
-    
-    if(hits==null || hits.length()==0) {
-      return Collections.EMPTY_MAP;
-    }
+    IndexReader[] readers = new IndexReader[indexes.length];
+    try {
+      for(int i = 0; i < indexes.length; i++ ) {
+        readers[i] = IndexReader.open(indexes[i]);
+      }
 
+      IndexSearcher searcher = new IndexSearcher(new MultiReader(readers));
+      Hits hits = searcher.search(q);
+
+      if(hits == null || hits.length() == 0) {
+        return Collections.EMPTY_MAP;
+      }
+      return sortResults(query, field, queryLength, hits);
+
+    } finally {
+      for(int i = 0; i < readers.length; i++ ) {
+        try {
+          readers[i].close();
+        } catch(IOException ex) {
+          // ignore
+        }
+      }
+    }
+  }
+
+  private TreeMap sortResults(String query, String field, int queryLength, Hits hits) throws IOException {
     TreeMap res = new TreeMap();
     for( int i = 0; i < hits.length(); i++) {
       Document doc = hits.doc( i);
@@ -141,7 +155,6 @@ public class Indexer {
         }
       }
     }
-
     return res;
   }
 
