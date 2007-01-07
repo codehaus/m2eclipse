@@ -40,7 +40,7 @@ Tycho: The Maven Extension for Eclipse
   
  You can view the source code for the Maven Extension for Eclipse here:
   
- {{http://svn.codehaus.org/trunk/?root=m2eclipse}}
+ {{http://svn.codehaus.org/m2eclipse/trunk/}}
 
  If you would like to checkout the sources of the Maven Extension for
  Eclipse you can do so using the following:
