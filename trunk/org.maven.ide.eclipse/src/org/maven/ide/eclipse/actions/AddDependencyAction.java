@@ -48,7 +48,15 @@ public class AddDependencyAction implements IObjectActionDelegate {
       mavenProject = (MavenProject) embedderManager.executeInEmbedder("Read Project", new ClassPathResolver.ReadProjectTask(
           file, plugin.getConsole(), plugin.getMavenRepositoryIndexManager(), plugin.getPreferenceStore()));
     } catch(CoreException ex) {
+      // TODO move into ReadProjectTask
       Maven2Plugin.log(ex);
+      Maven2Plugin.getDefault().getConsole().logError(ex.getMessage());
+      return;
+    } catch(Exception ex) {
+      // TODO move into ReadProjectTask
+      String msg = "Unable to read model";
+      Maven2Plugin.log(msg, ex);
+      Maven2Plugin.getDefault().getConsole().logError(msg + "; " + ex.toString());
       return;
     }
 

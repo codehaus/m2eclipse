@@ -95,7 +95,7 @@ public class MavenEmbedderManager {
       model.getDependencies().addAll(dependencies);
 
       StringWriter w = new StringWriter();
-      mavenEmbedder.writeModel(w, model);
+      mavenEmbedder.writeModel(w, model, true);
 
       pomFile.setContents(new ByteArrayInputStream(w.toString().getBytes("ASCII")), true, true, null);
       pomFile.refreshLocal(IResource.DEPTH_ONE, null); // TODO ???
