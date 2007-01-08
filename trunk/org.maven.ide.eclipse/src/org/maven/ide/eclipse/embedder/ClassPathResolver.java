@@ -246,7 +246,7 @@ public class ClassPathResolver {
 
         MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(mavenEmbedder, offline, debug);
         request.setPomFile(pomFile.getAbsolutePath());
-        request.setBasedir(pomFile.getParentFile());
+        request.setBaseDirectory(pomFile.getParentFile());
         request.setTransferListener(new TransferListenerAdapter(monitor, console, indexManager));
 
         MavenExecutionResult result = mavenEmbedder.readProjectWithDependencies(request);
@@ -273,9 +273,18 @@ public class ClassPathResolver {
             try {
               // TODO
               return mavenEmbedder.readProject(pomFile);
+            
             } catch(ProjectBuildingException ex2) {
               handleProjectBuildingException(ex2);
+            
+            } catch(Exception ex2) {
+              handleBuildException(ex2);
+              
             }
+            
+          } else {
+            handleBuildException(ex);
+            
           }
         }
 
@@ -287,6 +296,12 @@ public class ClassPathResolver {
       }
 
       return null;
+    }
+
+    private void handleBuildException(Exception ex) {
+      String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
+      Util.addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+      console.logError(msg);
     }
 
     private void handleProjectBuildingException(ProjectBuildingException ex) {
@@ -311,9 +326,7 @@ public class ClassPathResolver {
           }
         }
       } else {
-        String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
-        Util.addMarker(this.file, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-        console.logError(msg);
+        handleBuildException(ex);
       }
     }
   }
