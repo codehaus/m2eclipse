@@ -47,7 +47,7 @@ public class Maven2Executor implements Maven2LaunchConstants {
 
       MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(embedder, offline, debug);
 
-      request.setBasedir(pomFile.getParentFile());
+      request.setBaseDirectory(pomFile.getParentFile());
       request.setPomFile(pomFile.getAbsolutePath());
       request.setGoals(goals);
       request.setProperties(System.getProperties());

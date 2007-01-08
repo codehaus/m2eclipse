@@ -2,13 +2,11 @@
 package org.maven.ide.eclipse.launch;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.maven.embedder.SummaryPluginDescriptor;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
-import org.apache.maven.plugin.descriptor.PluginDescriptor;
 
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -88,9 +86,10 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
         } catch(Exception e) {
           Maven2Plugin.log("Unable to get lifecycle phases", e);
         }
-      } else if(parentElement instanceof SummaryPluginDescriptor) {
-        List components = getPluginComponents((SummaryPluginDescriptor) parentElement);
-        return components.toArray(); // MojoDescriptor
+// TODO need to discover available plug-ins        
+//      } else if(parentElement instanceof SummaryPluginDescriptor) {
+//        List components = getPluginComponents((SummaryPluginDescriptor) parentElement);
+//        return components.toArray(); // MojoDescriptor
       }
       return EMPTY;
     }
@@ -103,8 +102,9 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
     public boolean hasChildren(Object element) {
       if(element instanceof LifecyclePhases) {
         return true;
-      } else if(element instanceof SummaryPluginDescriptor) {
-        return getPluginComponents((SummaryPluginDescriptor) element).size() > 0;
+// TODO need to discover available plug-ins        
+//      } else if(element instanceof SummaryPluginDescriptor) {
+//        return getPluginComponents((SummaryPluginDescriptor) element).size() > 0;
       }
       return false;
     }
@@ -114,10 +114,11 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
         List result = new ArrayList();
         // placeholder for phases
         result.add(new LifecyclePhases());
-        List availablePlugins = embedderManager.getProjectEmbedder().getAvailablePlugins();
-        for(Iterator it = availablePlugins.iterator(); it.hasNext();) {
-          result.add(it.next()); // SummaryPluginDescriptor
-        }
+// TODO need to discover available plug-ins        
+//        List availablePlugins = embedderManager.getProjectEmbedder().getAvailablePlugins();
+//        for(Iterator it = availablePlugins.iterator(); it.hasNext();) {
+//          result.add(it.next()); // SummaryPluginDescriptor
+//        }
         return result.toArray();
       } catch(Exception ex) {
         Maven2Plugin.log("Unable to get plugins", ex);
@@ -132,15 +133,16 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
       // ???
     }
 
-    private List getPluginComponents(final SummaryPluginDescriptor summaryPluginDescriptor) {
-      try {
-        PluginDescriptor pluginDescriptor = embedderManager.getProjectEmbedder().getPluginDescriptor(summaryPluginDescriptor);
-        return pluginDescriptor.getComponents();
-      } catch(Exception ex) {
-        Maven2Plugin.log("Unable to get components for " + summaryPluginDescriptor.getName(), ex);
-        return Collections.EMPTY_LIST;
-      }
-    }
+// TODO need to discover available plug-ins        
+//    private List getPluginComponents(final SummaryPluginDescriptor summaryPluginDescriptor) {
+//      try {
+//        PluginDescriptor pluginDescriptor = embedderManager.getProjectEmbedder().getPluginDescriptor(summaryPluginDescriptor);
+//        return pluginDescriptor.getComponents();
+//      } catch(Exception ex) {
+//        Maven2Plugin.log("Unable to get components for " + summaryPluginDescriptor.getName(), ex);
+//        return Collections.EMPTY_LIST;
+//      }
+//    }
 
   }
 
