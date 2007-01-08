@@ -287,7 +287,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
 
         MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(mavenEmbedder, offline, debug);
         
-        request.setBasedir(pomFile.getParentFile());
+        request.setBaseDirectory(pomFile.getParentFile());
         // request.setPomFile(pomFile.getAbsolutePath());
         // request.setGoals(Arrays.asList("generate-sources,generate-resources,generate-test-sources,generate-test-resources".split(",")));
         request.setGoals(Collections.singletonList("process-test-resources"));
@@ -309,7 +309,6 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
           for(Iterator it = result.getExceptions().iterator(); it.hasNext();) {
             Exception ex = (Exception) it.next();
             console.logError("Build error for " + pomResource.getFullPath() + "; " + ex.toString());
-            ex.printStackTrace();
           }
         }
 
