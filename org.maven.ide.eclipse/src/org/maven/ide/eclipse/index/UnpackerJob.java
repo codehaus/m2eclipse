@@ -26,11 +26,11 @@ import org.osgi.framework.Bundle;
  */
 class UnpackerJob extends Job {
   private final Bundle bundle;
-  private final String indexDir;
+  private final File indexDir;
   private final Set indexes;
   private final String[] indexNames;
 
-  public UnpackerJob(Bundle bundle, String indexDir, String[] indexNames, Set indexes) {
+  public UnpackerJob(Bundle bundle, File indexDir, String[] indexNames, Set indexes) {
     super("Initializing indexes");
     this.bundle = bundle;
     this.indexDir = indexDir;
