@@ -163,12 +163,19 @@ public class ClassPathResolver {
       throw ex;
 
     } catch(InvalidArtifactRTException ex) {
+      // TODO move into ReadProjectTask
       Util.deleteMarkers(pomFile);
       Util.addMarker(pomFile, ex.getBaseMessage(), 1, IMarker.SEVERITY_ERROR);
+      console.logError("Unable to read model; " + ex.toString());
 
     } catch(Throwable ex) {
+      // TODO move into ReadProjectTask
       Util.deleteMarkers(pomFile);
-      Util.addMarker(pomFile, ex.toString(), 1, IMarker.SEVERITY_ERROR);
+      Util.addMarker(pomFile, "Unable to read model; " + ex.toString(), 1, IMarker.SEVERITY_ERROR);
+      
+      String msg = "Unable to read model from " + pomFile.getFullPath();
+      Maven2Plugin.log(msg, ex);
+      console.logError(msg + "; " + ex.toString());
 
     } finally {
       monitor.done();
@@ -288,8 +295,13 @@ public class ClassPathResolver {
           }
         }
 
-      } catch(Exception ex) {
-        console.logError("Unable to read " + file.getLocation() + "; " + ex.toString());
+//      } catch(Exception ex) {
+//        Util.deleteMarkers(this.file);
+//        Util.addMarker(this.file, "Unable to read project; " + ex.toString(), 1, IMarker.SEVERITY_ERROR);
+//        
+//        String msg = "Unable to read " + file.getLocation() + "; " + ex.toString();
+//        console.logError(msg);
+//        Maven2Plugin.log(msg, ex);
       
       } finally {
         monitor.done();
