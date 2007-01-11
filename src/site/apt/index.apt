@@ -1,12 +1,13 @@
  -----
- Tycho: The Maven Extension for Eclipse
+ The Maven Integration for Eclipse
  -----
  Jason van Zyl
+ Eugene Kuleshov
  -----
- 12 December 2005
+ 10 January 2007
  -----
 
-Tycho: The Maven Extension for Eclipse
+The Maven Extension for Eclipse (Tycho)
 
  We are feverishing working away on creating a new version of the Maven Embedder so that we can release <<<0.0.10>>>. This version
  should fix many problem as much work as been happening in Maven and Plexus targeted at addressing problems with the Maven Embedder that
