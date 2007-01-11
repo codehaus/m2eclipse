@@ -161,8 +161,9 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
     private void setOption(IJavaProject javaProject, Map options, String name) {
       String newValue = (String) options.get(name);
       if(newValue == null) {
-        return;
+        newValue = (String) JavaCore.getDefaultOptions().get(name);
       }
+      
       String currentValue = javaProject.getOption(name, false);
       if(!newValue.equals(currentValue)) {
         javaProject.setOption(name, newValue);
@@ -267,15 +268,23 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
 
       String source = getBuildOption(mavenProject, "maven-compiler-plugin", "source");
       if(source != null) {
-        console.logMessage("Setting source compatibility: " + source);
-        setVersion(options, JavaCore.COMPILER_SOURCE, source);
-        setVersion(options, JavaCore.COMPILER_COMPLIANCE, source);
+        if(VERSIONS.contains(source)) {
+          console.logMessage("Setting source compatibility: " + source);
+          setVersion(options, JavaCore.COMPILER_SOURCE, source);
+          setVersion(options, JavaCore.COMPILER_COMPLIANCE, source);
+        } else {
+          console.logError("Invalid compiler source " + source + ". Using default");
+        }
       }
 
       String target = getBuildOption(mavenProject, "maven-compiler-plugin", "target");
       if(target != null) {
-        console.logMessage("Setting target compatibility: " + source);
-        setVersion(options, JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, target);
+        if(VERSIONS.contains(target)) {
+          console.logMessage("Setting target compatibility: " + source);
+          setVersion(options, JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, target);
+        } else {
+          console.logError("Invalid compiler target " + target + ". Using default");
+        }
       }
 
       File basedir = pomResource.getLocation().toFile().getParentFile();
@@ -369,7 +378,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
     }
 
     public static String getBuildOption(MavenProject project, String artifactId, String optionName) {
-      for(Iterator it = project.getModel().getBuild().getPlugins().iterator(); it.hasNext();) {
+      for(Iterator it = project.getBuild().getPlugins().iterator(); it.hasNext();) {
         Plugin plugin = (Plugin) it.next();
         if(artifactId.equals(plugin.getArtifactId())) {
           Xpp3Dom o = (Xpp3Dom) plugin.getConfiguration();
