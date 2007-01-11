@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <project name="Maven">
+  <!--
+  <skin>
+    <groupId>org.apache.maven.skins</groupId>
+    <artifactId>maven-stylus-skin</artifactId>
+    <version>1.0-SNAPSHOT</version>
+  </skin>
+  -->
   <bannerLeft>
     <name>Tycho: The Maven Extension for Eclipse</name>
   </bannerLeft>
@@ -18,6 +25,11 @@
 
     <menu name="Maven Extension for Eclipse">
       <item name="About" href="/index.html" />
+      <item name="Xircles" href="http://xircles.codehaus.org/projects/m2eclipse" />
     </menu>
+    
+    <menu ref="reports"/>
+    
   </body>
+  
 </project>
