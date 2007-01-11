@@ -1,0 +1,65 @@
+ -----
+ The Maven Integration for Eclipse
+ -----
+ Jason van Zyl
+ Eugene Kuleshov
+ -----
+ 10 January 2007
+ -----
+
+The Maven Extension for Eclipse (Tycho)
+
+ We are feverishing working away on creating a new version of the Maven Embedder so that we can release <<<0.0.10>>>. This version
+ should fix many problem as much work as been happening in Maven and Plexus targeted at addressing problems with the Maven Embedder that
+ are causing everyone grief.
+
+* Binaries and Installation
+
+ You can install the Maven Extension for Eclipse by using the following update site from within Eclipse:
+ 
+ {{http://m2eclipse.codehaus.org/}}
+
+ Individual versions can be downloaded manually:
+
+*--------------+
+| {{{http://m2eclipse.codehaus.org/features/org.maven.ide.eclipse.feature_0.0.9.jar}org.maven.ide.eclipse.feature - 0.0.9}} |
+*--------------+
+
+* Flash Demos
+
+ There is a Flash demo that you can view which shows you how to install the
+ plug-in if you are unfamiliar with Eclipse's standard install mechanism:
+ 
+ {{http://m2eclipse.codehaus.org/Installing_Maven_2.0_plugin_for_Eclipse.html}}
+ 
+ You can see what the Maven Extension for Eclipse can do by viewing the
+ following demo in Flash:
+
+ {{http://m2eclipse.codehaus.org/Maven_2.0_Plugin_for_Eclipse.html}}
+
+* Source Code
+  
+ You can view the source code for the Maven Extension for Eclipse here:
+  
+ {{http://svn.codehaus.org/m2eclipse/trunk/}}
+
+ If you would like to checkout the sources of the Maven Extension for
+ Eclipse you can do so using the following:
+ 
+-----
+svn co https://svn.codehaus.org/m2eclipse/trunk m2eclipse
+-----
+
+* Mailing Lists
+
+ * {{{mailto:user-subscribe@m2eclipse.codehaus.org}User's Mailing List}}
+ 
+ * {{{mailto:dev-subscribe@m2eclipse.codehaus.org}Developer's Mailing List}}
+ 
+ []
+
+* Issue Management
+
+  If you have issues that you would like to raise regarding the Maven Extension for Eclipse then you can do so here:
+  
+  {{http://jira.codehaus.org/browse/MNGECLIPSE}}
