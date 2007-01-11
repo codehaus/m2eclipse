@@ -8,6 +8,7 @@ import java.util.Set;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
+import org.apache.maven.artifact.handler.ArtifactHandler;
 import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.execution.MavenExecutionRequest;
@@ -98,11 +99,14 @@ public class ClassPathResolver {
         monitor.subTask("Processing " + a.getId());
         String artifactLocation = a.getFile().getAbsolutePath();
 
+        ArtifactHandler artifactHandler = embedder.getArtifactHandler(a);
+        
         // The artifact filename cannot be used here to determine
         // the type because eclipse project artifacts don't have jar or zip file names.
         // TODO use version?
-        if(!moduleArtifacts.contains(a.getGroupId() + ":" + a.getArtifactId())
-            && ("jar".equals(a.getType()) || "zip".equals(a.getType()))) {
+        if(!moduleArtifacts.contains(a.getGroupId() + ":" + a.getArtifactId()) 
+            && artifactHandler.isAddedToClasspath()
+            && ("jar".equals(artifactHandler.getExtension()) || "zip".equals(artifactHandler.getExtension()))) {
 
           moduleArtifacts.add(a.getGroupId() + ":" + a.getArtifactId());
 
