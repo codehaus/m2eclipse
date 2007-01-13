@@ -185,7 +185,15 @@ public class Indexer {
       
       long l1 = System.currentTimeMillis();
       
-      indexer.reindex( indexPath, repositoryPath, repositoryName, new NullProgressMonitor());
+      indexer.reindex( indexPath, repositoryPath, repositoryName, new NullProgressMonitor() {
+          public void beginTask(String name, int totalWork) {
+            System.err.println(name);
+          }
+          
+          public void subTask(String name) {
+            System.err.println(name);;
+          }
+        });
       
       long l2 = System.currentTimeMillis();
       System.err.println("Total time: "+((l2-l1)/1000f));
