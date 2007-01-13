@@ -47,6 +47,11 @@ class UnpackerJob extends Job {
       File index = new File(indexDir, name);
       if(!index.exists()) {
         index.mkdirs();
+      } else {
+        File[] files = index.listFiles();
+        for(int j = 0; j < files.length; j++ ) {
+          files[j].delete();
+        }
       }
 
       monitor.subTask(name);
