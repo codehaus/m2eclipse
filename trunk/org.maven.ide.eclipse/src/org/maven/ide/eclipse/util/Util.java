@@ -1,6 +1,8 @@
 
 package org.maven.ide.eclipse.util;
 
+import org.eclipse.core.resources.IContainer;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
@@ -14,6 +16,27 @@ import org.maven.ide.eclipse.Maven2Plugin;
  * @author Eugene Kuleshov
  */
 public class Util {
+
+  /**
+   * Helper method which creates a folder and, recursively, all its parent
+   * folders.
+   *
+   * @param folder  The folder to create.
+   *
+   * @throws CoreException if creating the given <code>folder</code> or any of
+   *                       its parents fails.
+   */
+  public static void createFolder(IFolder folder) throws CoreException {
+    // Recurse until we find a parent folder which already exists.
+    if(!folder.exists()) {
+      IContainer parent = folder.getParent();
+      // First, make sure that all parent folders exist.
+      if(parent instanceof IFolder) {
+        createFolder((IFolder) parent);
+      }
+      folder.create(false, true, null);
+    }
+  }
 
   /**
    * Substitute any variable
