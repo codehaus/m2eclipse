@@ -26,6 +26,7 @@ import org.apache.maven.project.MavenProject;
 
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IAdaptable;
@@ -58,6 +59,7 @@ import org.maven.ide.eclipse.embedder.TransferListenerAdapter;
 import org.maven.ide.eclipse.index.MavenRepositoryIndexManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
 import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
+import org.maven.ide.eclipse.util.Util;
 
 
 public class UpdateSourcesAction implements IObjectActionDelegate {
@@ -112,8 +114,9 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
       }
 
       monitor.beginTask("Updating sources " + project.getName(), IProgressMonitor.UNKNOWN);
+      long t1 = System.currentTimeMillis();
       try {
-        collectSourceEntries(monitor);
+        MavenProject mavenProject = collectSourceEntries(monitor);
 
         // TODO optimize project refresh
         monitor.subTask("Refreshing");
@@ -145,9 +148,17 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         }
 
         IClasspathEntry[] entries = (IClasspathEntry[]) sourceEntries.toArray(new IClasspathEntry[sourceEntries.size()]);
-        javaProject.setRawClasspath(entries, monitor);
+        if(mavenProject!=null) {
+          String outputDirectory = toRelativeAndFixSeparator(project.getLocation().toFile(), mavenProject.getBuild().getOutputDirectory());
+          IFolder outputFolder = project.getFolder(outputDirectory);
+          Util.createFolder(outputFolder);
+          javaProject.setRawClasspath(entries, outputFolder.getFullPath(), monitor);
+        } else {
+          javaProject.setRawClasspath(entries, monitor);
+        }
 
-        console.logMessage("Updated source folders for project " + project.getName());
+        long t2 = System.currentTimeMillis();
+        console.logMessage("Updated source folders for project " + project.getName() + " " + (t2 - t1)/1000 + "sec");
 
       } catch(Exception ex) {
         console.logMessage("Unable to update source folders " + project.getName() + "; " + ex.toString());
@@ -232,7 +243,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
       return null;
     }
 
-    private void collectSourceEntries(IProgressMonitor monitor) {
+    private MavenProject collectSourceEntries(IProgressMonitor monitor) {
       if(monitor.isCanceled()) {
         throw new OperationCanceledException();
       }
@@ -248,7 +259,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
             new PluginConsoleMavenEmbeddedLogger(console, debug));
       } catch(MavenEmbedderException ex) {
         console.logError("Unable to create embedder; " + ex.toString());
-        return;
+        return null;
       }
 
       IFile pomResource = project.getFile(Maven2Plugin.POM_FILE_NAME);
@@ -263,7 +274,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         mavenProject = mavenEmbedder.readProject(pomFile);
       } catch(Exception ex) {
         console.logError("Unable to read project " + pomResource.getFullPath() + "; " + ex.toString());
-        return;
+        return null;
       }
 
       String source = getBuildOption(mavenProject, "maven-compiler-plugin", "source");
@@ -322,11 +333,14 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         }
 
       } catch(Exception ex) {
-        console.logError("Build error for " + pomResource.getFullPath() + "; " + ex.toString());
-        ex.printStackTrace();
+        String msg = "Build error for " + pomResource.getFullPath();
+        console.logError(msg + "; " + ex.toString());
+        Maven2Plugin.log(msg, ex);
 
         addDirs(mavenProject, basedir, projectBaseDir);
       }
+      
+      return mavenProject;
     }
 
     private void addDirs(MavenProject mavenProject, File basedir, File projectBaseDir) {

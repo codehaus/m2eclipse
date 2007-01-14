@@ -10,9 +10,7 @@ import java.util.Arrays;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.model.Model;
 
-import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -36,6 +34,7 @@ import org.eclipse.ui.INewWizard;
 import org.eclipse.ui.IWorkbench;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.Messages;
+import org.maven.ide.eclipse.util.Util;
 
 
 /**
@@ -157,42 +156,6 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
     IJavaProject javaProject = JavaCore.create(project);
 
     javaProject.setRawClasspath(addContainersToClasspath(classpathEntries), outputPath, new NullProgressMonitor());
-  }
-
-  /**
-   * Creates the given <code>directories</code> in the provided <code>project</code>
-   * resource which must already exist.
-   *
-   * @param project      The project in which the directories are to be created.
-   * @param directories  The directories to create inside the project.
-   *
-   * @throws CoreException if creating any of the folders fails.
-   */
-  private static void createDirectories(IProject project, String[] directories) throws CoreException {
-    for(int i = 0; i < directories.length; i++ ) {
-      createFolder(project.getFolder(directories[i]));
-    }
-  }
-
-  /**
-   * Helper method which creates a folder and, recursively, all its parent
-   * folders.
-   *
-   * @param folder  The folder to create.
-   *
-   * @throws CoreException if creating the given <code>folder</code> or any of
-   *                       its parents fails.
-   */
-  private static void createFolder(IFolder folder) throws CoreException {
-    // Recurse until we find a parent folder which already exists.
-    if(!folder.exists()) {
-      IContainer parent = folder.getParent();
-      // First, make sure that all parent folders exist.
-      if(parent instanceof IFolder) {
-        createFolder((IFolder) parent);
-      }
-      folder.create(false, true, null);
-    }
   }
 
   /**
@@ -338,7 +301,9 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
     monitor.worked(1);
 
     monitor.subTask(Messages.getString("wizard.project.monitor.createDirectories"));
-    createDirectories(project, directories);
+    for(int i = 0; i < directories.length; i++ ) {
+      Util.createFolder(project.getFolder(directories[i]));
+    }
     monitor.worked(1);
 
     monitor.subTask(Messages.getString("wizard.project.monitor.createPOM"));
