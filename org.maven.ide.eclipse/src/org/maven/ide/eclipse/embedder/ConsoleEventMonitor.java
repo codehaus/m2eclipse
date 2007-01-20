@@ -29,6 +29,10 @@ class ConsoleEventMonitor implements EventMonitor {
   private static final String PREFIX = "[INFO] ";
   private long start;
   
+  private int errorCode = 0;
+  private String errorText = null;
+  private Throwable errorCause = null;
+  
   public void startEvent( String eventName, String target, long timestamp ) {
     if ("mojo-execute".equals(eventName)) {
       System.out.println(PREFIX + target);
@@ -65,11 +69,27 @@ class ConsoleEventMonitor implements EventMonitor {
   }
   
   public void errorEvent( String eventName, String target, long timestamp, Throwable cause ) {
+    errorCode = 1;
+    errorCause = cause;
+    errorText = eventName;
+
     System.out.println("[ERROR] " + eventName + " : " + target );
     if(cause!=null) {
       System.out.println("Diagnosis: "+cause.getMessage());
     }
     System.out.println("FATAL ERROR: Error executing Maven for a project");
+  }
+
+  public int getErrorCode() {
+    return this.errorCode;
+  }
+
+  public Throwable getErrorCause() {
+    return this.errorCause;
+  }
+
+  public String getErrorText() {
+    return this.errorText;
   }
 
 }
