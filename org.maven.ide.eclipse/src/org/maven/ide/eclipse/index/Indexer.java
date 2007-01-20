@@ -49,7 +49,6 @@ import org.apache.lucene.search.Hits;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.WildcardQuery;
 import org.apache.maven.model.Dependency;
 
@@ -80,20 +79,20 @@ public class Indexer {
       return Collections.EMPTY_MAP;
     }
     
-    int queryLength = query.length();
-
     Query q;
-    if(query.indexOf( '*' )>-1) {
+    if(query.indexOf('*') > -1) {
       q = new WildcardQuery(new Term(field, query));
     } else {
-      String[] terms = query.split( "[\\. -/\\\\]" );
-      if(terms.length>1) {
+      String[] terms = query.split("[\\. -/\\\\]");
+      int len = terms.length;
+      if(len > 1) {
         q = new PhraseQuery();
-        for( int i = 0; i < terms.length; i++ ) {
+        for(int i = 0; i < len; i++ ) {
           ((PhraseQuery) q).add(new Term(field, terms[i]));
         }
       } else {
-        q = new TermQuery(new Term(field, query));
+        // q = new TermQuery(new Term(field, query));
+        q = new WildcardQuery(new Term(field, query + "*"));
       }
     }
       
@@ -109,7 +108,7 @@ public class Indexer {
       if(hits == null || hits.length() == 0) {
         return Collections.EMPTY_MAP;
       }
-      return sortResults(query, field, queryLength, hits);
+      return sortResults(query, field, hits);
 
     } finally {
       for(int i = 0; i < readers.length; i++ ) {
@@ -122,7 +121,7 @@ public class Indexer {
     }
   }
 
-  private TreeMap sortResults(String query, String field, int queryLength, Hits hits) throws IOException {
+  private TreeMap sortResults(String query, String field, Hits hits) throws IOException {
     TreeMap res = new TreeMap();
     for( int i = 0; i < hits.length(); i++) {
       Document doc = hits.doc( i);
@@ -143,6 +142,7 @@ public class Indexer {
             String packageName = n==-1 ? "" : entry.substring( 0, n).replace('/', '.');
             
             if( query.endsWith( "*")) {
+              int queryLength = query.length();
               if(query.charAt( 0 )=='*' ? 
                   className.toLowerCase().indexOf( query.substring( 1, queryLength-2 ) )>1 : 
                   className.toLowerCase().startsWith( query.substring( 0, queryLength-2 ) ) ) {
