@@ -126,11 +126,6 @@ public class Maven2Plugin extends AbstractUIPlugin {
     return this.classpathResolver;
   }
 
-  // XXX replace with preference store listener
-  public void invalidateMavenSettings() {
-    mavenEmbedderManager.invalidateMavenSettings();
-  }
-  
 
   /**
    * Returns an Image for the file at the given relative path.

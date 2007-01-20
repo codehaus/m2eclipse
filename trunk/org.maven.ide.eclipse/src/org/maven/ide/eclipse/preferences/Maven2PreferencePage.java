@@ -20,6 +20,8 @@ package org.maven.ide.eclipse.preferences;
  * under the License.
  */
 
+import java.io.File;
+
 import org.eclipse.jface.preference.BooleanFieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
 import org.eclipse.swt.SWT;
@@ -46,10 +48,15 @@ import org.maven.ide.eclipse.Messages;
  * preferences can be accessed directly via the preference store.
  */
 public class Maven2PreferencePage extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
+  final File localRepositoryDir;
+  final Maven2Plugin plugin;
 
   public Maven2PreferencePage() {
     super(GRID);
     setPreferenceStore(Maven2Plugin.getDefault().getPreferenceStore());
+    
+    plugin = Maven2Plugin.getDefault();
+    localRepositoryDir = plugin.getMavenEmbedderManager().getLocalRepositoryDir();
   }
 
   /*
@@ -114,7 +121,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     reindexButton.setText("Re&index Local Repository");
     reindexButton.addSelectionListener(new SelectionAdapter() {
         public void widgetSelected(SelectionEvent e) {
-          Maven2Plugin.getDefault().getMavenRepositoryIndexManager().reindexLocal();
+          plugin.getMavenRepositoryIndexManager().reindexLocal();
         } 
       });
     
@@ -122,7 +129,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     refreshButton.setText("Refresh &Settings");
     refreshButton.addSelectionListener(new SelectionAdapter() {
         public void widgetSelected(SelectionEvent e) {
-          Maven2Plugin.getDefault().invalidateMavenSettings();
+          plugin.getMavenEmbedderManager().invalidateMavenSettings();
         } 
       });
   }
@@ -142,7 +149,10 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
   public boolean performOk() {
     boolean res = super.performOk();
     if(res) {
-      Maven2Plugin.getDefault().invalidateMavenSettings();
+      File newRepositoryDir = plugin.getMavenEmbedderManager().getLocalRepositoryDir();
+      if(!newRepositoryDir.equals(localRepositoryDir)) {
+        plugin.getMavenRepositoryIndexManager().reindexLocal();
+      }      
     }
     return res;
   }

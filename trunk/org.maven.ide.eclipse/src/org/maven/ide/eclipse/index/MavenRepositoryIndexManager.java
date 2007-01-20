@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.jobs.Job;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.MavenEmbedderManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
@@ -45,11 +46,13 @@ public class MavenRepositoryIndexManager {
 
   private Set indexes = Collections.synchronizedSet(new HashSet());
 
-  private final Maven2Console console;
+  public final Maven2Console console;
 
   private final MavenEmbedderManager embedderManager;
 
   private final IPath stateLocation;
+
+  private IndexerJob localIndexer;
 
   
   public MavenRepositoryIndexManager(MavenEmbedderManager embedderManager, Maven2Console console, 
@@ -83,10 +86,11 @@ public class MavenRepositoryIndexManager {
   }
 
   public void reindexLocal() {
-    IndexerJob indexerJob = new IndexerJob(LOCAL_INDEX, getLocalRepositoryDir(), getIndexDir(), indexes);
-    indexerJob.schedule();
+    if(localIndexer==null || localIndexer.getState()==Job.NONE) {
+      localIndexer = new IndexerJob(LOCAL_INDEX, indexes, getIndexDir());
+    }
+    localIndexer.reindex(embedderManager.getLocalRepositoryDir());
   }
-
 
   public void updateIndex(File localFile, String repository, String name, long size, long date) {
     String indexPath = new File(getIndexDir(), LOCAL_INDEX).getAbsolutePath();
@@ -94,29 +98,14 @@ public class MavenRepositoryIndexManager {
       Indexer indexer = new Indexer();
       indexer.addDocument(repository, name, size, date, indexer.readNames(localFile), indexPath);
     } catch( IOException ex ) {
-      Maven2Plugin.getDefault().getConsole().logError("Unable to index "+name+"; "+ex.getMessage());
+      String msg = "Unable to index "+name;
+      Maven2Plugin.getDefault().getConsole().logError(msg + "; " + ex.getMessage());
+      Maven2Plugin.log(msg, ex);
     }
   }
   
   private File getIndexDir() {
     return new File(stateLocation.toFile(), "index");
-  }
-  
-  private File getLocalRepositoryDir() {
-    String localRepository = embedderManager.getProjectEmbedder().getLocalRepository().getBasedir();
-    
-    File localRepositoryDir = new File(localRepository);
-    
-//    if(!localRepositoryDir.exists()) {
-//      console.logError("Created local repository folder "+localRepository);
-//      localRepositoryDir.mkdirs();
-//    }
-    
-    if(!localRepositoryDir.isDirectory()) {
-      console.logError("Local repository "+localRepository+" is not a directory");
-    }
-    
-    return localRepositoryDir;
   }
   
   // TODO implement index registry

@@ -136,6 +136,24 @@ public class MavenEmbedderManager {
   }
   
 
+  public File getLocalRepositoryDir() {
+    String localRepository = getProjectEmbedder().getLocalRepository().getBasedir();
+    
+    File localRepositoryDir = new File(localRepository);
+    
+  //    if(!localRepositoryDir.exists()) {
+  //      console.logError("Created local repository folder "+localRepository);
+  //      localRepositoryDir.mkdirs();
+  //    }
+    
+    if(!localRepositoryDir.isDirectory()) {
+      console.logError("Local repository "+localRepository+" is not a directory");
+    }
+    
+    return localRepositoryDir;
+  }
+
+
   private static final class EmbedderJob extends Job {
     private final MavenEmbedderCallback template;
     private final MavenEmbedder embedder;
