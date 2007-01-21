@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <description url="http://maven.apache.org/eclipse-plugin.html">
+      Maven 2.0 integration, including transient dependencies support, 
+running Maven goals, and adding dependencies from repository.
+   </description>
+   <feature url="features/org.maven.ide.eclipse.feature_0.0.10.jar" id="org.maven.ide.eclipse.feature" version="0.0.10">
+      <category name="Maven 2.0 integration"/>
+   </feature>
+   <category-def name="Maven 2.0 integration" label="org.maven.ide.eclipse"/>
+</site>
