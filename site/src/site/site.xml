@@ -8,7 +8,7 @@
   </skin>
   -->
   <bannerLeft>
-    <name>Tycho: The Maven Extension for Eclipse</name>
+    <name>Maven Integration for Eclipse</name>
   </bannerLeft>
   <bannerRight>
     <name>Codehaus</name>
