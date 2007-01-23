@@ -67,6 +67,7 @@ public class Util {
     try {
       return VariablesPlugin.getDefault().getStringVariableManager().performStringSubstitution(s);
     } catch(CoreException e) {
+      Maven2Plugin.log(e);
       return null;
     }
   }
