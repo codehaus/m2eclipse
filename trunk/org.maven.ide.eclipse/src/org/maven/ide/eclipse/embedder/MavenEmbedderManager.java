@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.embedder;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +16,8 @@ package org.maven.ide.eclipse.embedder;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.embedder;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -64,9 +63,12 @@ public class MavenEmbedderManager {
   public MavenEmbedder getProjectEmbedder() {
     if(this.projectEmbedder==null) {
       try {
+        String globalSettings = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
         boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
+
         this.projectEmbedder = EmbedderFactory.createMavenEmbedder(EmbedderFactory.createProjectCustomizer(),
-            new PluginConsoleMavenEmbeddedLogger(console, debug));
+            new PluginConsoleMavenEmbeddedLogger(console, debug), globalSettings);
+        
       } catch(MavenEmbedderException ex) {
         console.logError("Can't create project embedder; " + ex.toString());
       }
@@ -146,6 +148,9 @@ public class MavenEmbedderManager {
   //      localRepositoryDir.mkdirs();
   //    }
     
+    if(!localRepositoryDir.exists()) {
+      localRepositoryDir.mkdirs();
+    }
     if(!localRepositoryDir.isDirectory()) {
       console.logError("Local repository "+localRepository+" is not a directory");
     }

@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.embedder;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +16,8 @@ package org.maven.ide.eclipse.embedder;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.embedder;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -55,11 +54,12 @@ public class Maven2Executor implements Maven2LaunchConstants {
 
     boolean offline = Boolean.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
     boolean debug = Boolean.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
+    String globalSettings = System.getProperty(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
 
     MavenEmbedder embedder = null;
     try {
       embedder = EmbedderFactory.createMavenEmbedder(EmbedderFactory.createExecutionCustomizer(), 
-          new ConsoleMavenEmbeddedLogger(debug));
+          new ConsoleMavenEmbeddedLogger(debug), globalSettings);
 
       String pomFileName = args[0];
       File pomFile = new File( pomFileName );
