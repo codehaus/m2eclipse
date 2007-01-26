@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.preferences;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,10 +17,14 @@ package org.maven.ide.eclipse.preferences;
  * under the License.
  */
 
+package org.maven.ide.eclipse.preferences;
+
 import java.io.File;
 
 import org.eclipse.jface.preference.BooleanFieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
+import org.eclipse.jface.preference.FileFieldEditor;
+import org.eclipse.jface.preference.StringFieldEditor;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -35,6 +36,7 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.Messages;
+import org.maven.ide.eclipse.embedder.EmbedderFactory;
 
 
 /**
@@ -50,6 +52,8 @@ import org.maven.ide.eclipse.Messages;
 public class Maven2PreferencePage extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
   final File localRepositoryDir;
   final Maven2Plugin plugin;
+  
+  final String globalSettings;
 
   public Maven2PreferencePage() {
     super(GRID);
@@ -57,6 +61,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     
     plugin = Maven2Plugin.getDefault();
     localRepositoryDir = plugin.getMavenEmbedderManager().getLocalRepositoryDir();
+    globalSettings = getPreferenceStore().getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
   }
 
   /*
@@ -110,8 +115,31 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
         Messages.getString("preferences.debugOutput"), //$NON-NLS-1$
         getFieldEditorParent()));
     
+    addField(new StringFieldEditor("", 
+        Messages.getString("preferences.localSettingsFile"), //$NON-NLS-1$
+        getFieldEditorParent()) {
+      protected void doLoad() {
+        getTextControl().setEditable(false);
+        getTextControl().setText(EmbedderFactory.getUserSettingsFile().getAbsolutePath());
+      }
+      protected void doLoadDefault() {
+        getTextControl().setEditable(false);
+        getTextControl().setText(EmbedderFactory.getUserSettingsFile().getAbsolutePath());
+      }
+      protected void doStore() {
+      }
+      protected boolean doCheckState() {
+        return true;
+      }
+    });
+    
+    addField(new FileFieldEditor(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE, 
+        Messages.getString("preferences.globalSettingsFile"), //$NON-NLS-1$
+        getFieldEditorParent()));
+    
     GridData buttonsCompositeGridData = new GridData();
     buttonsCompositeGridData.verticalIndent = 15;
+    buttonsCompositeGridData.horizontalSpan = 2;
 
     Composite buttonsComposite = new Composite(getFieldEditorParent(), SWT.NONE);
     buttonsComposite.setLayout(new RowLayout());
@@ -121,6 +149,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     reindexButton.setText("Re&index Local Repository");
     reindexButton.addSelectionListener(new SelectionAdapter() {
         public void widgetSelected(SelectionEvent e) {
+          plugin.getMavenEmbedderManager().invalidateMavenSettings();
           plugin.getMavenRepositoryIndexManager().reindexLocal();
         } 
       });
@@ -149,6 +178,11 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
   public boolean performOk() {
     boolean res = super.performOk();
     if(res) {
+      String newGlobalSettings = getPreferenceStore().getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
+      if(newGlobalSettings==null ? globalSettings==null : newGlobalSettings.equals(globalSettings)) {
+        plugin.getMavenEmbedderManager().invalidateMavenSettings();
+      }
+      
       File newRepositoryDir = plugin.getMavenEmbedderManager().getLocalRepositoryDir();
       if(!newRepositoryDir.equals(localRepositoryDir)) {
         plugin.getMavenRepositoryIndexManager().reindexLocal();

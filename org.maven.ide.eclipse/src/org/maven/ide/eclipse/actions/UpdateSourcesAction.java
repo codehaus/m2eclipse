@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.actions;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +16,8 @@ package org.maven.ide.eclipse.actions;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.actions;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -271,11 +270,12 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
       IPreferenceStore preferenceStore = plugin.getPreferenceStore();
       boolean offline = preferenceStore.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
       boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
+      String globalSettings = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
       
       MavenEmbedder mavenEmbedder;
       try {
         mavenEmbedder = EmbedderFactory.createMavenEmbedder(EmbedderFactory.createExecutionCustomizer(),
-            new PluginConsoleMavenEmbeddedLogger(console, debug));
+            new PluginConsoleMavenEmbeddedLogger(console, debug), globalSettings);
       } catch(MavenEmbedderException ex) {
         console.logError("Unable to create embedder; " + ex.toString());
         return null;

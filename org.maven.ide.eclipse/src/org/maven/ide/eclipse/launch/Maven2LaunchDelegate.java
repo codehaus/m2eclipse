@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.launch;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +16,8 @@ package org.maven.ide.eclipse.launch;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.launch;
 
 import java.io.IOException;
 import java.net.URL;
@@ -208,6 +207,9 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
     boolean offline = preferenceStore.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
     sb.append(" -D").append(Maven2PreferenceConstants.P_OFFLINE).append("=").append(offline);
 
+    String globalSettings = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
+    sb.append(" -D").append(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE).append("=").append(globalSettings);
+    
     // boolean b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION);
     // sb.append(" -D").append(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION).append("=").append(b);
 

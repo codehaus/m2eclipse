@@ -1,7 +1,3 @@
-
-package org.maven.ide.eclipse.preferences;
-
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,6 +16,9 @@ package org.maven.ide.eclipse.preferences;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.preferences;
+
 
 /**
  * Constant definitions for plug-in preferences 
@@ -51,5 +50,7 @@ public class Maven2PreferenceConstants {
 
   /** boolean */
   public static final String P_DOWNLOAD_JAVADOC = PREFIX + "downloadJavadoc";
+
+  public static final String P_GLOBAL_SETTINGS_FILE = PREFIX + "globalSettingsFile";
 
 }

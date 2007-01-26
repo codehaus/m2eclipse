@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.embedder;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,6 +17,10 @@ package org.maven.ide.eclipse.embedder;
  * under the License.
  */
 
+package org.maven.ide.eclipse.embedder;
+
+import java.io.File;
+
 import org.apache.maven.artifact.resolver.ArtifactResolver;
 import org.apache.maven.embedder.ContainerCustomizer;
 import org.apache.maven.embedder.DefaultMavenEmbedRequest;
@@ -36,10 +37,21 @@ import org.codehaus.plexus.component.repository.ComponentDescriptor;
 
 public class EmbedderFactory {
 
-  public static MavenEmbedder createMavenEmbedder(ContainerCustomizer customizer, MavenEmbedderLogger logger) throws MavenEmbedderException {
+  public static MavenEmbedder createMavenEmbedder(ContainerCustomizer customizer, MavenEmbedderLogger logger, String globalSettings) throws MavenEmbedderException {
     MavenEmbedRequest request = new DefaultMavenEmbedRequest();
     
     request.setConfigurationCustomizer(customizer);
+    
+    // XXX temporary fix to make Maven Embedder read user settings file
+    File userSettingsFile = getUserSettingsFile();
+    if(userSettingsFile.exists()) {
+      request.setUserSettingsFile(userSettingsFile);
+    }
+    
+    File globalSettingsFile = new File(globalSettings);
+    if(globalSettingsFile.exists()) {
+      request.setGlobalSettingsFile(globalSettingsFile);
+    }
       
     ClassLoader loader = Thread.currentThread().getContextClassLoader();
     
@@ -48,6 +60,10 @@ public class EmbedderFactory {
     embedder.start(request);
     
     return embedder;
+  }
+
+  public static File getUserSettingsFile() {
+    return new File(System.getProperty("user.home"), ".m2/settings.xml");
   }
 
   
