@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,6 +17,11 @@ package org.maven.ide.eclipse;
  * under the License.
  */
 
+package org.maven.ide.eclipse;
+
+import org.eclipse.core.resources.IResourceChangeEvent;
+import org.eclipse.core.resources.IResourceChangeListener;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
@@ -57,6 +59,7 @@ public class Maven2Plugin extends AbstractUIPlugin {
   private MavenEmbedderManager mavenEmbedderManager;
 
   private ClassPathResolver classpathResolver;
+  private IResourceChangeListener resourceChangeListener;
   
   
   public Maven2Plugin() {
@@ -77,12 +80,21 @@ public class Maven2Plugin extends AbstractUIPlugin {
 
     this.mavenEmbedderManager = new MavenEmbedderManager(console, getPreferenceStore());
 
-    this.mavenModelManager = new MavenModelManager(mavenEmbedderManager, console);
     this.mavenRepositoryIndexManager = new MavenRepositoryIndexManager(mavenEmbedderManager, console, getBundle(),
         getStateLocation());
 
+    this.mavenModelManager = new MavenModelManager(mavenEmbedderManager, mavenRepositoryIndexManager, console);
+    // this.mavenModelManager.initMavenModel(new NullProgressMonitor());
+    
     this.classpathResolver = new ClassPathResolver(mavenEmbedderManager, console, mavenModelManager,
-        mavenRepositoryIndexManager, getPreferenceStore());
+        getPreferenceStore());
+    
+    this.resourceChangeListener = new Maven2ResourceChangeListener(mavenModelManager, classpathResolver, console);
+    
+    ResourcesPlugin.getWorkspace().addResourceChangeListener(
+        this.resourceChangeListener,
+        IResourceChangeEvent.PRE_BUILD | IResourceChangeEvent.POST_CHANGE | IResourceChangeEvent.PRE_CLOSE
+            | IResourceChangeEvent.PRE_DELETE);
   }
 
   /**
@@ -90,6 +102,8 @@ public class Maven2Plugin extends AbstractUIPlugin {
    */
   public void stop( BundleContext context) throws Exception {
     super.stop( context);
+    
+    ResourcesPlugin.getWorkspace().removeResourceChangeListener(resourceChangeListener);
     
     this.mavenEmbedderManager.shutdown();
     

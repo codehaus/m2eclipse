@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.actions;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,6 +17,8 @@ package org.maven.ide.eclipse.actions;
  * under the License.
  */
 
+package org.maven.ide.eclipse.actions;
+
 import java.util.Collections;
 import java.util.Set;
 
@@ -27,7 +26,7 @@ import org.apache.maven.project.MavenProject;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -38,8 +37,7 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.embedder.ClassPathResolver;
-import org.maven.ide.eclipse.embedder.MavenEmbedderManager;
+import org.maven.ide.eclipse.embedder.MavenModelManager;
 import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.index.Indexer.FileInfo;
 
@@ -60,17 +58,16 @@ public class AddDependencyAction implements IObjectActionDelegate {
     }
 
     Maven2Plugin plugin = Maven2Plugin.getDefault();
-    MavenEmbedderManager embedderManager = plugin.getMavenEmbedderManager();
+    MavenModelManager modelManager = plugin.getMavenModelManager();
     
     MavenProject mavenProject;
     try {
-      mavenProject = (MavenProject) embedderManager.executeInEmbedder("Read Project", new ClassPathResolver.ReadProjectTask(
-          file, plugin.getConsole(), plugin.getMavenRepositoryIndexManager(), plugin.getPreferenceStore()));
-    } catch(CoreException ex) {
-      // TODO move into ReadProjectTask
-      Maven2Plugin.log(ex);
-      Maven2Plugin.getDefault().getConsole().logError(ex.getMessage());
-      return;
+      mavenProject = modelManager.readMavenProject(file, new NullProgressMonitor(), true, false);
+//    } catch(CoreException ex) {
+//      // TODO move into ReadProjectTask
+//      Maven2Plugin.log(ex);
+//      Maven2Plugin.getDefault().getConsole().logError(ex.getMessage());
+//      return;
     } catch(Exception ex) {
       // TODO move into ReadProjectTask
       String msg = "Unable to read model";
@@ -86,7 +83,7 @@ public class AddDependencyAction implements IObjectActionDelegate {
       Indexer.FileInfo fileInfo = (FileInfo) dialog.getFirstResult();
       if(fileInfo != null) {
         try {
-          embedderManager.addDependency(file, fileInfo.getDependency());
+          modelManager.addDependency(file, fileInfo.getDependency());
         } catch(Exception ex) {
           Maven2Plugin.log("Can't add dependency to " + file, ex);
         }

@@ -19,19 +19,11 @@
 
 package org.maven.ide.eclipse.embedder;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.StringWriter;
-import java.util.Collections;
-import java.util.List;
 
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Model;
 
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -42,13 +34,13 @@ import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
 import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 
+
 /**
  * Maven Embedder manager
  *
  * @author Eugene Kuleshov
  */
 public class MavenEmbedderManager {
-
   private final Maven2Console console;
   private final IPreferenceStore preferenceStore;
 
@@ -104,27 +96,6 @@ public class MavenEmbedderManager {
     return null;
   }  
   
-  public void addDependency(IFile pomFile, Dependency dependency) {
-    addDependencies(pomFile, Collections.singletonList(dependency));
-  }
-
-  public void addDependencies(IFile pomFile, List dependencies) {
-    File pom = pomFile.getLocation().toFile();
-    try {
-      MavenEmbedder mavenEmbedder = getProjectEmbedder();
-      Model model = mavenEmbedder.readModel(pom);
-      model.getDependencies().addAll(dependencies);
-
-      StringWriter w = new StringWriter();
-      mavenEmbedder.writeModel(w, model, true);
-
-      pomFile.setContents(new ByteArrayInputStream(w.toString().getBytes("ASCII")), true, true, null);
-      pomFile.refreshLocal(IResource.DEPTH_ONE, null); // TODO ???
-    } catch(Exception ex) {
-      console.logError("Unable to update POM: " + pom + "; " + ex.getMessage());
-    }
-  }
-
   public void shutdown() {
     // XXX need to wait when embedder jobs will be completed 
     if(projectEmbedder!=null) {

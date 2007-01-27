@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.actions;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,6 +17,8 @@ package org.maven.ide.eclipse.actions;
  * under the License.
  */
 
+package org.maven.ide.eclipse.actions;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -29,7 +28,7 @@ import org.apache.maven.project.MavenProject;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.compiler.IProblem;
@@ -47,8 +46,7 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.embedder.ClassPathResolver;
-import org.maven.ide.eclipse.embedder.MavenEmbedderManager;
+import org.maven.ide.eclipse.embedder.MavenModelManager;
 import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.index.Indexer.FileInfo;
 
@@ -120,7 +118,7 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
 
     public void apply(IDocument document) {
       Maven2Plugin plugin = Maven2Plugin.getDefault();
-      MavenEmbedderManager embedderManager = plugin.getMavenEmbedderManager();
+      MavenModelManager modelManager = plugin.getMavenModelManager();
 
       ICompilationUnit cu = context.getCompilationUnit();
       IProject project = cu.getJavaProject().getProject();
@@ -128,12 +126,11 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
 
       MavenProject mavenProject = null;
       try {
-        mavenProject = (MavenProject) embedderManager.executeInEmbedder("Read Project", new ClassPathResolver.ReadProjectTask(
-            pomFile, plugin.getConsole(), plugin.getMavenRepositoryIndexManager(), plugin.getPreferenceStore()));
-      } catch(CoreException ex) {
-        // TODO move into ReadProjectTask
-        Maven2Plugin.log(ex);
-        Maven2Plugin.getDefault().getConsole().logError(ex.getMessage());
+        mavenProject = modelManager.readMavenProject(pomFile, new NullProgressMonitor(), true, false);
+//      } catch(CoreException ex) {
+//        // TODO move into ReadProjectTask
+//        Maven2Plugin.log(ex);
+//        Maven2Plugin.getDefault().getConsole().logError(ex.getMessage());
       } catch(Exception ex) {
         // TODO move into ReadProjectTask
         String msg = "Unable to read model";
@@ -152,7 +149,7 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
       if(dialog.open() == Window.OK) {
         FileInfo fileInfo = (FileInfo) dialog.getFirstResult();
 
-        embedderManager.addDependency(pomFile, fileInfo.getDependency());
+        modelManager.addDependency(pomFile, fileInfo.getDependency());
 
         if(organizeImports) {
           IWorkbenchWindow window = workbench.getActiveWorkbenchWindow();
@@ -173,7 +170,6 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
 
           }
         }
-
       }
     }
 

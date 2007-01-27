@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.container;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,17 +17,17 @@ package org.maven.ide.eclipse.container;
  * under the License.
  */
 
+package org.maven.ide.eclipse.container;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.codehaus.plexus.util.FileUtils;
-import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -38,7 +35,6 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
-import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.ClasspathContainerInitializer;
 import org.eclipse.jdt.core.IAccessRule;
@@ -94,20 +90,9 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       
       new Job("Initializing " + project.getProject().getName()) {
         protected IStatus run(IProgressMonitor monitor) {
-          IFile pomFile = project.getProject().getFile(Maven2Plugin.POM_FILE_NAME);
-
-          monitor.beginTask("Initializing", 2);
-
-          HashSet entries = new HashSet();
-          HashSet moduleArtifacts = new HashSet();
-          plugin.getClasspathResolver().resolveClasspathEntries(entries, moduleArtifacts, pomFile, true,
-              new SubProgressMonitor(monitor, 1, 0));
-
-          Maven2ClasspathContainer container = new Maven2ClasspathContainer(entries);
           try {
-            JavaCore.setClasspathContainer(container.getPath(), new IJavaProject[] {project},
-                new IClasspathContainer[] {container}, new SubProgressMonitor(monitor, 1, 0));
-          } catch(JavaModelException ex) {
+            plugin.getClasspathResolver().updateClasspathContainer(project.getProject(), true, monitor);
+          } catch(CoreException ex) {
             Maven2Plugin.log("Can't set classpath container", ex);
           }
 
