@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.util;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +16,8 @@ package org.maven.ide.eclipse.util;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.util;
 
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFolder;
@@ -74,13 +73,15 @@ public class Util {
 
   public static void addMarker(IResource resource, String message, int lineNumber, int severity) {
     try {
-      IMarker marker = resource.createMarker(Maven2Plugin.MARKER_ID);
-      marker.setAttribute(IMarker.MESSAGE, message);
-      marker.setAttribute(IMarker.SEVERITY, severity);
-      if(lineNumber == -1) {
-        lineNumber = 1;
+      if(resource.isAccessible()) {
+        IMarker marker = resource.createMarker(Maven2Plugin.MARKER_ID);
+        marker.setAttribute(IMarker.MESSAGE, message);
+        marker.setAttribute(IMarker.SEVERITY, severity);
+        if(lineNumber == -1) {
+          lineNumber = 1;
+        }
+        marker.setAttribute(IMarker.LINE_NUMBER, lineNumber);
       }
-      marker.setAttribute(IMarker.LINE_NUMBER, lineNumber);
     } catch(CoreException ex) {
       Maven2Plugin.getDefault().getConsole().logError("Unable to add marker; " + ex.toString());
     }
@@ -88,7 +89,9 @@ public class Util {
 
   public static void deleteMarkers(IResource resource) {
     try {
-      resource.deleteMarkers(Maven2Plugin.MARKER_ID, false, IResource.DEPTH_ZERO);
+      if(resource.isAccessible()) {
+        resource.deleteMarkers(Maven2Plugin.MARKER_ID, false, IResource.DEPTH_ZERO);
+      }
     } catch(CoreException ex) {
       Maven2Plugin.getDefault().getConsole().logError("Unable to delete marker; " + ex.toString());
     }

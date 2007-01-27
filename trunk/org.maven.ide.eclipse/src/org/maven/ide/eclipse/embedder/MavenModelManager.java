@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.embedder;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,18 +17,36 @@ package org.maven.ide.eclipse.embedder;
  * under the License.
  */
 
+package org.maven.ide.eclipse.embedder;
+
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
+import org.apache.maven.embedder.MavenEmbedder;
+import org.apache.maven.execution.MavenExecutionRequest;
+import org.apache.maven.execution.MavenExecutionResult;
+import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
+import org.apache.maven.project.InvalidProjectModelException;
+import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.ProjectBuildingException;
+import org.apache.maven.project.validation.ModelValidationResult;
 
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -41,7 +56,10 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Status;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.Messages;
+import org.maven.ide.eclipse.index.MavenRepositoryIndexManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
+import org.maven.ide.eclipse.util.Util;
 
 
 /**
@@ -53,14 +71,31 @@ import org.maven.ide.eclipse.launch.console.Maven2Console;
  */
 public class MavenModelManager {
   private final MavenEmbedderManager embedderManager;
+  private final MavenRepositoryIndexManager indexManager;
   private final Maven2Console console;
 
-  private Map models;
-  private Map artifacts;
+  /**
+   * Map of the project pomFile location to the Model
+   */
+  private final Map models = new HashMap();
+  
+  /**
+   * Map of the artifact keys to the pomFile in the Worspace for those artifacts.
+   * 
+   * @see #getArtifactKey(Artifact)
+   */
+  private final Map artifacts = new HashMap();
 
+  private final Map projectsToArtifacts = new HashMap();
+  private final Map artifactsToProjects = new HashMap();
+  
+  private boolean isInitialized = false;
+  
 
-  public MavenModelManager(MavenEmbedderManager embedderManager, Maven2Console console) {
+  public MavenModelManager(MavenEmbedderManager embedderManager, MavenRepositoryIndexManager indexManager,
+      Maven2Console console) {
     this.embedderManager = embedderManager;
+    this.indexManager = indexManager;
     this.console = console;
   }
 
@@ -69,19 +104,22 @@ public class MavenModelManager {
   }
 
   public Model getMavenModel(IFile pomFile) {
-    return (Model) models.get(pomFile.getLocation().toString());
+    return (Model) models.get(getPomFileKey(pomFile));
   }
 
   public synchronized void initMavenModel(IProgressMonitor monitor) {
-    if(models!=null) {
+    if(isInitialized) {
       return;
     }
-
-    models = new HashMap();
-    artifacts = new HashMap();
+    
+    isInitialized = true;
     
     IProject[] projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
     for(int i = 0; i < projects.length; i++ ) {
+      if(monitor.isCanceled()) {
+        throw new OperationCanceledException();
+      }
+
       IProject project = projects[i];
       try {
         if(project.isOpen() && project.hasNature(Maven2Plugin.NATURE_ID)) {
@@ -90,6 +128,16 @@ public class MavenModelManager {
             console.logError("Project " + project.getName() + " is missing pom.xml");
           } else {
             updateMavenModel(pomFile, true, monitor);
+            
+            MavenProject mavenProject = readMavenProject(pomFile, monitor, true, false);
+            Set artifacts = mavenProject.getArtifacts();
+            for(Iterator it = artifacts.iterator(); it.hasNext();) {
+              if(monitor.isCanceled()) {
+                throw new OperationCanceledException();
+              }
+
+              addProjectArtifact(pomFile, (Artifact) it.next());
+            }
           }
         }
       } catch(CoreException ex) {
@@ -98,17 +146,71 @@ public class MavenModelManager {
     }
   }
 
+  // add artefact as dependency in project with pomFile
+  public void addProjectArtifact(IFile pomFile, Artifact a) {
+    String artifactKey = getArtifactKey(a);
+    String pomKey = getPomFileKey(pomFile);
+
+    getSet(projectsToArtifacts, pomKey).add(artifactKey);
+    getSet(artifactsToProjects, artifactKey).add(pomKey);
+  }
+
+  private Set getSet(Map map, String key) {
+    Set s = (Set) map.get(key);
+    if(s==null) {
+      s = new HashSet();
+      map.put(key, s);
+    }
+    return s;
+  }
+  
+  // set of projects 
+  public Set getDependentProjects(IFile pomFile) {
+    Set projects = new HashSet();
+
+    Model model = getMavenModel(pomFile);
+    if(model!=null) {
+      String artifactKey = getArtifactKey(model);
+      Set a = (Set) artifactsToProjects.get(artifactKey);
+      if(a!=null) {
+        for(Iterator it = a.iterator(); it.hasNext();) {
+          String pomKey = (String) it.next();
+          Model m = (Model) models.get(pomKey);
+          if(m!=null) {
+            IFile f = (IFile) this.artifacts.get(getArtifactKey(m));
+            if(f!=null) {
+              projects.add(f.getProject());
+            }
+          }
+        }
+      }
+    }
+    
+    return projects;
+  }
+  
+  
   public Model updateMavenModel(IFile pomFile, boolean recursive, IProgressMonitor monitor) throws CoreException {
+    if(!pomFile.isAccessible()) {
+      return removeMavenModel(pomFile, false, monitor);
+    }
+    
     Model mavenModel = readMavenModel(pomFile.getLocation().toFile());
     if(mavenModel == null) {
       console.logMessage("Unable to read model for " + pomFile.getFullPath().toString());
       return null;
     }
+    
+    String pomKey = getPomFileKey(pomFile);
+    Model oldModel = (Model) models.get(pomKey);
+    if(oldModel!=null) {
+      artifacts.remove(getArtifactKey(oldModel));
+    }
 
-    models.put(pomFile.getLocation().toString(), mavenModel);
+    models.put(pomKey, mavenModel);
+    
     String artifactKey = getArtifactKey(mavenModel);
     artifacts.put(artifactKey, pomFile);
-
     console.logMessage("Updated model " + pomFile.getFullPath().toString() + " : " + artifactKey);
 
     if(recursive) {
@@ -127,6 +229,44 @@ public class MavenModelManager {
 
     return mavenModel;
   }
+  
+  public Model removeMavenModel(IFile pomFile, boolean recursive, IProgressMonitor monitor) {
+    String pomKey = getPomFileKey(pomFile);
+    Model mavenModel = (Model) models.remove(pomKey);
+    
+    
+    Set a = (Set) projectsToArtifacts.remove(pomKey);
+//    if(artifacts!=null) {
+//      for(Iterator it = artifacts.iterator(); it.hasNext();) {
+//        String artifactKey = (String) it.next();
+//        artifactsToProjects.remove(artifactKey);
+//      }
+//    }
+    
+    if(mavenModel!=null) {
+      String artifactKey = getArtifactKey(mavenModel);
+
+      artifacts.remove(artifactKey);
+      
+      console.logMessage("Removed model " + pomFile.getFullPath().toString() + " : " + artifactKey);
+      
+      if(recursive) {
+        IContainer parent = pomFile.getParent();
+        for(Iterator it = mavenModel.getModules().iterator(); it.hasNext();) {
+          if(monitor.isCanceled()) {
+            throw new OperationCanceledException();
+          }
+          String module = (String) it.next();
+          IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
+          if(memberPom != null && memberPom.getType() == IResource.FILE) {
+            removeMavenModel((IFile) memberPom, recursive, monitor);
+          }
+        }
+      }
+    }
+    
+    return mavenModel;
+  }
 
   public Model readMavenModel(File pomFile) throws CoreException {
     try {
@@ -142,7 +282,129 @@ public class MavenModelManager {
     }
   }
 
-  private String getArtifactKey(Model model) {
+  public MavenProject readMavenProject(IFile pomFile, IProgressMonitor monitor, boolean offline, boolean debug) {
+    try {
+      monitor.subTask("Reading " + pomFile.getFullPath());
+      
+      File file = pomFile.getLocation().toFile();
+
+      MavenEmbedder mavenEmbedder = embedderManager.getProjectEmbedder();
+      MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(mavenEmbedder, offline, debug);
+      request.setPomFile(file.getAbsolutePath());
+      request.setBaseDirectory(file.getParentFile());
+      request.setTransferListener(new TransferListenerAdapter(monitor, console, indexManager));
+
+      MavenExecutionResult result = mavenEmbedder.readProjectWithDependencies(request);
+
+      Util.deleteMarkers(pomFile);
+
+      if(!result.hasExceptions()) {
+        return result.getMavenProject();
+      }
+      
+      for(Iterator it = result.getExceptions().iterator(); it.hasNext();) {
+        Exception ex = (Exception) it.next();
+        if(ex instanceof ProjectBuildingException) {
+          handleProjectBuildingException(pomFile, (ProjectBuildingException) ex);
+
+        } else if(ex instanceof AbstractArtifactResolutionException) {
+          String msg = ex.getMessage()
+              .replaceAll("----------", "")
+              .replaceAll("\r\n\r\n", "\n")
+              .replaceAll("\n\n", "\n");
+          Util.addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR);
+          console.logError(msg);
+
+          try {
+            // TODO
+            return mavenEmbedder.readProject(file);
+          
+          } catch(ProjectBuildingException ex2) {
+            handleProjectBuildingException(pomFile, ex2);
+          
+          } catch(Exception ex2) {
+            handleBuildException(pomFile, ex2);
+            
+          }
+          
+        } else {
+          handleBuildException(pomFile, ex);
+          
+        }
+      }
+
+//    } catch(Exception ex) {
+//      Util.deleteMarkers(this.file);
+//      Util.addMarker(this.file, "Unable to read project; " + ex.toString(), 1, IMarker.SEVERITY_ERROR);
+//      
+//      String msg = "Unable to read " + file.getLocation() + "; " + ex.toString();
+//      console.logError(msg);
+//      Maven2Plugin.log(msg, ex);
+    
+    } finally {
+      monitor.done();
+    }
+
+    return null;
+  }
+  
+  public void addDependency(IFile pomFile, Dependency dependency) {
+    addDependencies(pomFile, Collections.singletonList(dependency));
+  }
+
+  public void addDependencies(IFile pomFile, List dependencies) {
+    File pom = pomFile.getLocation().toFile();
+    try {
+      MavenEmbedder mavenEmbedder = embedderManager.getProjectEmbedder();
+      Model model = mavenEmbedder.readModel(pom);
+      model.getDependencies().addAll(dependencies);
+
+      StringWriter w = new StringWriter();
+      mavenEmbedder.writeModel(w, model, true);
+
+      pomFile.setContents(new ByteArrayInputStream(w.toString().getBytes("ASCII")), true, true, null);
+      pomFile.refreshLocal(IResource.DEPTH_ONE, null); // TODO ???
+    } catch(Exception ex) {
+      console.logError("Unable to update POM: " + pom + "; " + ex.getMessage());
+    }
+  }
+
+  
+
+  private void handleBuildException(IFile pomFile, Exception ex) {
+    String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
+    Util.addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+    console.logError(msg);
+  }
+
+  private void handleProjectBuildingException(IFile pomFile, ProjectBuildingException ex) {
+    Throwable cause = ex.getCause();
+    if(cause instanceof XmlPullParserException) {
+      XmlPullParserException pex = (XmlPullParserException) cause;
+      String msg = Messages.getString("plugin.markerParsingError") + pex.getMessage();
+      Util.addMarker(pomFile, msg, pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+      console.logError(msg + " at line " + pex.getLineNumber());
+    } else if(ex instanceof InvalidProjectModelException) {
+      InvalidProjectModelException mex = (InvalidProjectModelException) ex;
+      ModelValidationResult validationResult = mex.getValidationResult();
+      String msg = Messages.getString("plugin.markerBuildError") + mex.getMessage();
+      console.logError(msg);
+      if(validationResult == null) {
+        Util.addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+      } else {
+        for(Iterator it = validationResult.getMessages().iterator(); it.hasNext();) {
+          String message = (String) it.next();
+          Util.addMarker(pomFile, message, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+          console.logError("  " + message);
+        }
+      }
+    } else {
+      handleBuildException(pomFile, ex);
+    }
+  }
+  
+  
+  public static String getArtifactKey(Model model) {
     String groupId = model.getGroupId();
     if(groupId == null) {
       // If the groupId is null in the model, then it needs to be inherited
@@ -159,11 +421,12 @@ public class MavenModelManager {
     return groupId + ":" + model.getArtifactId() + ":" + version;
   }
 
-  /**
-   * Create a key that represents the artifact which can be used in a Map.
-   */
-  private String getArtifactKey(Artifact a) {
+  public static String getArtifactKey(Artifact a) {
     return a.getGroupId() + ":" + a.getArtifactId() + ":" + a.getVersion();
+  }
+  
+  public static String getPomFileKey(IFile pomFile) {
+    return pomFile.getLocation().toString();
   }
 
 }
