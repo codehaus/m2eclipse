@@ -27,55 +27,66 @@ import org.apache.maven.monitor.event.EventMonitor;
 
 class ConsoleEventMonitor implements EventMonitor {
   private static final String PREFIX = "[INFO] ";
+
+  private final boolean debug;
+
   private long start;
   
   private int errorCode = 0;
   private String errorText = null;
   private Throwable errorCause = null;
+
   
-  public void startEvent( String eventName, String target, long timestamp ) {
-    if ("mojo-execute".equals(eventName)) {
+  public ConsoleEventMonitor(boolean debug) {
+    this.debug = debug;
+  }
+
+  public void startEvent(String eventName, String target, long timestamp) {
+    if("mojo-execute".equals(eventName)) {
       System.out.println(PREFIX + target);
-    }
-    else if ("project-execute".equals(eventName)) {
+    } else if("project-execute".equals(eventName)) {
       this.start = System.currentTimeMillis();
     }
   }
 
-  public void endEvent( String eventName, String target, long timestamp ) {
-    if ("project-execute".equals(eventName)) {
-      System.out.println(PREFIX+"----------------------------------------------------------------------------");
-      System.out.println(PREFIX+"BUILD SUCCESSFUL");
-      System.out.println(PREFIX+"----------------------------------------------------------------------------");
-      System.out.println(PREFIX+getTotalTime());
-      System.out.println(PREFIX+getFinishedAt());
-      System.out.println(PREFIX+getMemory());
-      System.out.println(PREFIX+"----------------------------------------------------------------------------");
+  public void endEvent(String eventName, String target, long timestamp) {
+    if("project-execute".equals(eventName)) {
+      System.out.println(PREFIX + "----------------------------------------------------------------------------");
+      System.out.println(PREFIX + "BUILD SUCCESSFUL");
+      System.out.println(PREFIX + "----------------------------------------------------------------------------");
+      System.out.println(PREFIX + getTotalTime());
+      System.out.println(PREFIX + getFinishedAt());
+      System.out.println(PREFIX + getMemory());
+      System.out.println(PREFIX + "----------------------------------------------------------------------------");
     }
   }
 
   private String getTotalTime() {
-    return "Total time: "+((System.currentTimeMillis()-start)/1000)+" second";
+    return "Total time: " + ((System.currentTimeMillis() - start) / 1000) + " second";
   }
-  
+
   private String getFinishedAt() {
-    return "Finished at: "+new Date();
+    return "Finished at: " + new Date();
   }
-  
+
   private String getMemory() {
     long freeMem = Runtime.getRuntime().freeMemory();
     long totalMem = Runtime.getRuntime().totalMemory();
-    return "Memory "+(freeMem/(1024*1024))+"M/"+(totalMem/(1024*1024))+"M";
+    return "Memory " + (freeMem / (1024 * 1024)) + "M/" + (totalMem / (1024 * 1024)) + "M";
   }
-  
-  public void errorEvent( String eventName, String target, long timestamp, Throwable cause ) {
+
+  public void errorEvent(String eventName, String target, long timestamp, Throwable cause) {
     errorCode = 1;
     errorCause = cause;
     errorText = eventName;
 
-    System.out.println("[ERROR] " + eventName + " : " + target );
-    if(cause!=null) {
-      System.out.println("Diagnosis: "+cause.getMessage());
+    System.out.println("[ERROR] " + eventName + " : " + target);
+    if(cause != null) {
+      if(debug && "project-execute".equals(eventName)) {
+        cause.printStackTrace(System.out);
+      } else {
+        System.out.println("Diagnosis: " + cause.getMessage());
+      }
     }
     System.out.println("FATAL ERROR: Error executing Maven for a project");
   }
@@ -93,4 +104,3 @@ class ConsoleEventMonitor implements EventMonitor {
   }
 
 }
-

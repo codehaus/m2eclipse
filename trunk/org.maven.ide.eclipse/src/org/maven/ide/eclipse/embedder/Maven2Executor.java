@@ -76,7 +76,7 @@ public class Maven2Executor implements Maven2LaunchConstants {
         request.addActiveProfiles(Arrays.asList(profiles.split(", ")));
       }
       
-      request.addEventMonitor(new ConsoleEventMonitor());
+      request.addEventMonitor(new ConsoleEventMonitor(debug));
       request.setTransferListener(new ConsoleTransferMonitor());
       
       embedder.execute(request);
