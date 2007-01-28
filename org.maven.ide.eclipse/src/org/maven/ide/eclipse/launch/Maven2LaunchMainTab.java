@@ -473,7 +473,11 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
     if(name == null || name.trim().length() == 0) {
       return false;
     }
-    File pomDir = new File(Util.substituteVar(name));
+    String dirName = Util.substituteVar(name);
+    if(dirName == null) {
+      return false;
+    }
+    File pomDir = new File(dirName);
     if(!pomDir.exists()) {
       return false;
     }
