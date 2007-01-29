@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.launch;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +16,8 @@ package org.maven.ide.eclipse.launch;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.launch;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -42,11 +41,12 @@ import org.maven.ide.eclipse.embedder.MavenEmbedderManager;
 
 public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
 
-  public Maven2GoalSelectionDialog(Shell parent, String title, MavenEmbedderManager embedderManager) {
-    super(parent, new GoalsLabelProvider(), new GoalsContentProvider(embedderManager));
+  public Maven2GoalSelectionDialog(Shell parent) {
+    super(parent, new GoalsLabelProvider(), new GoalsContentProvider(Maven2Plugin.getDefault().getMavenEmbedderManager()));
 
-    setTitle(title);
+    setTitle(Messages.getString("launch.goalsDialog.title"));
     setValidator(new GoalsSelectionValidator());
+    setInput(new Object());
   }
 
   static class GoalsSelectionValidator implements ISelectionStatusValidator {

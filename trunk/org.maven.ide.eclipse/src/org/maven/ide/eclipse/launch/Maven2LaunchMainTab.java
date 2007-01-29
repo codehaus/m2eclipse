@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.launch;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,6 +17,8 @@ package org.maven.ide.eclipse.launch;
  * under the License.
  */
 
+package org.maven.ide.eclipse.launch;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,15 +37,12 @@ import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.ui.AbstractLaunchConfigurationTab;
 import org.eclipse.debug.ui.StringVariableSelectionDialog;
 import org.eclipse.jface.dialogs.IDialogConstants;
-import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.DoubleClickEvent;
 import org.eclipse.jface.viewers.IDoubleClickListener;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.FocusAdapter;
 import org.eclipse.swt.events.FocusEvent;
-import org.eclipse.swt.events.KeyAdapter;
-import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -64,6 +60,7 @@ import org.eclipse.swt.widgets.TableColumn;
 import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.dialogs.ContainerSelectionDialog;
+import org.eclipse.ui.externaltools.internal.model.IExternalToolConstants;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.Messages;
 import org.maven.ide.eclipse.util.ITraceable;
@@ -78,17 +75,27 @@ import org.maven.ide.eclipse.util.Util;
  * @author Eugene Kuleshov
  */
 public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implements Maven2LaunchConstants, ITraceable {
+
   private static final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/launcher")).booleanValue();
 
   public static final String ID_EXTERNAL_TOOLS_LAUNCH_GROUP = "org.eclipse.ui.externaltools.launchGroup"; //$NON-NLS-1$
 
-  protected Text fPomDirName;
+  private final boolean isBuilder;
+  
+  protected Text pomDirNameText;
 
-  protected Text fGoals;
+  protected Text goalsText;
+  protected Text goalsAutoBuildText;
+  protected Text goalsManualBuildText;
+  protected Text goalsCleanText;
+  protected Text goalsAfterCleanText;
+  
+  protected Text profilesText;
+  protected Table propsTable;
 
-  protected Text fProfiles;
-
-  protected Table tProps;
+  public Maven2LaunchMainTab(boolean isBuilder) {
+    this.isBuilder = isBuilder;
+  }
 
   public boolean isTraceEnabled() {
     return TRACE_ENABLED;
@@ -109,19 +116,21 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
     mainComposite.setLayoutData(gridData);
     mainComposite.setFont(parent.getFont());
 
+    ModifyListener modyfyingListener = new ModifyListener() {
+      public void modifyText(ModifyEvent e) {
+        entriesChanged();
+      }
+    };
+    
     // pom file 
     final Group pomGroup = new Group(mainComposite, SWT.NONE);
     pomGroup.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
     pomGroup.setText(Messages.getString("launch.pomGroup")); //$NON-NLS-1$
     pomGroup.setLayout(new GridLayout());
 
-    this.fPomDirName = new Text(pomGroup, SWT.BORDER);
-    this.fPomDirName.setLayoutData(new GridData(GridData.FILL, GridData.CENTER, true, false));
-    this.fPomDirName.addKeyListener(new KeyAdapter() {
-      public void keyPressed(KeyEvent e) {
-        entriesChanged();
-      }
-    });
+    this.pomDirNameText = new Text(pomGroup, SWT.BORDER);
+    this.pomDirNameText.setLayoutData(new GridData(GridData.FILL, GridData.CENTER, true, false));
+    this.pomDirNameText.addModifyListener(modyfyingListener);
 
     final Composite pomDirButtonsComposite = new Composite(pomGroup, SWT.NONE);
     pomDirButtonsComposite.setLayoutData(new GridData(GridData.END, GridData.CENTER, false, false));
@@ -143,7 +152,7 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
           if(resource != null && resource.length > 0) {
             String fileLoc = VariablesPlugin.getDefault().getStringVariableManager().generateVariableExpression(
                 "workspace_loc", ((IPath) resource[0]).toString()); //$NON-NLS-1$
-            fPomDirName.setText(fileLoc);
+            pomDirNameText.setText(fileLoc);
             entriesChanged();
           }
         }
@@ -155,10 +164,10 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
     browseFilesystemButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
         DirectoryDialog dialog = new DirectoryDialog(getShell(), SWT.NONE);
-        dialog.setFilterPath(fPomDirName.getText());
+        dialog.setFilterPath(pomDirNameText.getText());
         String text = dialog.open();
         if(text != null) {
-          fPomDirName.setText(text);
+          pomDirNameText.setText(text);
           entriesChanged();
         }
       }
@@ -172,131 +181,79 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
         dialog.open();
         String variable = dialog.getVariableExpression();
         if(variable != null) {
-          fPomDirName.insert(variable);
+          pomDirNameText.insert(variable);
         }
       }
     });
 
     // goals
+    
+    if(isBuilder) {
+      Label autoBuildGoalsLabel = new Label(mainComposite, SWT.NONE);
+      autoBuildGoalsLabel.setText("&Auto Build Goals:");
+      goalsAutoBuildText = new Text(mainComposite, SWT.BORDER);
+      goalsAutoBuildText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+      goalsAutoBuildText.addModifyListener(modyfyingListener);
+      goalsAutoBuildText.addFocusListener(new GoalsFocusListener(goalsAutoBuildText));
+      Button goalsAutoBuildButton = new Button(mainComposite, SWT.NONE);
+      goalsAutoBuildButton.setLayoutData(new GridData());
+      goalsAutoBuildButton.setText("&Select...");
+      goalsAutoBuildButton.addSelectionListener(new GoalSelectionAdapter(goalsAutoBuildText));
 
-    Label goalsLabel = new Label(mainComposite, SWT.NONE);
-    goalsLabel.setText(Messages.getString("launch.goalsLabel")); //$NON-NLS-1$
-
-    this.fGoals = new Text(mainComposite, SWT.BORDER);
-    fGoals.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    this.fGoals.addModifyListener(new ModifyListener() {
-      public void modifyText(ModifyEvent e) {
-        entriesChanged();
-      }
-    });
-
-    // need to remember if focus was ever set to that field to use it while inserting new goals
-    this.fGoals.addFocusListener(new FocusAdapter() {
-      public void focusGained(FocusEvent e) {
-        super.focusGained(e);
-        fGoals.setData("focus");
-      }
-    });
-
-    final Button browseGoalsButton = new Button(mainComposite, SWT.NONE);
-    browseGoalsButton.setLayoutData(new GridData());
-    browseGoalsButton.setText(Messages.getString("launch.goals")); //$NON-NLS-1$
-    browseGoalsButton.addSelectionListener(new SelectionAdapter() {
-      public void widgetSelected(SelectionEvent e) {
-        String fileName = Util.substituteVar(fPomDirName.getText());
-        if(!isDirectoryExist(fileName)) {
-          MessageDialog.openError(getShell(), Messages.getString("launch.errorPomMissing"), 
-              Messages.getString("launch.errorSelectPom")); //$NON-NLS-1$ //$NON-NLS-2$
-          return;
-        }
-        Maven2Plugin plugin = Maven2Plugin.getDefault();
-        Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell(), 
-            Messages.getString("launch.goalsDialog.title"), plugin.getMavenEmbedderManager()); //$NON-NLS-1$
-        dialog.setAllowMultiple(false);
-        dialog.setInput(new Object());
-        int rc = dialog.open();
-        if(rc == IDialogConstants.OK_ID) {
-          Object[] o = dialog.getResult();
-          StringBuffer sb = new StringBuffer();
-          for(int i = 0; i < o.length; i++ ) {
-            if(o[i] instanceof Maven2GoalSelectionDialog.LifecyclePhase) {
-              sb.append(((Maven2GoalSelectionDialog.LifecyclePhase) o[i]).getName()).append(' ');
-            } else if(o[i] instanceof MojoDescriptor) {
-              MojoDescriptor mojoDescriptor = (MojoDescriptor) o[i];
-              sb.append(mojoDescriptor.getFullGoalName()).append(' ');
-            }
-          }
-          if(sb.charAt(sb.length() - 1) == ' ') {
-            sb.deleteCharAt(sb.length() - 1);
-          }
-          //setNewGoals(fGoals, sb.toString());
-          fGoals.insert(sb.toString());
-          entriesChanged();
-        }
-      }
-
-      // fancy insert into fGoals field
-      private void setNewGoals(Text field, String newText) {
-        final boolean hadFocus = fGoals.getData() != null;
-        final int currPos = field.getCaretPosition();
-        final String oldText = field.getText();
-
-        if(!hadFocus) {
-          // never had focus - add to the end
-          if(oldText.length() > 0 && !oldText.endsWith(" ")) {
-            newText = " " + newText;
-          }
-          field.setText(oldText + newText);
-          return;
-        }
-
-        // had focus before
-
-        // caret at the first position
-        if(currPos == 0) {
-          if(oldText.charAt(0) != ' ') {
-            field.insert(newText + " ");
-            return;
-          }
-          field.insert(newText);
-          return;
-        }
-
-        // caret at the last position
-        if(currPos == oldText.length()) {
-          if(!oldText.endsWith(" ")) {
-            field.insert(" " + newText);
-            return;
-          }
-          field.insert(newText);
-          return;
-        }
-
-        // caret somewhere in the middle
-        if(oldText.charAt(currPos) != ' ') {
-          newText = newText + " ";
-        }
-        if(oldText.charAt(currPos - 1) != ' ') {
-          newText = " " + newText;
-        }
-        field.insert(newText);
-      }
-
-    });
+      Label manualBuildGoalsLabel = new Label(mainComposite, SWT.NONE);
+      manualBuildGoalsLabel.setText("&Manual Build Goals:");
+      goalsManualBuildText = new Text(mainComposite, SWT.BORDER);
+      goalsManualBuildText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+      goalsManualBuildText.addModifyListener(modyfyingListener);
+      goalsManualBuildText.addFocusListener(new GoalsFocusListener(goalsManualBuildText));
+      Button goalsManualBuildButton = new Button(mainComposite, SWT.NONE);
+      goalsManualBuildButton.setLayoutData(new GridData());
+      goalsManualBuildButton.setText("S&elect...");
+      goalsManualBuildButton.addSelectionListener(new GoalSelectionAdapter(goalsManualBuildText));
+      
+      Label cleanBuildGoalsLabel = new Label(mainComposite, SWT.NONE);
+      cleanBuildGoalsLabel.setText("&During a Clean Goals:");
+      goalsCleanText = new Text(mainComposite, SWT.BORDER);
+      goalsCleanText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+      goalsCleanText.addModifyListener(modyfyingListener);
+      goalsCleanText.addFocusListener(new GoalsFocusListener(goalsCleanText));
+      Button goalsCleanButton = new Button(mainComposite, SWT.NONE);
+      goalsCleanButton.setLayoutData(new GridData());
+      goalsCleanButton.setText("Se&lect...");
+      goalsCleanButton.addSelectionListener(new GoalSelectionAdapter(goalsCleanText));
+      
+      Label afterCleanGoalsLabel = new Label(mainComposite, SWT.NONE);
+      afterCleanGoalsLabel.setText("&After a Clean Goals:");
+      goalsAfterCleanText = new Text(mainComposite, SWT.BORDER);
+      goalsAfterCleanText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+      goalsAfterCleanText.addModifyListener(modyfyingListener);
+      goalsAfterCleanText.addFocusListener(new GoalsFocusListener(goalsAfterCleanText));
+      Button goalsAfterCleanButton = new Button(mainComposite, SWT.NONE);
+      goalsAfterCleanButton.setLayoutData(new GridData());
+      goalsAfterCleanButton.setText("Selec&t...");
+      goalsAfterCleanButton.addSelectionListener(new GoalSelectionAdapter(goalsAfterCleanText));
+      
+      
+    } else {
+      Label goalsLabel = new Label(mainComposite, SWT.NONE);
+      goalsLabel.setText(Messages.getString("launch.goalsLabel")); //$NON-NLS-1$
+      goalsText = new Text(mainComposite, SWT.BORDER);
+      goalsText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+      goalsText.addModifyListener(modyfyingListener);
+      goalsText.addFocusListener(new GoalsFocusListener(goalsText));
+      Button selectGoalsButton = new Button(mainComposite, SWT.NONE);
+      selectGoalsButton.setLayoutData(new GridData());
+      selectGoalsButton.setText(Messages.getString("launch.goals")); //$NON-NLS-1$
+      selectGoalsButton.addSelectionListener(new GoalSelectionAdapter(goalsText));
+    }
 
     Label profilesLabel = new Label(mainComposite, SWT.NONE);
     profilesLabel.setText(Messages.getString("launch.profilesLabel")); //$NON-NLS-1$
     // profilesLabel.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false));
 
-    fProfiles = new Text(mainComposite, SWT.BORDER);
-    fProfiles.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    fProfiles.addModifyListener(new ModifyListener() {
-      public void modifyText(ModifyEvent e) {
-        entriesChanged();
-      }
-    });
-
-    new Label(mainComposite, SWT.NONE);
+    profilesText = new Text(mainComposite, SWT.BORDER);
+    profilesText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
+    profilesText.addModifyListener(modyfyingListener);
 
     // properties
     final Composite propsComposite = new Composite(mainComposite, SWT.NONE);
@@ -307,26 +264,26 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
     propsGridLayout.numColumns = 2;
     propsComposite.setLayout(propsGridLayout);
 
-    this.tProps = new Table(propsComposite, SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI);
+    this.propsTable = new Table(propsComposite, SWT.BORDER | SWT.FULL_SELECTION | SWT.MULTI);
     //this.tProps.setItemCount(10);
-    this.tProps.setLayoutData(new GridData(GridData.FILL, GridData.FILL, true, true));
-    this.tProps.setLinesVisible(true);
-    this.tProps.setHeaderVisible(true);
-    TableViewer tableViewer = new TableViewer(this.tProps);
+    this.propsTable.setLayoutData(new GridData(GridData.FILL, GridData.FILL, true, true));
+    this.propsTable.setLinesVisible(true);
+    this.propsTable.setHeaderVisible(true);
+    TableViewer tableViewer = new TableViewer(this.propsTable);
     tableViewer.addDoubleClickListener(new IDoubleClickListener() {
       public void doubleClick(DoubleClickEvent event) {
-        TableItem[] selection = tProps.getSelection();
+        TableItem[] selection = propsTable.getSelection();
         if(selection.length == 1) {
           editProperty(selection[0].getText(0), selection[0].getText(1));
         }
       }
     });
 
-    final TableColumn propColumn = new TableColumn(this.tProps, SWT.NONE, 0);
+    final TableColumn propColumn = new TableColumn(this.propsTable, SWT.NONE, 0);
     propColumn.setWidth(100);
     propColumn.setText(Messages.getString("launch.propName")); //$NON-NLS-1$
 
-    final TableColumn valueColumn = new TableColumn(this.tProps, SWT.NONE, 1);
+    final TableColumn valueColumn = new TableColumn(this.propsTable, SWT.NONE, 1);
     valueColumn.setWidth(200);
     valueColumn.setText(Messages.getString("launch.propValue")); //$NON-NLS-1$
 
@@ -352,8 +309,8 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
     removePropButton.setText(Messages.getString("launch.propRemoveButton")); //$NON-NLS-1$
     removePropButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
-        if(tProps.getSelectionCount() > 0) {
-          tProps.remove(tProps.getSelectionIndices());
+        if(propsTable.getSelectionCount() > 0) {
+          propsTable.remove(propsTable.getSelectionIndices());
           entriesChanged();
         }
       }
@@ -367,7 +324,7 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
 
     if(buttonId == IDialogConstants.OK_ID) {
       String[] result = dialog.getNameValuePair();
-      TableItem item = new TableItem(tProps, SWT.NONE);
+      TableItem item = new TableItem(propsTable, SWT.NONE);
       item.setText(0, result[0]);
       item.setText(1, result[1]);
       entriesChanged();
@@ -381,7 +338,7 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
 
     if(buttonId == IDialogConstants.OK_ID) {
       String[] result = dialog.getNameValuePair();
-      TableItem[] item = tProps.getSelection();
+      TableItem[] item = propsTable.getSelection();
       // we expect only one row selected
       item[0].setText(0, result[0]);
       item[0].setText(1, result[1]);
@@ -390,26 +347,31 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
   }
 
   public void initializeFrom(ILaunchConfiguration configuration) {
-    try {
-      this.fPomDirName.setText(configuration.getAttribute(ATTR_POM_DIR, "")); //$NON-NLS-1$
-    } catch(CoreException e) {
+    String pomDirName = getAttribute(configuration, ATTR_POM_DIR, ""); //$NON-NLS-1$
+    if(isBuilder && pomDirName.length()==0) {
+      pomDirName = "${workspace_loc:/" + configuration.getFile().getProject().getName() + "}";
     }
-    try {
-      this.fGoals.setText(configuration.getAttribute(ATTR_GOALS, "")); //$NON-NLS-1$
-    } catch(CoreException e) {
+    this.pomDirNameText.setText(pomDirName);
+    
+    if(isBuilder) {
+      this.goalsAutoBuildText.setText(getAttribute(configuration, ATTR_GOALS_AUTO_BUILD, "install")); //$NON-NLS-1$
+      this.goalsManualBuildText.setText(getAttribute(configuration, ATTR_GOALS_MANUAL_BUILD, "install")); //$NON-NLS-1$
+      this.goalsCleanText.setText(getAttribute(configuration, ATTR_GOALS_CLEAN, "clean")); //$NON-NLS-1$
+      this.goalsAfterCleanText.setText(getAttribute(configuration, ATTR_GOALS_AFTER_CLEAN, "install")); //$NON-NLS-1$
+    } else {
+      this.goalsText.setText(getAttribute(configuration, ATTR_GOALS, "")); //$NON-NLS-1$
     }
+    
+    this.profilesText.setText(getAttribute(configuration, ATTR_PROFILES, "")); //$NON-NLS-1$
+
     try {
-      this.fProfiles.setText(configuration.getAttribute(ATTR_PROFILES, "")); //$NON-NLS-1$
-    } catch(CoreException e) {
-    }
-    try {
-      tProps.removeAll();
+      propsTable.removeAll();
       List properties = configuration.getAttribute(ATTR_PROPERTIES, Collections.EMPTY_LIST);
       for(Iterator iter = properties.iterator(); iter.hasNext();) {
         String s = (String) iter.next();
         try {
           String[] ss = s.split("="); //$NON-NLS-1$
-          TableItem item = new TableItem(tProps, SWT.NONE);
+          TableItem item = new TableItem(propsTable, SWT.NONE);
           item.setText(0, ss[0]);
           if(ss.length > 1) {
             item.setText(1, ss[1]);
@@ -423,19 +385,49 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
     }
     setDirty(false);
   }
+  
+  private String getAttribute(ILaunchConfiguration configuration, String name, String defaultValue) {
+    try {
+      return configuration.getAttribute(name, defaultValue);
+    } catch(CoreException ex) {
+      return defaultValue;
+    }
+  }
 
   public void setDefaults(ILaunchConfigurationWorkingCopy configuration) {
   }
 
   public void performApply(ILaunchConfigurationWorkingCopy configuration) {
-    configuration.setAttribute(ATTR_POM_DIR, this.fPomDirName.getText());
-    configuration.setAttribute(ATTR_GOALS, this.fGoals.getText());
-    configuration.setAttribute(ATTR_PROFILES, this.fProfiles.getText());
-    Tracer.trace(this, "pomDirName", this.fPomDirName.getText());
-    Tracer.trace(this, "goals", this.fGoals.getText());
-    Tracer.trace(this, "profiles", this.fProfiles.getText());
+    configuration.setAttribute(ATTR_POM_DIR, this.pomDirNameText.getText());
+    
+    if(isBuilder) {
+      configuration.setAttribute(ATTR_GOALS_AUTO_BUILD, goalsAutoBuildText.getText());
+      configuration.setAttribute(ATTR_GOALS_MANUAL_BUILD, this.goalsManualBuildText.getText());
+      configuration.setAttribute(ATTR_GOALS_CLEAN, this.goalsCleanText.getText());
+      configuration.setAttribute(ATTR_GOALS_AFTER_CLEAN, this.goalsAfterCleanText.getText());
+      
+      StringBuffer sb = new StringBuffer();
+      if(goalsAfterCleanText.getText().trim().length()>0) {
+        sb.append(IExternalToolConstants.BUILD_TYPE_FULL).append(',');
+      }
+      if(goalsManualBuildText.getText().trim().length()>0) {
+        sb.append(IExternalToolConstants.BUILD_TYPE_INCREMENTAL).append(',');
+      }
+      if(goalsAutoBuildText.getText().trim().length()>0) {
+        sb.append(IExternalToolConstants.BUILD_TYPE_AUTO).append(',');
+      }
+      if(goalsCleanText.getText().trim().length()>0) {
+        sb.append(IExternalToolConstants.BUILD_TYPE_CLEAN);
+      }
+      configuration.setAttribute(IExternalToolConstants.ATTR_RUN_BUILD_KINDS, sb.toString());
+      
+    } else {
+      configuration.setAttribute(ATTR_GOALS, this.goalsText.getText());
+    }
+    
+    configuration.setAttribute(ATTR_PROFILES, this.profilesText.getText());
 
-    TableItem[] items = this.tProps.getItems();
+    TableItem[] items = this.propsTable.getItems();
     // store as String in "param=value" format 
     List properties = new ArrayList();
     for(int i = 0; i < items.length; i++ ) {
@@ -457,7 +449,7 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
   public boolean isValid(ILaunchConfiguration launchConfig) {
     setErrorMessage(null);
 
-    String pomFileName = this.fPomDirName.getText();
+    String pomFileName = this.pomDirNameText.getText();
     if(pomFileName == null || pomFileName.trim().length() == 0) {
       setErrorMessage(Messages.getString("launch.pomDirectoryEmpty"));
       return false;
@@ -492,4 +484,103 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
     updateLaunchConfigurationDialog();
   }
 
+  
+  private final class GoalsFocusListener extends FocusAdapter {
+    private Text text;
+
+    public GoalsFocusListener(Text text) {
+      this.text = text;
+    }
+    
+    public void focusGained(FocusEvent e) {
+      super.focusGained(e);
+      text.setData("focus");
+    }
+  }
+
+
+  private final class GoalSelectionAdapter extends SelectionAdapter {
+    private Text text;
+
+    public GoalSelectionAdapter(Text text) {
+      this.text = text;
+    }
+
+    public void widgetSelected(SelectionEvent e) {
+//        String fileName = Util.substituteVar(fPomDirName.getText());
+//        if(!isDirectoryExist(fileName)) {
+//          MessageDialog.openError(getShell(), Messages.getString("launch.errorPomMissing"), 
+//              Messages.getString("launch.errorSelectPom")); //$NON-NLS-1$ //$NON-NLS-2$
+//          return;
+//        }
+      Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell());
+      int rc = dialog.open();
+      if(rc == IDialogConstants.OK_ID) {
+        Object[] o = dialog.getResult();
+        StringBuffer sb = new StringBuffer();
+        for(int i = 0; i < o.length; i++ ) {
+          if(o[i] instanceof Maven2GoalSelectionDialog.LifecyclePhase) {
+            sb.append(((Maven2GoalSelectionDialog.LifecyclePhase) o[i]).getName()).append(' ');
+          } else if(o[i] instanceof MojoDescriptor) {
+            MojoDescriptor mojoDescriptor = (MojoDescriptor) o[i];
+            sb.append(mojoDescriptor.getFullGoalName()).append(' ');
+          }
+        }
+        if(sb.charAt(sb.length() - 1) == ' ') {
+          sb.deleteCharAt(sb.length() - 1);
+        }
+        //setNewGoals(fGoals, sb.toString());
+        text.insert(sb.toString());
+        entriesChanged();
+      }
+    }
+
+    // fancy insert into fGoals field
+    private void setNewGoals(Text field, String newText) {
+      final boolean hadFocus = text.getData() != null;
+      final int currPos = field.getCaretPosition();
+      final String oldText = field.getText();
+
+      if(!hadFocus) {
+        // never had focus - add to the end
+        if(oldText.length() > 0 && !oldText.endsWith(" ")) {
+          newText = " " + newText;
+        }
+        field.setText(oldText + newText);
+        return;
+      }
+
+      // had focus before
+
+      // caret at the first position
+      if(currPos == 0) {
+        if(oldText.charAt(0) != ' ') {
+          field.insert(newText + " ");
+          return;
+        }
+        field.insert(newText);
+        return;
+      }
+
+      // caret at the last position
+      if(currPos == oldText.length()) {
+        if(!oldText.endsWith(" ")) {
+          field.insert(" " + newText);
+          return;
+        }
+        field.insert(newText);
+        return;
+      }
+
+      // caret somewhere in the middle
+      if(oldText.charAt(currPos) != ' ') {
+        newText = newText + " ";
+      }
+      if(oldText.charAt(currPos - 1) != ' ') {
+        newText = " " + newText;
+      }
+      field.insert(newText);
+    }
+  }
+  
 }
