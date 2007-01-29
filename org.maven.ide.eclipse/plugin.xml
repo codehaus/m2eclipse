@@ -399,15 +399,18 @@
             category="org.eclipse.ui.externaltools.builder"
             delegate="org.maven.ide.eclipse.launch.Maven2LaunchDelegate"
             name="%m2.launch.type.builder.name"
-            id="org.maven.ide.eclipse.Maven2LaunchConfigurationType"
+            id="org.maven.ide.eclipse.Maven2BuilderConfigurationType"
             modes="run">
       </launchConfigurationType>
    </extension>
 
    <extension point="org.eclipse.debug.ui.launchConfigurationTabGroups">
-      <launchConfigurationTabGroup id="maven2LaunchConfigurationTabGroup"
+      <launchConfigurationTabGroup id="org.maven.ide.eclipse.LaunchConfigurationTabGroup"
             type="org.maven.ide.eclipse.Maven2LaunchConfigurationType"
             class="org.maven.ide.eclipse.launch.Maven2LaunchConfigurationTabGroup"/>
+      <launchConfigurationTabGroup id="org.maven.ide.eclipse.BuilderConfigurationTabGroup"
+            type="org.maven.ide.eclipse.Maven2BuilderConfigurationType"
+            class="org.maven.ide.eclipse.launch.Maven2BuilderConfigurationTabGroup"/>
    </extension>
 
    <!-- Maven launcher configuration type image -->
@@ -416,6 +419,10 @@
             icon="icons/m2.gif"
             configTypeID="org.maven.ide.eclipse.Maven2LaunchConfigurationType"
             id="org.maven.ide.eclipse.launch.Maven2LaunchConfigurationTypeImage"/>
+      <launchConfigurationTypeImage
+            icon="icons/m2.gif"
+            configTypeID="org.maven.ide.eclipse.Maven2BuilderConfigurationType"
+            id="org.maven.ide.eclipse.launch.Maven2BuilderConfigurationTypeImage"/>
    </extension>
 
 

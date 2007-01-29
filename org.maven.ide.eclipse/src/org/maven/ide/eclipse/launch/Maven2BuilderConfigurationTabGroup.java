@@ -25,11 +25,11 @@ import org.eclipse.debug.ui.ILaunchConfigurationDialog;
 import org.eclipse.debug.ui.ILaunchConfigurationTab;
 import org.eclipse.debug.ui.RefreshTab;
 
-public class Maven2LaunchConfigurationTabGroup extends AbstractLaunchConfigurationTabGroup {
+public class Maven2BuilderConfigurationTabGroup extends AbstractLaunchConfigurationTabGroup {
 
     public void createTabs(ILaunchConfigurationDialog dialog, String mode) {
         ILaunchConfigurationTab[] tabs = new ILaunchConfigurationTab[] {
-                new Maven2LaunchMainTab(false),
+                new Maven2LaunchMainTab(true),
                 new Maven2JRETab(), 
                 new RefreshTab(), 
                 //new EnvironmentTab(), 

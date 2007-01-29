@@ -44,6 +44,8 @@ import org.eclipse.jdt.launching.JavaLaunchDelegate;
 import org.eclipse.jdt.launching.sourcelookup.JavaProjectSourceLocation;
 import org.eclipse.jdt.launching.sourcelookup.JavaSourceLocator;
 import org.eclipse.jface.preference.IPreferenceStore;
+import org.eclipse.ui.externaltools.internal.model.ExternalToolBuilder;
+import org.eclipse.ui.externaltools.internal.model.IExternalToolConstants;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 import org.maven.ide.eclipse.util.ITraceable;
@@ -66,8 +68,7 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
   }
   
   public void launch( ILaunchConfiguration configuration, String mode, ILaunch launch, IProgressMonitor monitor ) throws CoreException {
-    // just test
-    Maven2Plugin.getDefault().getConsole().logMessage("Launching M2");
+    Maven2Plugin.getDefault().getConsole().logMessage("Launching Maven " + getProgramArguments(configuration));
     launch.setSourceLocator(createSourceLocator());
     super.launch(configuration, "debug", launch, monitor);
   }
@@ -134,10 +135,24 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
     }
     Tracer.trace(this, "pomFileName", pomFileName);
 
-    String goalsString = configuration.getAttribute(ATTR_GOALS, "");
-    Tracer.trace(this, "goalsString", goalsString);
+    return pomFileName + " " + getGoals(configuration);
+  }
 
-    return pomFileName + " " + goalsString;
+  private String getGoals(ILaunchConfiguration configuration) throws CoreException {
+    String buildType = ExternalToolBuilder.getBuildType();
+    String goals = null;
+    if(IExternalToolConstants.BUILD_TYPE_AUTO.equals(buildType)) {
+      goals = configuration.getAttribute(Maven2LaunchConstants.ATTR_GOALS_AUTO_BUILD, "");
+    } else if(IExternalToolConstants.BUILD_TYPE_CLEAN.equals(buildType)) {
+      goals = configuration.getAttribute(Maven2LaunchConstants.ATTR_GOALS_CLEAN, "");
+    } else if(IExternalToolConstants.BUILD_TYPE_FULL.equals(buildType)) {
+      goals = configuration.getAttribute(Maven2LaunchConstants.ATTR_GOALS_AFTER_CLEAN, "");
+    } else if(IExternalToolConstants.BUILD_TYPE_INCREMENTAL.equals(buildType)) {
+      goals = configuration.getAttribute(Maven2LaunchConstants.ATTR_GOALS_MANUAL_BUILD, "");
+    } else {
+      goals = configuration.getAttribute(Maven2LaunchConstants.ATTR_GOALS, "");
+    }
+    return goals;
   }
   
   public String getVMArguments(ILaunchConfiguration configuration) throws CoreException {
