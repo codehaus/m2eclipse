@@ -88,7 +88,7 @@ public class ClassPathResolver {
       Util.addMarker(pomFile, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
     }
     
-    resolveClasspathEntries(entries, moduleArtifacts, pomFile, true, monitor);
+    resolveClasspathEntries(entries, moduleArtifacts, pomFile, pomFile, true, monitor);
 
     dependentProjects.addAll(mavenModelManager.getDependentProjects(pomFile));
 
@@ -104,7 +104,7 @@ public class ClassPathResolver {
   }
   
 
-  private void resolveClasspathEntries(Set libraryEntries, Map moduleArtifacts, IFile pomFile, boolean recursive,
+  private void resolveClasspathEntries(Set libraryEntries, Map moduleArtifacts, IFile rootPomFile, IFile pomFile, boolean recursive,
       IProgressMonitor monitor) {
     if(monitor.isCanceled()) {
       throw new OperationCanceledException();
@@ -152,6 +152,8 @@ public class ClassPathResolver {
 
           moduleArtifacts.put(artifactKey, a);
           mavenModelManager.addProjectArtifact(pomFile, a);
+          // this is needed to projects with have modules (either inner or external)
+          mavenModelManager.addProjectArtifact(rootPomFile, a);
           
           IFile artifactFile = mavenModelManager.getArtifactFile(a);
           if(artifactFile != null) {
@@ -202,7 +204,7 @@ public class ClassPathResolver {
           String module = (String) it.next();
           IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
           if(memberPom != null && memberPom.getType() == IResource.FILE) {
-            resolveClasspathEntries(libraryEntries, moduleArtifacts, (IFile) memberPom, true, monitor);
+            resolveClasspathEntries(libraryEntries, moduleArtifacts, rootPomFile, (IFile) memberPom, true, monitor);
           }
         }
       }
