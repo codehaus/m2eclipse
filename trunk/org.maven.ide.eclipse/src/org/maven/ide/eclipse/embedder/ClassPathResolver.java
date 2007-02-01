@@ -144,7 +144,7 @@ public class ClassPathResolver {
         // The artifact filename cannot be used here to determine
         // the type because eclipse project artifacts don't have jar or zip file names.
         // TODO use version?
-        String artifactKey = a.getGroupId() + ":" + a.getArtifactId() + ":" + a.getVersion();
+        String artifactKey = a.getGroupId() + ":" + a.getArtifactId() + ":" + a.getVersion() + ":" + a.getType();
         ArtifactHandler artifactHandler = embedder.getArtifactHandler(a);
         if(!moduleArtifacts.containsKey(artifactKey) 
             && artifactHandler.isAddedToClasspath()
