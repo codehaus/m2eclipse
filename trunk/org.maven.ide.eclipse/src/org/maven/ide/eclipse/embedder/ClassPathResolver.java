@@ -144,7 +144,7 @@ public class ClassPathResolver {
         // The artifact filename cannot be used here to determine
         // the type because eclipse project artifacts don't have jar or zip file names.
         // TODO use version?
-        String artifactKey = a.getGroupId() + ":" + a.getArtifactId();
+        String artifactKey = a.getGroupId() + ":" + a.getArtifactId() + ":" + a.getVersion();
         ArtifactHandler artifactHandler = embedder.getArtifactHandler(a);
         if(!moduleArtifacts.containsKey(artifactKey) 
             && artifactHandler.isAddedToClasspath()
@@ -155,9 +155,9 @@ public class ClassPathResolver {
           // this is needed to projects with have modules (either inner or external)
           mavenModelManager.addProjectArtifact(rootPomFile, a);
           
-          IFile artifactFile = mavenModelManager.getArtifactFile(a);
-          if(artifactFile != null) {
-            IProject artifactProject = artifactFile.getProject();
+          IFile artifactPomFile = mavenModelManager.getArtifactFile(a);
+          if(artifactPomFile != null) {
+            IProject artifactProject = artifactPomFile.getProject();
             if(artifactProject.getFullPath().equals(currentProject.getFullPath())) {
               // This is another artifact in our current project so we should not
               // add our own project to ourself

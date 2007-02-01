@@ -159,7 +159,7 @@ public class EclipseArtifactResolver extends DefaultArtifactResolver {
     }
 
     IFile file = modelManager.getArtifactFile(artifact);
-    if(file == null || !file.exists()) {
+    if(file == null) {
       // TODO enable it back, but only when "debug" is turned on in preferences
       // console.logMessage( artifact.getId() + ": no POM file in Eclipse workspace" );
       return false;
