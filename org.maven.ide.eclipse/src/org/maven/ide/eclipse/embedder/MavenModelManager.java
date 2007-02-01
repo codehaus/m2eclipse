@@ -100,7 +100,8 @@ public class MavenModelManager {
   }
 
   public IFile getArtifactFile(Artifact a) {
-    return (IFile) artifacts.get(getArtifactKey(a));
+    IFile file = (IFile) artifacts.get(getArtifactKey(a));
+    return file!=null && file.isAccessible() ? file : null;
   }
 
   public Model getMavenModel(IFile pomFile) {
@@ -222,10 +223,10 @@ public class MavenModelManager {
     return projects;
   }
   
-  
   public Model updateMavenModel(IFile pomFile, boolean recursive, IProgressMonitor monitor) throws CoreException {
+    removeMavenModel(pomFile, false, monitor);
     if(!pomFile.isAccessible()) {
-      return removeMavenModel(pomFile, false, monitor);
+      return null;
     }
     
     Model mavenModel = readMavenModel(pomFile.getLocation().toFile());
@@ -235,11 +236,6 @@ public class MavenModelManager {
     }
     
     String pomKey = getPomFileKey(pomFile);
-    Model oldModel = (Model) models.get(pomKey);
-    if(oldModel!=null) {
-      artifacts.remove(getArtifactKey(oldModel));
-    }
-
     models.put(pomKey, mavenModel);
     
     String artifactKey = getArtifactKey(mavenModel);
