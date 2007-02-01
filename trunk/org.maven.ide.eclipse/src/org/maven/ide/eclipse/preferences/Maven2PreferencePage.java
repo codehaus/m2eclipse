@@ -179,7 +179,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     boolean res = super.performOk();
     if(res) {
       String newGlobalSettings = getPreferenceStore().getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
-      if(newGlobalSettings==null ? globalSettings==null : newGlobalSettings.equals(globalSettings)) {
+      if(newGlobalSettings==null ? globalSettings==null : !newGlobalSettings.equals(globalSettings)) {
         plugin.getMavenEmbedderManager().invalidateMavenSettings();
       }
       
