@@ -141,55 +141,56 @@ public class ClassPathResolver {
 
         monitor.subTask("Processing " + a.getId());
 
-        // The artifact filename cannot be used here to determine
-        // the type because eclipse project artifacts don't have jar or zip file names.
-        // TODO use version?
-        String artifactKey = a.getGroupId() + ":" + a.getArtifactId() + ":" + a.getVersion() + ":" + a.getType();
+        // String artifactKey = a.getGroupId() + ":" + a.getArtifactId() + ":" + a.getVersion() + ":" + a.getType();
+        String artifactLocation = a.getFile().getAbsolutePath();
+        
+        if(moduleArtifacts.containsKey(artifactLocation)) {
+          continue;
+        }
+        
         ArtifactHandler artifactHandler = embedder.getArtifactHandler(a);
-        if(!moduleArtifacts.containsKey(artifactKey) 
-            && artifactHandler.isAddedToClasspath()
-            && ("jar".equals(artifactHandler.getExtension()) || "zip".equals(artifactHandler.getExtension()))) {
+        if(!artifactHandler.isAddedToClasspath()
+            || !("jar".equals(artifactHandler.getExtension()) || "zip".equals(artifactHandler.getExtension()))) {
+          continue;
+        }
 
-          moduleArtifacts.put(artifactKey, a);
-          mavenModelManager.addProjectArtifact(pomFile, a);
-          // this is needed to projects with have modules (either inner or external)
-          mavenModelManager.addProjectArtifact(rootPomFile, a);
-          
-          IFile artifactPomFile = mavenModelManager.getArtifactFile(a);
-          if(artifactPomFile != null) {
-            IProject artifactProject = artifactPomFile.getProject();
-            if(artifactProject.getFullPath().equals(currentProject.getFullPath())) {
-              // This is another artifact in our current project so we should not
-              // add our own project to ourself
-              continue;
-            }
-
-            libraryEntries.add(JavaCore.newProjectEntry(artifactProject.getFullPath(), false));
+        moduleArtifacts.put(artifactLocation, a);
+        mavenModelManager.addProjectArtifact(pomFile, a);
+        // this is needed to projects with have modules (either inner or external)
+        mavenModelManager.addProjectArtifact(rootPomFile, a);
+        
+        IFile artifactPomFile = mavenModelManager.getArtifactFile(a);
+        if(artifactPomFile != null) {
+          IProject artifactProject = artifactPomFile.getProject();
+          if(artifactProject.getFullPath().equals(currentProject.getFullPath())) {
+            // This is another artifact in our current project so we should not
+            // add our own project to ourself
             continue;
           }
 
-          Path srcPath = materializeArtifactPath(embedder, mavenProject, a, "java-source", "sources", downloadSources, monitor);
-
-          String artifactLocation = a.getFile().getAbsolutePath();
-          
-          IClasspathAttribute[] attributes = new IClasspathAttribute[0];
-          if(srcPath == null) { // no need to search for javadoc if we have source code
-            Path javadocPath = materializeArtifactPath(embedder, mavenProject, a, "java-doc", "javadoc", downloadJavadoc, monitor);
-            String javaDocUrl = null;
-            if(javadocPath != null) {
-              javaDocUrl = Maven2ClasspathContainerInitializer.getJavaDocUrl(javadocPath.toString());
-            } else {
-              javaDocUrl = getJavaDocUrl(artifactLocation, monitor);
-            }
-            if(javaDocUrl != null) {
-              attributes = new IClasspathAttribute[] {JavaCore.newClasspathAttribute(
-                  IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, javaDocUrl)};
-            }
-          }
-
-          libraryEntries.add(JavaCore.newLibraryEntry(new Path(artifactLocation), srcPath, null, new IAccessRule[0],
-              attributes, false /*not exported*/));
+          libraryEntries.add(JavaCore.newProjectEntry(artifactProject.getFullPath(), false));
+          continue;
         }
+
+        Path srcPath = materializeArtifactPath(embedder, mavenProject, a, "java-source", "sources", downloadSources, monitor);
+        
+        IClasspathAttribute[] attributes = new IClasspathAttribute[0];
+        if(srcPath == null) { // no need to search for javadoc if we have source code
+          Path javadocPath = materializeArtifactPath(embedder, mavenProject, a, "javadoc", "javadoc", downloadJavadoc, monitor);
+          String javaDocUrl = null;
+          if(javadocPath != null) {
+            javaDocUrl = Maven2ClasspathContainerInitializer.getJavaDocUrl(javadocPath.toString());
+          } else {
+            javaDocUrl = getJavaDocUrl(artifactLocation, monitor);
+          }
+          if(javaDocUrl != null) {
+            attributes = new IClasspathAttribute[] {JavaCore.newClasspathAttribute(
+                IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, javaDocUrl)};
+          }
+        }
+
+        libraryEntries.add(JavaCore.newLibraryEntry(new Path(artifactLocation), srcPath, null, new IAccessRule[0],
+            attributes, false /*not exported*/));
       }
 
       if(recursive) {
