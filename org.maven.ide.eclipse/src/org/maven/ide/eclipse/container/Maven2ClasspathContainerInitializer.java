@@ -147,10 +147,10 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
     ZipFile jarFile = null;
     try {
       jarFile = new ZipFile(name);
+      String marker = "package-list";
       for(Enumeration en = jarFile.entries(); en.hasMoreElements();) {
         ZipEntry entry = (ZipEntry) en.nextElement();
         String entryName = entry.getName();
-        String marker = "package-list";
         if(entryName.endsWith(marker)) {
           return entry.getName().substring(0, entryName.length()-marker.length());
         }
