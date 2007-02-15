@@ -223,7 +223,14 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
     sb.append(" -D").append(Maven2PreferenceConstants.P_OFFLINE).append("=").append(offline);
 
     String globalSettings = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
-    sb.append(" -D").append(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE).append("=").append(globalSettings);
+    if(globalSettings != null && globalSettings.trim().length() > 0) {
+      sb.append(" -D").append(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE).append("=");
+      if(globalSettings.indexOf(' ')>-1) {
+        sb.append('\"').append(globalSettings).append('\"');
+      } else {
+        sb.append(globalSettings);
+      }
+    }
     
     // boolean b = preferenceStore.getBoolean(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION);
     // sb.append(" -D").append(Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION).append("=").append(b);
