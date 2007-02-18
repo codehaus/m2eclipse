@@ -4,23 +4,40 @@
  Jason van Zyl
  Eugene Kuleshov
  -----
- 22 January 2007
+ 18 February 2007
  -----
 
 The Maven Integration for Eclipse (Tycho)
 
- The Maven Integration plugin is using the Maven Embedder component to launch Maven and
- to work with all Maven data. This is still work in progress and we are working hard
- to make it smooth and nice.
+ Maven Integration for Eclipse provides tight integration for Maven into the IDE and providing the following features:
+
+  * Launching Maven builds from within Eclipse
+ 
+  * Dependency management for Eclipse build path based on Maven's pom.xml
+  
+  * Resolving Maven dependencies from the Eclipse workspace without installing to local Maven repository
+  
+  * Automatic downloading of the required dependencies from the remote Maven repositories
+ 
+  * Wizards for creating new Maven projects, pom.xml or to enable Maven support on plain Java project  
+  
+  * Quick search for dependencies in Maven remote repositories
+  
+  * Quick fixes in the Java editor for looking up required dependencies/jars by the class or package name  
+  
+  * ...more features to come
+
+ This plugin is using the Maven Embedder component to launch Maven and
+ to work with all Maven data. This is work in progress and we are working hard
+ to make it smooth and nice. 
+ 
+ You can report issues to the 
+ {{{http://jira.codehaus.org/browse/MNGECLIPSE}issue tracking system}} or give us your 
+ feedback in one of the {{{http://m2eclipse.codehaus.org/mail-lists.html}mailing lists}}.
  
  {{{http://www.eclipseplugincentral.com/Web_Links-index-req-ratelink-lid-651.html}Rate this plugin at Eclipse Plugin Central}}
 
-* Installation
-
- You can install the Maven Integration for Eclipse by using the following update site from within Eclipse:
  
- {{http://m2eclipse.codehaus.org/update/}}
-
 * Flash Demos
 
  There is a Flash demo that you can view which shows you how to install the
@@ -32,6 +49,14 @@ The Maven Integration for Eclipse (Tycho)
  following demo in Flash:
 
  {{http://m2eclipse.codehaus.org/Maven_2.0_Plugin_for_Eclipse.html}}
+
+
+* Installation
+
+ You can install the Maven Integration for Eclipse by using the following update site from within Eclipse:
+ 
+ {{http://m2eclipse.codehaus.org/update/}}
+
 
 * Source Code
   
@@ -46,14 +71,3 @@ The Maven Integration for Eclipse (Tycho)
 svn co https://svn.codehaus.org/m2eclipse/trunk m2eclipse
 -----
 
-* Mailing Lists
-
- * {{{mailto:user-subscribe@m2eclipse.codehaus.org}User's Mailing List}}
- 
- * {{{mailto:dev-subscribe@m2eclipse.codehaus.org}Developer's Mailing List}}
- 
-* Issue Management
-
-  If you have issues that you would like to raise regarding the Maven Integration for Eclipse then you can do so here:
-  
-  {{http://jira.codehaus.org/browse/MNGECLIPSE}}

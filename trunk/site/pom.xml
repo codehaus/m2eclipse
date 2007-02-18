@@ -23,6 +23,7 @@ under the License.
   <artifactId>m2eclipse-site</artifactId>
   <groupId>org.codehaus.m2eclipse</groupId>
   <version>1</version>
+  <url>http://m2eclipse.codehaus.org/</url>
   <licenses>
     <license>
       <name>The Apache Software License, Version 2.0</name>
@@ -87,18 +88,21 @@ under the License.
       <subscribe>user-subscribe@m2eclipse.codehaus.org</subscribe>
       <unsubscribe>user-unsubscribe@m2eclipse.codehaus.org</unsubscribe>
       <post>user@m2eclipse.codehaus.org</post>
+      <archive>http://archive.m2eclipse.codehaus.org/user</archive>
     </mailingList>
     <mailingList>
       <name>Developer List</name>
       <subscribe>dev-subscribe@m2eclipse.codehaus.org</subscribe>
       <unsubscribe>dev-unsubscribe@m2eclipse.codehaus.org</unsubscribe>
       <post>dev@m2eclipse.codehaus.org</post>
+      <archive>http://archive.m2eclipse.codehaus.org/dev</archive>
     </mailingList>
     <mailingList>
       <name>Commits List</name>
       <subscribe>scm-subscribe@m2eclipse.codehaus.org</subscribe>
       <unsubscribe>scm-unsubscribe@m2eclipse.codehaus.org</unsubscribe>
       <post>scm@m2eclipse.codehaus.org</post>
+      <archive>http://archive.m2eclipse.codehaus.org/scm</archive>
     </mailingList>
   </mailingLists>
 </project>
