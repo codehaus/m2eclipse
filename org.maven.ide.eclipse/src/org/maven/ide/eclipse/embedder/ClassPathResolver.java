@@ -610,7 +610,7 @@ public class ClassPathResolver {
   
     IJavaProject javaProject = JavaCore.create(project);
     if(javaProject != null) {
-      IClasspathContainer container = Maven2ClasspathContainer.getMaven2ClasspathContainer(javaProject);
+      IClasspathContainer container = getMaven2ClasspathContainer(javaProject);
       IClasspathEntry[] entries = container.getClasspathEntries();
       HashSet containerEntrySet = new HashSet();
       for(int i = 0; i < entries.length; i++ ) {
@@ -622,7 +622,7 @@ public class ClassPathResolver {
       ArrayList newEntries = new ArrayList();
       for(int i = 0; i < entries.length; i++ ) {
         IClasspathEntry entry = entries[i];
-        if(!Maven2ClasspathContainer.isMaven2ClasspathContainer(entry.getPath())
+        if(!isMaven2ClasspathContainer(entry.getPath())
             && !containerEntrySet.contains(entry.getPath().toString())) {
           newEntries.add(entry);
         }
@@ -655,7 +655,7 @@ public class ClassPathResolver {
         IClasspathEntry[] entries = javaProject.getRawClasspath();
         ArrayList newEntries = new ArrayList();
         for(int i = 0; i < entries.length; i++ ) {
-          if(!Maven2ClasspathContainer.isMaven2ClasspathContainer(entries[i].getPath())) {
+          if(!isMaven2ClasspathContainer(entries[i].getPath())) {
             newEntries.add(entries[i]);
           }
         }
@@ -665,6 +665,15 @@ public class ClassPathResolver {
     } catch(CoreException ex) {
       Maven2Plugin.log(ex);
     }
+  }
+
+  public static boolean isMaven2ClasspathContainer( IPath containerPath) {
+    return containerPath!=null && containerPath.segmentCount()>0
+        && Maven2Plugin.CONTAINER_ID.equals(containerPath.segment(0));
+  }
+
+  public static IClasspathContainer getMaven2ClasspathContainer(IJavaProject project) throws JavaModelException {
+    return JavaCore.getClasspathContainer(new Path(Maven2Plugin.CONTAINER_ID), project);
   }
 
   private static String getBuildOption(MavenProject project, String artifactId, String optionName) {

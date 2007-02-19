@@ -34,5 +34,4 @@ Bundle-RequiredExecutionEnvironment: J2SE-1.4,
  J2SE-1.5,
  JavaSE-1.6
 Export-Package: org.maven.ide.eclipse,
- org.maven.ide.eclipse.embedder,
- org.maven.ide.eclipse.container
+ org.maven.ide.eclipse.embedder

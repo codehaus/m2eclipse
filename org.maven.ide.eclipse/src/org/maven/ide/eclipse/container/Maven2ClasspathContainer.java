@@ -34,9 +34,6 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClasspathContainer;
 import org.eclipse.jdt.core.IClasspathEntry;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 import org.maven.ide.eclipse.Maven2Plugin;
 
 
@@ -119,15 +116,6 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
     } catch(MalformedURLException ex) {
       return null;
     }
-  }
-
-  public static IClasspathContainer getMaven2ClasspathContainer(IJavaProject project) throws JavaModelException {
-    return JavaCore.getClasspathContainer(new Path(Maven2Plugin.CONTAINER_ID), project);
-  }
-
-  public static boolean isMaven2ClasspathContainer( IPath containerPath) {
-    return containerPath!=null && containerPath.segmentCount()>0
-        && Maven2Plugin.CONTAINER_ID.equals(containerPath.segment(0));
   }
   
 }
