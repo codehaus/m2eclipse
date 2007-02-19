@@ -100,7 +100,7 @@ public class EnableNatureAction implements IObjectActionDelegate {
         }
       }
       
-      plugin.getClasspathResolver().enableMavenNature(project);
+      plugin.getBuildpathManager().enableMavenNature(project);
 
     } catch(CoreException ex) {
       Maven2Plugin.log(ex);

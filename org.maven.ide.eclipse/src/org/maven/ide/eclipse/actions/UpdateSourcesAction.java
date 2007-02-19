@@ -60,7 +60,7 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         new Job("Updating " + project.getName() + " Sources") {
           protected IStatus run(IProgressMonitor monitor) {
             Maven2Plugin plugin = Maven2Plugin.getDefault();
-            plugin.getClasspathResolver().updateSourceFolders(p, monitor);
+            plugin.getBuildpathManager().updateSourceFolders(p, monitor);
             return Status.OK_STATUS;
           }
         }.schedule();

@@ -29,7 +29,7 @@ import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbenchPart;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.embedder.ClassPathResolver;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
 
 
 public class DisableNatureAction implements IObjectActionDelegate {
@@ -51,8 +51,8 @@ public class DisableNatureAction implements IObjectActionDelegate {
           project = (IProject) ((IAdaptable) element).getAdapter(IProject.class);
         }
         if(project != null) {
-          ClassPathResolver classpathResolver = Maven2Plugin.getDefault().getClasspathResolver();
-          classpathResolver.disableMavenNature(project);
+          BuildPathManager buildpathManager = Maven2Plugin.getDefault().getBuildpathManager();
+          buildpathManager.disableMavenNature(project);
         }
       }
     }

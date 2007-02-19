@@ -31,20 +31,20 @@ import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.embedder.ClassPathResolver;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
 
 
 public class Maven2Builder extends IncrementalProjectBuilder {
   private final Maven2Plugin plugin;
   private final Maven2Console  console;
-  private final ClassPathResolver classpathResolver;
+  private final BuildPathManager buildpathManager;
 
   
   public Maven2Builder() {
     plugin = Maven2Plugin.getDefault();
     console = plugin.getConsole();
-    classpathResolver = plugin.getClasspathResolver();
+    buildpathManager = plugin.getBuildpathManager();
   }
   
   /*
@@ -72,7 +72,7 @@ public class Maven2Builder extends IncrementalProjectBuilder {
         }
       }
 
-      classpathResolver.updateClasspathContainer(project, true, monitor);
+      buildpathManager.updateClasspathContainer(project, true, monitor);
     }
     return null;
   }

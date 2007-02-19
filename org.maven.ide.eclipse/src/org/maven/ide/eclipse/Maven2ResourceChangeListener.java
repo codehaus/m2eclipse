@@ -36,7 +36,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
-import org.maven.ide.eclipse.embedder.ClassPathResolver;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
 
@@ -48,19 +48,19 @@ import org.maven.ide.eclipse.launch.console.Maven2Console;
  */
 final class Maven2ResourceChangeListener implements IResourceChangeListener {
   private final MavenModelManager mavenModelManager;
-  private final ClassPathResolver classPathResolver;
+  private final BuildPathManager buildpathManager;
   private final Maven2Console console;
 
-  public Maven2ResourceChangeListener(MavenModelManager mavenModelManager, ClassPathResolver classPathResolver, Maven2Console console) {
+  public Maven2ResourceChangeListener(MavenModelManager mavenModelManager, BuildPathManager buildpathManager, Maven2Console console) {
     this.mavenModelManager = mavenModelManager;
-    this.classPathResolver = classPathResolver;
+    this.buildpathManager = buildpathManager;
     this.console = console;
   }
 
   public void resourceChanged(IResourceChangeEvent event) {
     try {
       int type = event.getType();
-      Verifier verifier = new Verifier(type, new NullProgressMonitor(), mavenModelManager, classPathResolver);
+      Verifier verifier = new Verifier(type, new NullProgressMonitor(), mavenModelManager, buildpathManager);
       switch(type) {
         // case POST_BUILD:
         case IResourceChangeEvent.PRE_BUILD:
@@ -90,15 +90,15 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
     private final int type;
     private final IProgressMonitor monitor;
     private final MavenModelManager mavenModelManager;
-    private final ClassPathResolver classPathResolver;
+    private final BuildPathManager buildpathManager;
 
     boolean updated;
 
-    public Verifier(int type, IProgressMonitor monitor, MavenModelManager mavenModelManager, ClassPathResolver classPathResolver) {
+    public Verifier(int type, IProgressMonitor monitor, MavenModelManager mavenModelManager, BuildPathManager buildPathManager) {
       this.type = type;
       this.monitor = monitor;
       this.mavenModelManager = mavenModelManager;
-      this.classPathResolver = classPathResolver;
+      this.buildpathManager = buildPathManager;
     }
 
     public boolean visit(IResourceDelta delta) {
@@ -137,7 +137,7 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
             for(Iterator it = projects.iterator(); it.hasNext();) {
               IProject project = (IProject) it.next();
               try {
-                classPathResolver.updateClasspathContainer(project, true, monitor);
+                buildpathManager.updateClasspathContainer(project, true, monitor);
               } catch(CoreException ex) {
                 console.logError(ex.toString());
                 Maven2Plugin.log(ex);

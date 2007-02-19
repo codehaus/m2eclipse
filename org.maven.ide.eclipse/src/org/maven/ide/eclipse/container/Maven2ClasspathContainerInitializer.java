@@ -42,7 +42,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Display;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.embedder.ClassPathResolver;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
 
 
 /**
@@ -53,7 +53,7 @@ import org.maven.ide.eclipse.embedder.ClassPathResolver;
 public class Maven2ClasspathContainerInitializer extends ClasspathContainerInitializer {
 
   public void initialize(IPath containerPath, final IJavaProject project) {
-    if(ClassPathResolver.isMaven2ClasspathContainer(containerPath)) {
+    if(BuildPathManager.isMaven2ClasspathContainer(containerPath)) {
       IClasspathContainer container;
       final Maven2Plugin plugin = Maven2Plugin.getDefault();
       try {
@@ -87,7 +87,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       new Job("Initializing " + project.getProject().getName()) {
         protected IStatus run(IProgressMonitor monitor) {
           try {
-            plugin.getClasspathResolver().updateClasspathContainer(project.getProject(), true, monitor);
+            plugin.getBuildpathManager().updateClasspathContainer(project.getProject(), true, monitor);
           } catch(CoreException ex) {
             Maven2Plugin.log("Can't set classpath container", ex);
           }
@@ -99,12 +99,12 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
   }
 
   public boolean canUpdateClasspathContainer(IPath containerPath, IJavaProject project) {
-    return ClassPathResolver.isMaven2ClasspathContainer(containerPath);
+    return BuildPathManager.isMaven2ClasspathContainer(containerPath);
   }
   
   public void requestClasspathContainerUpdate(IPath containerPath, final IJavaProject project,
       final IClasspathContainer containerSuggestion) throws CoreException {
-    final IClasspathContainer currentContainer = ClassPathResolver.getMaven2ClasspathContainer(project);
+    final IClasspathContainer currentContainer = BuildPathManager.getMaven2ClasspathContainer(project);
     if(currentContainer == null) {
       Maven2Plugin.getDefault().getConsole().logError("Unable to find Maven classpath container");
       return;
