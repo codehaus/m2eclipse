@@ -20,39 +20,62 @@
 package org.maven.ide.eclipse.embedder;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
 import org.apache.maven.artifact.handler.ArtifactHandler;
 import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
+import org.apache.maven.embedder.MavenEmbedderException;
+import org.apache.maven.execution.MavenExecutionRequest;
+import org.apache.maven.execution.MavenExecutionResult;
+import org.apache.maven.execution.ReactorManager;
 import org.apache.maven.model.Model;
+import org.apache.maven.model.Plugin;
+import org.apache.maven.model.Resource;
 import org.apache.maven.project.MavenProject;
 
+import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.jdt.core.IAccessRule;
 import org.eclipse.jdt.core.IClasspathAttribute;
 import org.eclipse.jdt.core.IClasspathContainer;
+import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.launching.IVMInstall;
+import org.eclipse.jdt.launching.IVMInstallType;
+import org.eclipse.jdt.launching.JavaRuntime;
+import org.eclipse.jdt.launching.LibraryLocation;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.container.Maven2ClasspathContainer;
-import org.maven.ide.eclipse.container.Maven2ClasspathContainerInitializer;
+import org.maven.ide.eclipse.index.MavenRepositoryIndexManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
 import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 import org.maven.ide.eclipse.util.Util;
@@ -62,14 +85,16 @@ public class ClassPathResolver {
   private final MavenEmbedderManager embedderManager;
   private final Maven2Console console;
   private final MavenModelManager mavenModelManager;
+  private final MavenRepositoryIndexManager indexManager;
   private final IPreferenceStore preferenceStore;
 
   
   public ClassPathResolver(MavenEmbedderManager embedderManager, Maven2Console console,
-      MavenModelManager mavenModelManager, IPreferenceStore preferenceStore) {
+      MavenModelManager mavenModelManager, MavenRepositoryIndexManager indexManager, IPreferenceStore preferenceStore) {
     this.embedderManager = embedderManager;
     this.console = console;
     this.mavenModelManager = mavenModelManager;
+    this.indexManager = indexManager;
     this.preferenceStore = preferenceStore;
   }
   
@@ -179,7 +204,7 @@ public class ClassPathResolver {
           Path javadocPath = materializeArtifactPath(embedder, mavenProject, a, "javadoc", "javadoc", downloadJavadoc, monitor);
           String javaDocUrl = null;
           if(javadocPath != null) {
-            javaDocUrl = Maven2ClasspathContainerInitializer.getJavaDocUrl(javadocPath.toString());
+            javaDocUrl = Maven2ClasspathContainer.getJavaDocUrl(javadocPath.toString());
           } else {
             javaDocUrl = getJavaDocUrl(artifactLocation, monitor);
           }
@@ -278,6 +303,401 @@ public class ClassPathResolver {
     }
     return null;
   }
+  
+
+  public void updateSourceFolders(IProject project, IProgressMonitor monitor) {
+    IFile pom = project.getFile(Maven2Plugin.POM_FILE_NAME);
+    if(!pom.exists()) {
+      return;
+    }
+
+    monitor.beginTask("Updating sources " + project.getName(), IProgressMonitor.UNKNOWN);
+    long t1 = System.currentTimeMillis();
+    try {
+      List sourceEntries = new ArrayList(); 
+      Set sources = new HashSet();
+      Map options = new HashMap();
+
+      MavenProject mavenProject = collectSourceEntries(project, sourceEntries, sources, options, monitor);
+
+      // TODO optimize project refresh
+      monitor.subTask("Refreshing");
+      project.refreshLocal(IResource.DEPTH_INFINITE, new SubProgressMonitor(monitor, 1));
+
+      monitor.subTask("Configuring Build Path");
+      IJavaProject javaProject = JavaCore.create(project);
+
+      setOption(javaProject, options, JavaCore.COMPILER_COMPLIANCE);
+      setOption(javaProject, options, JavaCore.COMPILER_SOURCE);
+      setOption(javaProject, options, JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM);
+
+      String source = (String) options.get(JavaCore.COMPILER_SOURCE);
+      if(source == null) {
+        sourceEntries.add(JavaRuntime.getDefaultJREContainerEntry());
+      } else {
+        sourceEntries.add(getJREContainer(source));
+      }
+
+      IClasspathEntry[] currentClasspath = javaProject.getRawClasspath();
+      for(int i = 0; i < currentClasspath.length; i++ ) {
+        // Delete all non container (e.g. JRE library) entries. See MNGECLIPSE-9 
+        IClasspathEntry entry = currentClasspath[i];
+        if(entry.getEntryKind() == IClasspathEntry.CPE_CONTAINER) {
+          if(!JavaRuntime.JRE_CONTAINER.equals(entry.getPath().segment(0))) {
+            sourceEntries.add(entry);
+          }
+        }
+      }
+
+      IClasspathEntry[] entries = (IClasspathEntry[]) sourceEntries.toArray(new IClasspathEntry[sourceEntries.size()]);
+      if(mavenProject!=null) {
+        String outputDirectory = toRelativeAndFixSeparator(project.getLocation().toFile(), mavenProject.getBuild().getOutputDirectory());
+        IFolder outputFolder = project.getFolder(outputDirectory);
+        Util.createFolder(outputFolder);
+        javaProject.setRawClasspath(entries, outputFolder.getFullPath(), monitor);
+      } else {
+        javaProject.setRawClasspath(entries, monitor);
+      }
+
+      long t2 = System.currentTimeMillis();
+      console.logMessage("Updated source folders for project " + project.getName() + " " + (t2 - t1)/1000 + "sec");
+
+    } catch(Exception ex) {
+      console.logMessage("Unable to update source folders " + project.getName() + "; " + ex.toString());
+    } finally {
+      monitor.done();
+    }
+  }
+
+  private void setOption(IJavaProject javaProject, Map options, String name) {
+    String newValue = (String) options.get(name);
+    if(newValue == null) {
+      newValue = (String) JavaCore.getDefaultOptions().get(name);
+    }
+    
+    String currentValue = javaProject.getOption(name, false);
+    if(!newValue.equals(currentValue)) {
+      javaProject.setOption(name, newValue);
+    }
+  }
+
+  private IClasspathEntry getJREContainer(String version) {
+    int n = VERSIONS.indexOf(version);
+    if(n > -1) {
+      Map jreContainers = getJREContainers();
+      for(int i = n; i < VERSIONS.size(); i++ ) {
+        IClasspathEntry entry = (IClasspathEntry) jreContainers.get(version);
+        if(entry != null) {
+          console.logMessage("JRE compliant to " + version + ". " + entry);
+          return entry;
+        }
+      }
+    }
+    IClasspathEntry entry = JavaRuntime.getDefaultJREContainerEntry();
+    console.logMessage("No JRE compliant to " + version + ". Using default JRE container " + entry);
+    return entry;
+  }
+
+  private Map getJREContainers() {
+    Map jreContainers = new HashMap();
+
+    jreContainers.put(getJREVersion(JavaRuntime.getDefaultVMInstall()), JavaRuntime.getDefaultJREContainerEntry());
+
+    IVMInstallType[] installTypes = JavaRuntime.getVMInstallTypes();
+    for(int i = 0; i < installTypes.length; i++ ) {
+      IVMInstall[] installs = installTypes[i].getVMInstalls();
+      for(int j = 0; j < installs.length; j++ ) {
+        IVMInstall install = installs[j];
+        String version = getJREVersion(install);
+        if(!jreContainers.containsKey(version)) {
+          // in Eclipse 3.2 one could use JavaRuntime.newJREContainerPath(install)
+          IPath jreContainerPath = new Path(JavaRuntime.JRE_CONTAINER).append(install.getVMInstallType().getId())
+              .append(install.getName());
+          jreContainers.put(version, JavaCore.newContainerEntry(jreContainerPath));
+        }
+      }
+    }
+
+    return jreContainers;
+  }
+
+  private String getJREVersion(IVMInstall install) {
+    LibraryLocation[] libraryLocations = JavaRuntime.getLibraryLocations(install);
+    if(libraryLocations != null) {
+      for(int k = 0; k < libraryLocations.length; k++ ) {
+        IPath path = libraryLocations[k].getSystemLibraryPath();
+        String jarName = path.lastSegment();
+        // TODO that won't be the case on Mac
+        if("rt.jar".equals(jarName)) {
+          try {
+            JarFile jarFile = new JarFile(path.toFile());
+            Manifest manifest = jarFile.getManifest();
+            Attributes attributes = manifest.getMainAttributes();
+            return attributes.getValue(Attributes.Name.SPECIFICATION_VERSION);
+          } catch(Exception ex) {
+            console.logError("Unable to read " + path + " " + ex.getMessage());
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private MavenProject collectSourceEntries(IProject project, List sourceEntries, Set sources, Map options, IProgressMonitor monitor) {
+    if(monitor.isCanceled()) {
+      throw new OperationCanceledException();
+    }
+
+    Maven2Plugin plugin = Maven2Plugin.getDefault();
+    IPreferenceStore preferenceStore = plugin.getPreferenceStore();
+    boolean offline = preferenceStore.getBoolean(Maven2PreferenceConstants.P_OFFLINE);
+    boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
+    String globalSettings = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
+    
+    MavenEmbedder mavenEmbedder;
+    try {
+      mavenEmbedder = EmbedderFactory.createMavenEmbedder(EmbedderFactory.createExecutionCustomizer(),
+          new PluginConsoleMavenEmbeddedLogger(console, debug), globalSettings);
+    } catch(MavenEmbedderException ex) {
+      console.logError("Unable to create embedder; " + ex.toString());
+      return null;
+    }
+
+    IFile pomResource = project.getFile(Maven2Plugin.POM_FILE_NAME);
+
+    console.logMessage("Reading " + pomResource.getFullPath());
+
+    monitor.subTask("Reading " + pomResource.getFullPath());
+    File pomFile = pomResource.getLocation().toFile();
+
+    MavenProject mavenProject;
+    try {
+      mavenProject = mavenEmbedder.readProject(pomFile);
+    } catch(Exception ex) {
+      console.logError("Unable to read project " + pomResource.getFullPath() + "; " + ex.toString());
+      return null;
+    }
+
+    String source = getBuildOption(mavenProject, "maven-compiler-plugin", "source");
+    if(source != null) {
+      if(VERSIONS.contains(source)) {
+        console.logMessage("Setting source compatibility: " + source);
+        setVersion(options, JavaCore.COMPILER_SOURCE, source);
+        setVersion(options, JavaCore.COMPILER_COMPLIANCE, source);
+      } else {
+        console.logError("Invalid compiler source " + source + ". Using default");
+      }
+    }
+
+    String target = getBuildOption(mavenProject, "maven-compiler-plugin", "target");
+    if(target != null) {
+      if(VERSIONS.contains(target)) {
+        console.logMessage("Setting target compatibility: " + source);
+        setVersion(options, JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, target);
+      } else {
+        console.logError("Invalid compiler target " + target + ". Using default");
+      }
+    }
+
+    File basedir = pomResource.getLocation().toFile().getParentFile();
+    File projectBaseDir = project.getLocation().toFile();
+    
+    monitor.subTask("Generating Sources " + pomResource.getFullPath());
+    try {
+      console.logMessage("Generating sources " + pomResource.getFullPath());
+
+      MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(mavenEmbedder, offline, debug);
+      
+      request.setBaseDirectory(pomFile.getParentFile());
+      // request.setPomFile(pomFile.getAbsolutePath());
+      // request.setGoals(Arrays.asList("generate-sources,generate-resources,generate-test-sources,generate-test-resources".split(",")));
+      request.setGoals(Collections.singletonList("process-test-resources"));
+      // request.setProfiles(...);
+      request.addEventMonitor(new PluginConsoleEventMonitor(console));
+      request.setTransferListener(new TransferListenerAdapter(monitor, console, indexManager));
+      // request.setReactorFailureBehavior(MavenExecutionRequest.REACTOR_FAIL_AT_END);
+      
+      MavenExecutionResult result = mavenEmbedder.execute(request);
+      
+      ReactorManager reactorManager = result.getReactorManager();
+      if(reactorManager!=null && reactorManager.getSortedProjects()!=null) {
+        for(Iterator it = reactorManager.getSortedProjects().iterator(); it.hasNext();) {
+          addDirs(project, sources, sourceEntries, (MavenProject) it.next(), basedir, projectBaseDir);
+        }
+      }
+      
+      if(result.hasExceptions()) {
+        for(Iterator it = result.getExceptions().iterator(); it.hasNext();) {
+          Exception ex = (Exception) it.next();
+          console.logError("Build error for " + pomResource.getFullPath() + "; " + ex.toString());
+        }
+      }
+
+    } catch(Exception ex) {
+      String msg = "Build error for " + pomResource.getFullPath();
+      console.logError(msg + "; " + ex.toString());
+      Maven2Plugin.log(msg, ex);
+
+      addDirs(project, sources, sourceEntries, mavenProject, basedir, projectBaseDir);
+    }
+    
+    return mavenProject;
+  }
+
+  private void addDirs(IContainer project, Set sources, List sourceEntries, MavenProject mavenProject, File basedir, File projectBaseDir) {
+    addSourceDirs(project, sources, sourceEntries, mavenProject.getCompileSourceRoots(), basedir, projectBaseDir);
+    addSourceDirs(project, sources, sourceEntries, mavenProject.getTestCompileSourceRoots(), basedir, projectBaseDir);
+
+    addResourceDirs(project, sources, sourceEntries, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
+    addResourceDirs(project, sources, sourceEntries, mavenProject.getBuild().getTestResources(), basedir, projectBaseDir);
+  }
+
+  private void addSourceDirs(IContainer project, Set sources, List sourceEntries, List sourceRoots, File basedir, File projectBaseDir) {
+    for(Iterator it = sourceRoots.iterator(); it.hasNext();) {
+      String sourceRoot = (String) it.next();
+      if(new File(sourceRoot).isDirectory()) {
+        IResource r = project.findMember(toRelativeAndFixSeparator(projectBaseDir, sourceRoot));
+        if(r != null && sources.add(r.getFullPath().toString())) {
+          sourceEntries.add(JavaCore
+              .newSourceEntry(r.getFullPath() /*, new IPath[] { new Path( "**"+"/.svn/"+"**")} */));
+          console.logMessage("Adding source folder " + r.getFullPath());
+        }
+      }
+    }
+  }
+
+  private void addResourceDirs(IContainer project, Set sources, List sourceEntries, List resources, File basedir, File projectBaseDir) {
+    for(Iterator it = resources.iterator(); it.hasNext();) {
+      Resource resource = (Resource) it.next();
+      File resourceDirectory = new File(resource.getDirectory());
+      if(resourceDirectory.exists() && resourceDirectory.isDirectory()) {
+        IResource r = project.findMember(toRelativeAndFixSeparator(projectBaseDir, resource.getDirectory()));
+        if(r != null && sources.add(r.getFullPath().toString())) {
+          sourceEntries.add(JavaCore.newSourceEntry(r.getFullPath(), new IPath[] {new Path("**")}, r.getFullPath())); //, new IPath[] { new Path( "**"+"/.svn/"+"**")} ) );
+          console.logMessage("Adding resource folder " + r.getFullPath());
+        }
+      }
+    }
+  }
+
+  private String toRelativeAndFixSeparator(File basedir, String absolutePath) {
+    String relative;
+    if(absolutePath.equals(basedir.getAbsolutePath())) {
+      relative = ".";
+    } else if(absolutePath.startsWith(basedir.getAbsolutePath())) {
+      relative = absolutePath.substring(basedir.getAbsolutePath().length() + 1);
+    } else {
+      relative = absolutePath;
+    }
+    return relative.replace('\\', '/'); //$NON-NLS-1$ //$NON-NLS-2$
+  }
+
+  public void enableMavenNature(IProject project) throws CoreException, JavaModelException {
+    ArrayList newNatures = new ArrayList();
+    newNatures.add(JavaCore.NATURE_ID);
+    newNatures.add(Maven2Plugin.NATURE_ID);
+  
+    IProjectDescription description = project.getDescription();
+    String[] natures = description.getNatureIds();
+    for(int i = 0; i < natures.length; ++i) {
+      String id = natures[i];
+      if(!Maven2Plugin.NATURE_ID.equals(id) && !JavaCore.NATURE_ID.equals(natures[i])) {
+        newNatures.add(natures[i]);
+      }
+    }
+    description.setNatureIds((String[]) newNatures.toArray(new String[newNatures.size()]));
+    project.setDescription(description, null);
+  
+    IJavaProject javaProject = JavaCore.create(project);
+    if(javaProject != null) {
+      IClasspathContainer container = Maven2ClasspathContainer.getMaven2ClasspathContainer(javaProject);
+      IClasspathEntry[] entries = container.getClasspathEntries();
+      HashSet containerEntrySet = new HashSet();
+      for(int i = 0; i < entries.length; i++ ) {
+        containerEntrySet.add(entries[i].getPath().toString());
+      }
+  
+      // remove classpath container from JavaProject
+      entries = javaProject.getRawClasspath();
+      ArrayList newEntries = new ArrayList();
+      for(int i = 0; i < entries.length; i++ ) {
+        IClasspathEntry entry = entries[i];
+        if(!Maven2ClasspathContainer.isMaven2ClasspathContainer(entry.getPath())
+            && !containerEntrySet.contains(entry.getPath().toString())) {
+          newEntries.add(entry);
+        }
+      }
+      newEntries.add(JavaCore.newContainerEntry(new Path(Maven2Plugin.CONTAINER_ID)));
+  
+      javaProject.setRawClasspath((IClasspathEntry[]) newEntries.toArray(new IClasspathEntry[newEntries.size()]),
+          null);
+    }
+  }
+
+  public void disableMavenNature(IProject project) {
+    try {
+      project.deleteMarkers(Maven2Plugin.MARKER_ID, true, IResource.DEPTH_INFINITE);
+      
+      IProjectDescription description = project.getDescription();
+      String[] natures = description.getNatureIds();
+      ArrayList newNatures = new ArrayList();
+      for(int i = 0; i < natures.length; ++i) {
+        if(!Maven2Plugin.NATURE_ID.equals(natures[i])) {
+          newNatures.add(natures[i]);
+        }
+      }
+      description.setNatureIds((String[]) newNatures.toArray(new String[newNatures.size()]));
+      project.setDescription(description, null);
+  
+      IJavaProject javaProject = JavaCore.create(project);
+      if(javaProject != null) {
+        // remove classpatch container from JavaProject
+        IClasspathEntry[] entries = javaProject.getRawClasspath();
+        ArrayList newEntries = new ArrayList();
+        for(int i = 0; i < entries.length; i++ ) {
+          if(!Maven2ClasspathContainer.isMaven2ClasspathContainer(entries[i].getPath())) {
+            newEntries.add(entries[i]);
+          }
+        }
+        javaProject.setRawClasspath((IClasspathEntry[]) newEntries.toArray(new IClasspathEntry[newEntries.size()]), null);
+      }
+  
+    } catch(CoreException ex) {
+      Maven2Plugin.log(ex);
+    }
+  }
+
+  private static String getBuildOption(MavenProject project, String artifactId, String optionName) {
+    for(Iterator it = project.getBuild().getPlugins().iterator(); it.hasNext();) {
+      Plugin plugin = (Plugin) it.next();
+      if(artifactId.equals(plugin.getArtifactId())) {
+        Xpp3Dom o = (Xpp3Dom) plugin.getConfiguration();
+        if(o != null && o.getChild(optionName) != null) {
+          return o.getChild(optionName).getValue();
+        }
+      }
+    }
+    return null;
+  }
+
+  
+  private static final List VERSIONS = Arrays.asList("1.1,1.2,1.3,1.4,1.5,1.6,1.7".split(","));
+
+  private static void setVersion(Map options, String name, String value) {
+    if(value == null) {
+      return;
+    }
+    String current = (String) options.get(name);
+    if(current == null) {
+      options.put(name, value);
+    } else {
+      int oldIndex = VERSIONS.indexOf(current);
+      int newIndex = VERSIONS.indexOf(value.trim());
+      if(newIndex > oldIndex) {
+        options.put(name, value);
+      }
+    }
+  }  
 
 }
 

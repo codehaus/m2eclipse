@@ -39,20 +39,16 @@ import org.apache.maven.model.Parent;
 
 import org.eclipse.core.resources.IFile;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.launch.console.Maven2Console;
 
 
 public class EclipseArtifactResolver extends DefaultArtifactResolver {
-  private Maven2Console console;
-  private MavenModelManager modelManager;
+  private Maven2Plugin plugin;
 
   private ResolutionListener resolutionListener;
   
   
   public EclipseArtifactResolver() {
-    Maven2Plugin plugin = Maven2Plugin.getDefault();
-    this.console = plugin.getConsole();
-    this.modelManager = plugin.getMavenModelManager();
+    plugin = Maven2Plugin.getDefault();
   }
 
   public void resolve(Artifact artifact, List remoteRepositories, ArtifactRepository localRepository) throws ArtifactResolutionException,
@@ -158,6 +154,7 @@ public class EclipseArtifactResolver extends DefaultArtifactResolver {
       return false;
     }
 
+    MavenModelManager modelManager = plugin.getMavenModelManager();
     IFile file = modelManager.getArtifactFile(artifact);
     if(file == null) {
       // TODO enable it back, but only when "debug" is turned on in preferences
@@ -173,7 +170,7 @@ public class EclipseArtifactResolver extends DefaultArtifactResolver {
     artifact.setResolved(true);
 
     String loc = artifact.getFile().getAbsolutePath();
-    console.logMessage(artifact.getId() + " in Eclipse Workspace " + loc);
+    plugin.getConsole().logMessage(artifact.getId() + " in Eclipse Workspace " + loc);
     return true;
   }
 

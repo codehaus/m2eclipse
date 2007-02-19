@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.container;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +16,8 @@ package org.maven.ide.eclipse.container;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.container;
 
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClasspathEntry;

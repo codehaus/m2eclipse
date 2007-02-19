@@ -1,39 +1,28 @@
+/*
+ * Licensed to the Codehaus Foundation (ASF) under one or more contributor
+ * license agreements. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. The ASF licenses this
+ * file to you under the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 
 package org.maven.ide.eclipse.actions;
 
-/*
- * Licensed to the Codehaus Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
-import org.eclipse.core.runtime.Path;
-import org.eclipse.jdt.core.IClasspathContainer;
-import org.eclipse.jdt.core.IClasspathEntry;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -44,8 +33,6 @@ import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.container.Maven2ClasspathContainer;
-import org.maven.ide.eclipse.container.Maven2ClasspathContainerInitializer;
 import org.maven.ide.eclipse.wizards.Maven2PomWizard;
 
 
@@ -54,21 +41,22 @@ public class EnableNatureAction implements IObjectActionDelegate {
 
   /*
    * (non-Javadoc)
+   * 
    * @see org.eclipse.ui.IActionDelegate#run(org.eclipse.jface.action.IAction)
    */
-  public void run( IAction action) {
-    if( selection instanceof IStructuredSelection) {
-      IStructuredSelection structuredSelection = ( IStructuredSelection) selection;
-      for( Iterator it = structuredSelection.iterator(); it.hasNext();) {
+  public void run(IAction action) {
+    if(selection instanceof IStructuredSelection) {
+      IStructuredSelection structuredSelection = (IStructuredSelection) selection;
+      for(Iterator it = structuredSelection.iterator(); it.hasNext();) {
         Object element = it.next();
         IProject project = null;
-        if( element instanceof IProject) {
-          project = ( IProject) element;
-        } else if( element instanceof IAdaptable) {
-          project = ( IProject) (( IAdaptable) element).getAdapter( IProject.class);
+        if(element instanceof IProject) {
+          project = (IProject) element;
+        } else if(element instanceof IAdaptable) {
+          project = (IProject) ((IAdaptable) element).getAdapter(IProject.class);
         }
-        if( project != null) {
-          enableNature( project, structuredSelection.size()==1);
+        if(project != null) {
+          enableNature(project, structuredSelection.size() == 1);
         }
       }
     }
@@ -76,85 +64,47 @@ public class EnableNatureAction implements IObjectActionDelegate {
 
   /*
    * (non-Javadoc)
+   * 
    * @see org.eclipse.ui.IActionDelegate#selectionChanged(org.eclipse.jface.action.IAction,
    *      org.eclipse.jface.viewers.ISelection)
    */
-  public void selectionChanged( IAction action, ISelection selection) {
+  public void selectionChanged(IAction action, ISelection selection) {
     this.selection = selection;
   }
 
   /*
    * (non-Javadoc)
+   * 
    * @see org.eclipse.ui.IObjectActionDelegate#setActivePart(org.eclipse.jface.action.IAction,
    *      org.eclipse.ui.IWorkbenchPart)
    */
-  public void setActivePart( IAction action, IWorkbenchPart targetPart) {
+  public void setActivePart(IAction action, IWorkbenchPart targetPart) {
   }
 
-  private void enableNature( IProject project, boolean isSingle) {
+  private void enableNature(IProject project, boolean isSingle) {
     try {
-      IFile pom = project.getFile( Maven2Plugin.POM_FILE_NAME);
-      if( isSingle && !pom.exists()) {
-        Maven2PomWizard wizard = new Maven2PomWizard();
-        
-        Maven2Plugin plugin = Maven2Plugin.getDefault();
+      Maven2Plugin plugin = Maven2Plugin.getDefault();
+      IFile pom = project.getFile(Maven2Plugin.POM_FILE_NAME);
+      if(isSingle && !pom.exists()) {
         IWorkbench workbench = plugin.getWorkbench();
+
+        Maven2PomWizard wizard = new Maven2PomWizard();
         wizard.init(workbench, (IStructuredSelection) selection);
-        
+
         Shell shell = workbench.getActiveWorkbenchWindow().getShell();
-        WizardDialog wizardDialog = new WizardDialog( shell, wizard);
+        WizardDialog wizardDialog = new WizardDialog(shell, wizard);
         wizardDialog.create();
         wizardDialog.getShell().setText("Create new POM");
-        if(wizardDialog.open()==Window.CANCEL) {
+        if(wizardDialog.open() == Window.CANCEL) {
           return;
         }
       }
+      
+      plugin.getClasspathResolver().enableMavenNature(project);
 
-      
-      
-      ArrayList newNatures = new ArrayList();
-      newNatures.add(JavaCore.NATURE_ID);
-      newNatures.add(Maven2Plugin.NATURE_ID);
-      
-      IProjectDescription description = project.getDescription();
-      String[] natures = description.getNatureIds();
-      for(int i = 0; i < natures.length; ++i) {
-        String id = natures[i];
-        if(!Maven2Plugin.NATURE_ID.equals(id) && !JavaCore.NATURE_ID.equals(natures[i])) {
-          newNatures.add(natures[i]);
-        }
-      }
-      description.setNatureIds((String[]) newNatures.toArray(new String[newNatures.size()]));
-      project.setDescription(description, null);
-      
-      IJavaProject javaProject = JavaCore.create(project);
-      if(javaProject!=null) {
-        IClasspathContainer maven2ClasspathContainer = Maven2ClasspathContainerInitializer.getMaven2ClasspathContainer(javaProject);
-        IClasspathEntry[] containerEntries = maven2ClasspathContainer.getClasspathEntries();
-        HashSet containerEntrySet = new HashSet();
-        for(int i = 0; i < containerEntries.length; i++ ) {
-          containerEntrySet.add(containerEntries[i].getPath().toString());
-        }
-      
-        // remove classpath container from JavaProject
-        IClasspathEntry[] entries = javaProject.getRawClasspath();
-        ArrayList newEntries = new ArrayList();
-        for( int i = 0; i < entries.length; i++) {
-          IClasspathEntry entry = entries[i];
-          if(!Maven2ClasspathContainer.isMaven2ClasspathContainer(entry.getPath()) &&
-              !containerEntrySet.contains(entry.getPath().toString())) {
-            newEntries.add(entry);
-          }
-        }
-        newEntries.add(JavaCore.newContainerEntry(new Path(Maven2Plugin.CONTAINER_ID)));
-
-        javaProject.setRawClasspath((IClasspathEntry[]) newEntries.toArray(new IClasspathEntry[newEntries.size()]), null);
-      }
-      
-    } catch( CoreException ex) {
+    } catch(CoreException ex) {
       Maven2Plugin.log(ex);
     }
   }
 
 }
-

@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.builder;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +16,8 @@ package org.maven.ide.eclipse.builder;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.container;
 
 import org.eclipse.core.resources.ICommand;
 import org.eclipse.core.resources.IProject;

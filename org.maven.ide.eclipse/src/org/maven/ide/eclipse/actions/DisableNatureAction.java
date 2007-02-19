@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.actions;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,24 +17,19 @@ package org.maven.ide.eclipse.actions;
  * under the License.
  */
 
-import java.util.ArrayList;
+package org.maven.ide.eclipse.actions;
+
 import java.util.Iterator;
 
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IProjectDescription;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
-import org.eclipse.jdt.core.IClasspathEntry;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbenchPart;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.container.Maven2ClasspathContainer;
+import org.maven.ide.eclipse.embedder.ClassPathResolver;
 
 
 public class DisableNatureAction implements IObjectActionDelegate {
@@ -59,7 +51,8 @@ public class DisableNatureAction implements IObjectActionDelegate {
           project = (IProject) ((IAdaptable) element).getAdapter(IProject.class);
         }
         if(project != null) {
-          disableNature(project, structuredSelection.size() == 1);
+          ClassPathResolver classpathResolver = Maven2Plugin.getDefault().getClasspathResolver();
+          classpathResolver.disableMavenNature(project);
         }
       }
     }
@@ -80,39 +73,6 @@ public class DisableNatureAction implements IObjectActionDelegate {
    *      org.eclipse.ui.IWorkbenchPart)
    */
   public void setActivePart(IAction action, IWorkbenchPart targetPart) {
-  }
-
-  private void disableNature(IProject project, boolean isSingle) {
-    try {
-      project.deleteMarkers(Maven2Plugin.MARKER_ID, true, IResource.DEPTH_INFINITE);
-      
-      IProjectDescription description = project.getDescription();
-      String[] natures = description.getNatureIds();
-      ArrayList newNatures = new ArrayList();
-      for(int i = 0; i < natures.length; ++i) {
-        if(!Maven2Plugin.NATURE_ID.equals(natures[i])) {
-          newNatures.add(natures[i]);
-        }
-      }
-      description.setNatureIds((String[]) newNatures.toArray(new String[newNatures.size()]));
-      project.setDescription(description, null);
-
-      IJavaProject javaProject = JavaCore.create(project);
-      if(javaProject != null) {
-        // remove classpatch container from JavaProject
-        IClasspathEntry[] entries = javaProject.getRawClasspath();
-        ArrayList newEntries = new ArrayList();
-        for(int i = 0; i < entries.length; i++ ) {
-          if(!Maven2ClasspathContainer.isMaven2ClasspathContainer(entries[i].getPath())) {
-            newEntries.add(entries[i]);
-          }
-        }
-        javaProject.setRawClasspath((IClasspathEntry[]) newEntries.toArray(new IClasspathEntry[newEntries.size()]), null);
-      }
-
-    } catch(CoreException ex) {
-      Maven2Plugin.log(ex);
-    }
   }
 
 }

@@ -9,7 +9,7 @@
       <builder
             hasNature="true"
             isConfigurable="false">
-         <run class="org.maven.ide.eclipse.builder.Maven2Builder"/>
+         <run class="org.maven.ide.eclipse.container.Maven2Builder"/>
       </builder>
    </extension>
    <extension
@@ -17,7 +17,7 @@
          name="%m2.nature.name"
          point="org.eclipse.core.resources.natures">
       <runtime>
-         <run class="org.maven.ide.eclipse.builder.Maven2Nature"/>
+         <run class="org.maven.ide.eclipse.container.Maven2Nature"/>
       </runtime>
       <requires-nature id="org.eclipse.jdt.core.javanature"/>
       <builder id="org.maven.ide.eclipse.maven2Builder"/>

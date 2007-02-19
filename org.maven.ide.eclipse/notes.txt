@@ -1,7 +1,6 @@
 
-
   To build Eclipse plugin you would need to checkout the following 
-  modules into Eclipse workbench:
+  modules into Eclipse workspace:
     org.maven.ide.eclipse
     org.maven.ide.eclipse.feature
     org.maven.ide.eclipse.update
@@ -15,28 +14,26 @@
   Feature version also referenced from 
     org.maven.ide.eclipse.update\site.xml
     
-  To build complete update site (plugin, feature and site xml) select
-  org.maven.ide.eclipse.update/site.xml resource and from the popup
-  menu call 
-    PDE Tools -> Build Site
-  
+  To build complete Eclipse update site (plugin, feature and site xml) 
+  select org.maven.ide.eclipse.update/site.xml resource and call 
+  PDE Tools / Build Site from the popup menu.
+    
  
   ---------------  
   maven-embedder jar is currently committed at org.maven.ide.eclipse/lib
   and its name is referenced/hardcoded in the following resources:
     build.properties
     META-INF\MANIFEST.MF
-    src\org\maven\ide\eclipse\launch\Maven2LaunchDelegate.java
 
 
   ---------------
-  To build embedder:    
+  To build Maven embedder:    
 
   Maven svn repo:
   http://svn.apache.org/repos/asf/maven/components/trunk/
 
-  Bootstrapped m2 is needed to build embedder from svn trunk.
-  Building m2
+  Bootstrapped Maven is needed to build embedder from svn trunk.
+  Building Maven:
   http://maven.apache.org/guides/development/guide-building-m2.html
   
   "mvn install" for each of the following projects.
