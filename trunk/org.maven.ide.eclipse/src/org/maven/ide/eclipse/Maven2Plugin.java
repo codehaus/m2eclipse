@@ -87,7 +87,7 @@ public class Maven2Plugin extends AbstractUIPlugin {
     // this.mavenModelManager.initMavenModel(new NullProgressMonitor());
     
     this.classpathResolver = new ClassPathResolver(mavenEmbedderManager, console, mavenModelManager,
-        getPreferenceStore());
+        mavenRepositoryIndexManager, getPreferenceStore());
     
     this.resourceChangeListener = new Maven2ResourceChangeListener(mavenModelManager, classpathResolver, console);
     

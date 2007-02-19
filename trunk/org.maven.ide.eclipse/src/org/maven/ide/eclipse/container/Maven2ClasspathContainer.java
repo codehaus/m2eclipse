@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.container;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,14 +17,26 @@ package org.maven.ide.eclipse.container;
  * under the License.
  */
 
+package org.maven.ide.eclipse.container;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClasspathContainer;
 import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
 import org.maven.ide.eclipse.Maven2Plugin;
 
 
@@ -75,10 +84,46 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
     return new Path(Maven2Plugin.CONTAINER_ID);
   }
 
-  // TODO will need this to support for multiple containers per project, but may as well just use one
-//  public boolean isContainerFor( IResource resource) {
-//    return true;
-//  }
+  private static String getJavaDocPathInArchive(String name) {
+    long l1 = System.currentTimeMillis();
+    ZipFile jarFile = null;
+    try {
+      jarFile = new ZipFile(name);
+      String marker = "package-list";
+      for(Enumeration en = jarFile.entries(); en.hasMoreElements();) {
+        ZipEntry entry = (ZipEntry) en.nextElement();
+        String entryName = entry.getName();
+        if(entryName.endsWith(marker)) {
+          return entry.getName().substring(0, entryName.length()-marker.length());
+        }
+      }
+    } catch(IOException ex) {
+      // ignore
+    } finally {
+      long l2 = System.currentTimeMillis();
+      Maven2Plugin.getDefault().getConsole().logMessage("Scanned javadoc " + name + " " + (l2-l1)/1000f);
+      try {
+        if(jarFile!=null) jarFile.close();
+      } catch(IOException ex) {
+        //
+      }
+    }
+    
+    return "";
+  }
+
+  public static String getJavaDocUrl(String fileName) {
+    try {
+      URL fileUrl = new File(fileName).toURL();
+      return "jar:"+fileUrl.toExternalForm()+"!/"+Maven2ClasspathContainer.getJavaDocPathInArchive(fileName);
+    } catch(MalformedURLException ex) {
+      return null;
+    }
+  }
+
+  public static IClasspathContainer getMaven2ClasspathContainer(IJavaProject project) throws JavaModelException {
+    return JavaCore.getClasspathContainer(new Path(Maven2Plugin.CONTAINER_ID), project);
+  }
 
   public static boolean isMaven2ClasspathContainer( IPath containerPath) {
     return containerPath!=null && containerPath.segmentCount()>0

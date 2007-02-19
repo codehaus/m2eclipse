@@ -21,11 +21,6 @@ package org.maven.ide.eclipse.container;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Enumeration;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 import org.codehaus.plexus.util.FileUtils;
 import org.eclipse.core.runtime.CoreException;
@@ -108,7 +103,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
   
   public void requestClasspathContainerUpdate(IPath containerPath, final IJavaProject project,
       final IClasspathContainer containerSuggestion) throws CoreException {
-    final IClasspathContainer currentContainer = getMaven2ClasspathContainer(project);
+    final IClasspathContainer currentContainer = Maven2ClasspathContainer.getMaven2ClasspathContainer(project);
     if(currentContainer == null) {
       Maven2Plugin.getDefault().getConsole().logError("Unable to find Maven classpath container");
       return;
@@ -128,48 +123,6 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       }
     }
   }
-  
-  public static IClasspathContainer getMaven2ClasspathContainer(IJavaProject project) throws JavaModelException {
-    return JavaCore.getClasspathContainer(new Path(Maven2Plugin.CONTAINER_ID), project);
-  }
-
-  public static String getJavaDocUrl(String fileName) {
-    try {
-      URL fileUrl = new File(fileName).toURL();
-      return "jar:"+fileUrl.toExternalForm()+"!/"+getJavaDocPathInArchive(fileName);
-    } catch(MalformedURLException ex) {
-      return null;
-    }
-  }
-  
-  private static String getJavaDocPathInArchive(String name) {
-    long l1 = System.currentTimeMillis();
-    ZipFile jarFile = null;
-    try {
-      jarFile = new ZipFile(name);
-      String marker = "package-list";
-      for(Enumeration en = jarFile.entries(); en.hasMoreElements();) {
-        ZipEntry entry = (ZipEntry) en.nextElement();
-        String entryName = entry.getName();
-        if(entryName.endsWith(marker)) {
-          return entry.getName().substring(0, entryName.length()-marker.length());
-        }
-      }
-    } catch(IOException ex) {
-      // ignore
-    } finally {
-      long l2 = System.currentTimeMillis();
-      Maven2Plugin.getDefault().getConsole().logMessage("Scanned javadoc " + name + " " + (l2-l1)/1000f);
-      try {
-        if(jarFile!=null) jarFile.close();
-      } catch(IOException ex) {
-        //
-      }
-    }
-    
-    return "";
-  }
-  
   
   static final class BundleUpdater implements Runnable {
     private final Display display;
@@ -216,7 +169,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
               javaDocAttribute = null;
             } else {
               javaDocAttribute = JavaCore.newClasspathAttribute( IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME,
-                  getJavaDocUrl(getTargetFile(entryPath, "javadoc").getAbsolutePath()));
+                  Maven2ClasspathContainer.getJavaDocUrl(getTargetFile(entryPath, "javadoc").getAbsolutePath()));
             }
           }
           

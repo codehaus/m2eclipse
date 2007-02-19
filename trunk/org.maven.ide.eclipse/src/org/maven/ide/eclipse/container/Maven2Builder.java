@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.maven.ide.eclipse.builder;
+package org.maven.ide.eclipse.container;
 
 import java.util.Map;
 
