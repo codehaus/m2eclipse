@@ -42,6 +42,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Display;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.embedder.ClassPathResolver;
 
 
 /**
@@ -52,7 +53,7 @@ import org.maven.ide.eclipse.Maven2Plugin;
 public class Maven2ClasspathContainerInitializer extends ClasspathContainerInitializer {
 
   public void initialize(IPath containerPath, final IJavaProject project) {
-    if(Maven2ClasspathContainer.isMaven2ClasspathContainer(containerPath)) {
+    if(ClassPathResolver.isMaven2ClasspathContainer(containerPath)) {
       IClasspathContainer container;
       final Maven2Plugin plugin = Maven2Plugin.getDefault();
       try {
@@ -98,12 +99,12 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
   }
 
   public boolean canUpdateClasspathContainer(IPath containerPath, IJavaProject project) {
-    return Maven2ClasspathContainer.isMaven2ClasspathContainer(containerPath);
+    return ClassPathResolver.isMaven2ClasspathContainer(containerPath);
   }
   
   public void requestClasspathContainerUpdate(IPath containerPath, final IJavaProject project,
       final IClasspathContainer containerSuggestion) throws CoreException {
-    final IClasspathContainer currentContainer = Maven2ClasspathContainer.getMaven2ClasspathContainer(project);
+    final IClasspathContainer currentContainer = ClassPathResolver.getMaven2ClasspathContainer(project);
     if(currentContainer == null) {
       Maven2Plugin.getDefault().getConsole().logError("Unable to find Maven classpath container");
       return;
