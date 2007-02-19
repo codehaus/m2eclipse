@@ -29,7 +29,7 @@ import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.ImageRegistry;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
-import org.maven.ide.eclipse.embedder.ClassPathResolver;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.MavenEmbedderManager;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
 import org.maven.ide.eclipse.index.MavenRepositoryIndexManager;
@@ -58,7 +58,7 @@ public class Maven2Plugin extends AbstractUIPlugin {
   private MavenRepositoryIndexManager mavenRepositoryIndexManager;
   private MavenEmbedderManager mavenEmbedderManager;
 
-  private ClassPathResolver classpathResolver;
+  private BuildPathManager buildpathManager;
   private IResourceChangeListener resourceChangeListener;
   
   
@@ -86,10 +86,10 @@ public class Maven2Plugin extends AbstractUIPlugin {
     this.mavenModelManager = new MavenModelManager(mavenEmbedderManager, mavenRepositoryIndexManager, console);
     // this.mavenModelManager.initMavenModel(new NullProgressMonitor());
     
-    this.classpathResolver = new ClassPathResolver(mavenEmbedderManager, console, mavenModelManager,
+    this.buildpathManager = new BuildPathManager(mavenEmbedderManager, console, mavenModelManager,
         mavenRepositoryIndexManager, getPreferenceStore());
     
-    this.resourceChangeListener = new Maven2ResourceChangeListener(mavenModelManager, classpathResolver, console);
+    this.resourceChangeListener = new Maven2ResourceChangeListener(mavenModelManager, buildpathManager, console);
     
     ResourcesPlugin.getWorkspace().addResourceChangeListener(
         this.resourceChangeListener,
@@ -136,8 +136,8 @@ public class Maven2Plugin extends AbstractUIPlugin {
     return this.mavenEmbedderManager;
   }
   
-  public ClassPathResolver getClasspathResolver() {
-    return this.classpathResolver;
+  public BuildPathManager getBuildpathManager() {
+    return this.buildpathManager;
   }
 
 

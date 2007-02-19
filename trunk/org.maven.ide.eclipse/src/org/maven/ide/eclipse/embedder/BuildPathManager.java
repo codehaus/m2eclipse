@@ -81,7 +81,7 @@ import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 import org.maven.ide.eclipse.util.Util;
 
 
-public class ClassPathResolver {
+public class BuildPathManager {
   private final MavenEmbedderManager embedderManager;
   private final Maven2Console console;
   private final MavenModelManager mavenModelManager;
@@ -89,7 +89,7 @@ public class ClassPathResolver {
   private final IPreferenceStore preferenceStore;
 
   
-  public ClassPathResolver(MavenEmbedderManager embedderManager, Maven2Console console,
+  public BuildPathManager(MavenEmbedderManager embedderManager, Maven2Console console,
       MavenModelManager mavenModelManager, MavenRepositoryIndexManager indexManager, IPreferenceStore preferenceStore) {
     this.embedderManager = embedderManager;
     this.console = console;
