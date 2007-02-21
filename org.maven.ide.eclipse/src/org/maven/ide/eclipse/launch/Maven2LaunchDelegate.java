@@ -128,7 +128,7 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
     if(!pomDirName.endsWith(sep)) {
       pomDirName += sep;
     }
-    String pomFileName = pomDirName + "pom.xml";
+    String pomFileName = pomDirName + Maven2Plugin.POM_FILE_NAME;
     // wrap file path with quotes to handle spaces
     if(pomFileName.indexOf(' ') >= 0) {
       pomFileName = '"' + pomFileName + '"';
