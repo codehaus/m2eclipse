@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.actions;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,11 +17,14 @@ package org.maven.ide.eclipse.actions;
  * under the License.
  */
 
+package org.maven.ide.eclipse.actions;
+
 import org.eclipse.core.expressions.PropertyTester;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IAdaptable;
+import org.maven.ide.eclipse.Maven2Plugin;
 
 /**
  * Helper IPropertyTester implementation to check if receiver can be launched with Maven.
@@ -39,17 +39,17 @@ public class MavenPropertyTester extends PropertyTester {
     
     IProject projectAdapter = (IProject) adaptable.getAdapter(IProject.class);
     if(projectAdapter!=null) {
-      return projectAdapter.getFile("pom.xml").exists();
+      return projectAdapter.getFile(Maven2Plugin.POM_FILE_NAME).exists();
     }
     
     IFolder folderAdapter = (IFolder) adaptable.getAdapter(IFolder.class);
     if(folderAdapter!=null) {
-      return folderAdapter.getFile("pom.xml").exists();
+      return folderAdapter.getFile(Maven2Plugin.POM_FILE_NAME).exists();
     }
 
     IFile fileAdapter = (IFile) adaptable.getAdapter(IFile.class);
     if(fileAdapter!=null) {
-      return fileAdapter.exists() && "pom.xml".equals(fileAdapter.getName());
+      return fileAdapter.exists() && Maven2Plugin.POM_FILE_NAME.equals(fileAdapter.getName());
     }
     
     return false;
