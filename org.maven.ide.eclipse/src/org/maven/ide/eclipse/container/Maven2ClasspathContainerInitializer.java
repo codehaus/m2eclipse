@@ -63,7 +63,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
         return;
       }
 
-      plugin.getMavenModelManager().initMavenModel(new NullProgressMonitor());
+      plugin.getMavenModelManager().initModels(new NullProgressMonitor());
 
       Maven2ClasspathContainer mavenContainer;
       if(container == null) {

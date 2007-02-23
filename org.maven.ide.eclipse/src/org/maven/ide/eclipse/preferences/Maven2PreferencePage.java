@@ -20,6 +20,13 @@
 package org.maven.ide.eclipse.preferences;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+
+import org.apache.maven.SettingsConfigurationException;
+import org.apache.maven.embedder.MavenEmbedder;
+import org.apache.maven.embedder.MavenEmbedderException;
 
 import org.eclipse.jface.preference.BooleanFieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
@@ -36,7 +43,6 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.Messages;
-import org.maven.ide.eclipse.embedder.EmbedderFactory;
 
 
 /**
@@ -51,14 +57,17 @@ import org.maven.ide.eclipse.embedder.EmbedderFactory;
  */
 public class Maven2PreferencePage extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
   final File localRepositoryDir;
+
   final Maven2Plugin plugin;
-  
+
   final String globalSettings;
+
+  private FileFieldEditor globalSettingsEditor;
 
   public Maven2PreferencePage() {
     super(GRID);
     setPreferenceStore(Maven2Plugin.getDefault().getPreferenceStore());
-    
+
     plugin = Maven2Plugin.getDefault();
     localRepositoryDir = plugin.getMavenEmbedderManager().getLocalRepositoryDir();
     globalSettings = getPreferenceStore().getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
@@ -70,73 +79,73 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
    * knows how to save and restore itself.
    */
   public void createFieldEditors() {
-//    addField(new DirectoryFieldEditor(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR, 
-//        Messages.getString("preferences.localRepositoryFolder"), //$NON-NLS-1$
-//        getFieldEditorParent()));
+    //    addField(new DirectoryFieldEditor(Maven2PreferenceConstants.P_LOCAL_REPOSITORY_DIR, 
+    //        Messages.getString("preferences.localRepositoryFolder"), //$NON-NLS-1$
+    //        getFieldEditorParent()));
 
     // addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_CHECK_LATEST_PLUGIN_VERSION, 
     //     Messages.getString( "preferences.checkLastPluginVersions" ), //$NON-NLS-1$
     //     getFieldEditorParent() ) );
 
-    addField(new BooleanFieldEditor(Maven2PreferenceConstants.P_OFFLINE, 
-        Messages.getString("preferences.offline"), //$NON-NLS-1$
+    addField(new BooleanFieldEditor(Maven2PreferenceConstants.P_OFFLINE, Messages.getString("preferences.offline"), //$NON-NLS-1$
         getFieldEditorParent()));
 
     // addField( new BooleanFieldEditor( Maven2PreferenceConstants.P_UPDATE_SNAPSHOTS, 
     //     Messages.getString( "preferences.updateSnapshots" ), //$NON-NLS-1$
     //     getFieldEditorParent() ) );
 
-    addField(new BooleanFieldEditor(Maven2PreferenceConstants.P_DOWNLOAD_SOURCES, 
-        Messages.getString("preferences.downloadSources"), //$NON-NLS-1$
+    addField(new BooleanFieldEditor(Maven2PreferenceConstants.P_DOWNLOAD_SOURCES, Messages
+        .getString("preferences.downloadSources"), //$NON-NLS-1$
         getFieldEditorParent()));
 
-    addField(new BooleanFieldEditor(Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC, 
-        Messages.getString("preferences.downloadJavadoc"), //$NON-NLS-1$
+    addField(new BooleanFieldEditor(Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC, Messages
+        .getString("preferences.downloadJavadoc"), //$NON-NLS-1$
         getFieldEditorParent()));
-    
+
     /*
      * public static final String CHECKSUM_POLICY_FAIL = "fail"; 
      * public static final String CHECKSUM_POLICY_WARN = "warn"; 
      * public static final String CHECKSUM_POLICY_IGNORE = "ignore";
      */
-//    addField(new RadioGroupFieldEditor(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY, 
-//        Messages.getString("preferences.globalChecksumPolicy"), 1, //$NON-NLS-1$
-//        new String[][] {
-//            {Messages.getString("preferences.checksumPolicyFail"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_FAIL}, //$NON-NLS-1$
-//            {Messages.getString("preferences.checksumPolicyIgnore"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_IGNORE}, //$NON-NLS-1$
-//            {Messages.getString("preferences.checksumPolicyWarn"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_WARN}}, //$NON-NLS-1$  // DEFAULT
-//        getFieldEditorParent(), true));
-
+    //    addField(new RadioGroupFieldEditor(Maven2PreferenceConstants.P_GLOBAL_CHECKSUM_POLICY, 
+    //        Messages.getString("preferences.globalChecksumPolicy"), 1, //$NON-NLS-1$
+    //        new String[][] {
+    //            {Messages.getString("preferences.checksumPolicyFail"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_FAIL}, //$NON-NLS-1$
+    //            {Messages.getString("preferences.checksumPolicyIgnore"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_IGNORE}, //$NON-NLS-1$
+    //            {Messages.getString("preferences.checksumPolicyWarn"), ArtifactRepositoryPolicy.CHECKSUM_POLICY_WARN}}, //$NON-NLS-1$  // DEFAULT
+    //        getFieldEditorParent(), true));
     // addField( new StringFieldEditor( Maven2PreferenceConstants.P_OFFLINE,
     // "A &text preference:",
     // getFieldEditorParent()));
-
-    addField(new BooleanFieldEditor(Maven2PreferenceConstants.P_DEBUG_OUTPUT, 
-        Messages.getString("preferences.debugOutput"), //$NON-NLS-1$
+    addField(new BooleanFieldEditor(Maven2PreferenceConstants.P_DEBUG_OUTPUT, Messages
+        .getString("preferences.debugOutput"), //$NON-NLS-1$
         getFieldEditorParent()));
-    
-    addField(new StringFieldEditor("", 
-        Messages.getString("preferences.localSettingsFile"), //$NON-NLS-1$
+
+    addField(new StringFieldEditor("", Messages.getString("preferences.localSettingsFile"), //$NON-NLS-1$
         getFieldEditorParent()) {
       protected void doLoad() {
         getTextControl().setEditable(false);
-        getTextControl().setText(EmbedderFactory.getUserSettingsFile().getAbsolutePath());
+        getTextControl().setText(MavenEmbedder.DEFAULT_USER_SETTINGS_FILE.getAbsolutePath());
       }
+
       protected void doLoadDefault() {
         getTextControl().setEditable(false);
-        getTextControl().setText(EmbedderFactory.getUserSettingsFile().getAbsolutePath());
+        getTextControl().setText(MavenEmbedder.DEFAULT_USER_SETTINGS_FILE.getAbsolutePath());
       }
+
       protected void doStore() {
       }
+
       protected boolean doCheckState() {
         return true;
       }
     });
-    
-    addField(new FileFieldEditor(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE, 
+
+    globalSettingsEditor = new FileFieldEditor(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE, //
         Messages.getString("preferences.globalSettingsFile"), //$NON-NLS-1$
-        getFieldEditorParent()));
-    
+        getFieldEditorParent());
+    addField(globalSettingsEditor);
+
     GridData buttonsCompositeGridData = new GridData();
     buttonsCompositeGridData.verticalIndent = 15;
     buttonsCompositeGridData.horizontalSpan = 2;
@@ -148,45 +157,73 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     Button reindexButton = new Button(buttonsComposite, SWT.NONE);
     reindexButton.setText("Re&index Local Repository");
     reindexButton.addSelectionListener(new SelectionAdapter() {
-        public void widgetSelected(SelectionEvent e) {
-          plugin.getMavenEmbedderManager().invalidateMavenSettings();
-          plugin.getMavenRepositoryIndexManager().reindexLocal();
-        } 
-      });
-    
+      public void widgetSelected(SelectionEvent e) {
+        plugin.getMavenEmbedderManager().invalidateMavenSettings();
+        plugin.getMavenRepositoryIndexManager().reindexLocal();
+      }
+    });
+
     Button refreshButton = new Button(buttonsComposite, SWT.NONE);
     refreshButton.setText("Refresh &Settings");
     refreshButton.addSelectionListener(new SelectionAdapter() {
-        public void widgetSelected(SelectionEvent e) {
-          plugin.getMavenEmbedderManager().invalidateMavenSettings();
-        } 
-      });
+      public void widgetSelected(SelectionEvent e) {
+        plugin.getMavenEmbedderManager().invalidateMavenSettings();
+      }
+    });
   }
 
   protected void contributeButtons(Composite parent) {
     super.contributeButtons(parent);
   }
-  
+
   /*
    * (non-Javadoc)
    * 
    * @see org.eclipse.ui.IWorkbenchPreferencePage#init(org.eclipse.ui.IWorkbench)
    */
-  public void init( IWorkbench workbench ) {
+  public void init(IWorkbench workbench) {
   }
 
   public boolean performOk() {
+    String settingsFileName = globalSettingsEditor.getStringValue();
+    if(settingsFileName != null && settingsFileName.length() > 0) {
+      File settingsFile = new File(settingsFileName);
+      if(!settingsFile.exists()) {
+        setErrorMessage("Gobal settings file does not exist");
+        return false;
+      }
+
+      try {
+        MavenEmbedder.readSettingsFromFile(new FileReader(settingsFileName));
+      } catch(FileNotFoundException ex) {
+        setErrorMessage("Global settings file not found");
+        return false;
+      } catch(SettingsConfigurationException ex) {
+        setErrorMessage("Unable to read settings from " + settingsFileName + "\n" + ex.toString());
+        return false;
+      } catch(MavenEmbedderException ex) {
+        setErrorMessage("Unable to read settings from " + settingsFileName + "\n" + ex.toString());
+        return false;
+      } catch(IOException ex) {
+        setErrorMessage("Unable to read settings from " + settingsFileName + "\n" + ex.toString());
+        return false;
+      }
+    }
+
+    setErrorMessage(null);
+
     boolean res = super.performOk();
     if(res) {
       String newGlobalSettings = getPreferenceStore().getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
-      if(newGlobalSettings==null ? globalSettings==null : !newGlobalSettings.equals(globalSettings)) {
+
+      if(newGlobalSettings == null ? globalSettings == null : !newGlobalSettings.equals(globalSettings)) {
         plugin.getMavenEmbedderManager().invalidateMavenSettings();
       }
-      
+
       File newRepositoryDir = plugin.getMavenEmbedderManager().getLocalRepositoryDir();
       if(!newRepositoryDir.equals(localRepositoryDir)) {
         plugin.getMavenRepositoryIndexManager().reindexLocal();
-      }      
+      }
     }
     return res;
   }

@@ -20,7 +20,11 @@
 package org.maven.ide.eclipse.embedder;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 
+import org.apache.maven.SettingsConfigurationException;
 import org.apache.maven.artifact.resolver.ArtifactResolver;
 import org.apache.maven.embedder.ContainerCustomizer;
 import org.apache.maven.embedder.DefaultMavenEmbedderConfiguration;
@@ -30,6 +34,7 @@ import org.apache.maven.embedder.MavenEmbedderException;
 import org.apache.maven.embedder.MavenEmbedderLogger;
 import org.apache.maven.execution.DefaultMavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionRequest;
+import org.apache.maven.settings.Settings;
 
 import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.component.repository.ComponentDescriptor;
@@ -46,15 +51,16 @@ public class EmbedderFactory {
     request.setClassLoader(loader);
     request.setConfigurationCustomizer(customizer);
     
+    File userSettingsFile = MavenEmbedder.DEFAULT_USER_SETTINGS_FILE;
+    
     // XXX temporary fix to make Maven Embedder read user settings file
-    File userSettingsFile = getUserSettingsFile();
-    if(userSettingsFile.exists()) {
+    if(loadSettings(userSettingsFile, logger)!=null) {
       request.setUserSettingsFile(userSettingsFile);
     }
     
     if(globalSettings!=null && globalSettings.length()>0) {
       File globalSettingsFile = new File(globalSettings);
-      if(globalSettingsFile.exists()) {
+      if(loadSettings(globalSettingsFile, logger)!=null) {
         request.setGlobalSettingsFile(globalSettingsFile);
       }
     }
@@ -62,11 +68,24 @@ public class EmbedderFactory {
     return new MavenEmbedder(request);
   }
 
-  public static File getUserSettingsFile() {
-    return new File(System.getProperty("user.home"), ".m2/settings.xml");
+  public static Settings loadSettings(File file, MavenEmbedderLogger logger) {
+    if(file.exists()) {
+      try {
+        return MavenEmbedder.readSettingsFromFile(new FileReader(file), logger);
+      } catch(FileNotFoundException ex) {
+        logger.error("Settings file " + file.getAbsolutePath() + " not found", ex);
+      } catch(SettingsConfigurationException ex) {
+        logger.error("Unable to read settings file " + file.getAbsolutePath(), ex);
+      } catch(MavenEmbedderException ex) {
+        logger.error("Unable to read settings file " + file.getAbsolutePath(), ex);
+      } catch(IOException ex) {
+        logger.error("Unable to read settings file " + file.getAbsolutePath(), ex);
+      }
+    }
+    return null;
   }
 
-  
+
   public static ContainerCustomizer createProjectCustomizer() {
     return new ContainerCustomizer() {
         public void customize(PlexusContainer container) {
