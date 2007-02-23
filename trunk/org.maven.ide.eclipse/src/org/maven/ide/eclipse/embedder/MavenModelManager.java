@@ -108,17 +108,37 @@ public class MavenModelManager {
     return (Model) models.get(getPomFileKey(pomFile));
   }
 
-  public synchronized void initMavenModel(IProgressMonitor monitor) {
+  public synchronized void initModels(IProgressMonitor monitor) {
     if(isInitialized) {
       return;
     }
     
     isInitialized = true;
     
-    Map mavenProjects = new HashMap();
-    Map mavenModels = new HashMap();
-    
     IProject[] projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
+    
+    Map mavenModels = new HashMap();
+    for(int i = 0; i < projects.length; i++ ) {
+      if(monitor.isCanceled()) {
+        throw new OperationCanceledException();
+      }
+      
+      IProject project = projects[i];
+      try {
+        if(project.isOpen() && project.hasNature(Maven2Plugin.NATURE_ID)) {
+          IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
+          if(pomFile == null) {
+            console.logError("Project " + project.getName() + " is missing pom.xml");
+          } else {
+            initMavenModel(pomFile, pomFile, mavenModels, monitor);
+          }
+        }
+      } catch(CoreException ex) {
+        console.logError("Unable to read project " + project.getName() + "; " + ex.getMessage());
+      }
+    }
+    
+    Map mavenProjects = new HashMap();
     for(int i = 0; i < projects.length; i++ ) {
       if(monitor.isCanceled()) {
         throw new OperationCanceledException();
@@ -131,7 +151,7 @@ public class MavenModelManager {
           if(pomFile == null) {
             console.logError("Project " + project.getName() + " is missing pom.xml");
           } else {
-            initMavenProject(pomFile, pomFile, mavenProjects, mavenModels, monitor);
+            initMavenProject(pomFile, pomFile, mavenProjects, monitor);
           }
         }
       } catch(CoreException ex) {
@@ -140,21 +160,41 @@ public class MavenModelManager {
     }
   }
 
-  private void initMavenProject(IFile pomFile, IFile rootPomFile, Map mavenProjects, Map mavenModels,
-      IProgressMonitor monitor) throws CoreException {
+  private void initMavenModel(IFile pomFile, IFile rootPomFile, Map mavenModels, IProgressMonitor monitor)
+      throws CoreException {
     String pomKey = getPomFileKey(pomFile);
     Model mavenModel = (Model) mavenModels.get(pomKey);
     if(mavenModel==null) {
       mavenModel = updateMavenModel(pomFile, false, monitor);
       mavenModels.put(pomKey, mavenModel);
     }
-    
+
+    IContainer parent = pomFile.getParent();
+    for(Iterator it = mavenModel.getModules().iterator(); it.hasNext();) {
+      if(monitor.isCanceled()) {
+        throw new OperationCanceledException();
+      }
+      String module = (String) it.next();
+      IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
+      if(memberPom != null && memberPom.getType() == IResource.FILE && memberPom.isAccessible()) {
+        initMavenModel((IFile) memberPom, rootPomFile, mavenModels, monitor);
+      }
+    }
+  }
+  
+  private void initMavenProject(IFile pomFile, IFile rootPomFile, Map mavenProjects, IProgressMonitor monitor)
+      throws CoreException {
+    String pomKey = getPomFileKey(pomFile);
     MavenProject mavenProject = (MavenProject) mavenProjects.get(pomKey);
     if(mavenProject!=null) {
       return;
     }
 
     mavenProject = readMavenProject(pomFile, monitor, true, false);
+    if(mavenProject == null) {
+      return;
+    }
+    
     mavenProjects.put(pomKey, mavenProject);
 
     Set artifacts = mavenProject.getArtifacts();
@@ -174,8 +214,8 @@ public class MavenModelManager {
       }
       String module = (String) it.next();
       IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
-      if(memberPom != null && memberPom.getType() == IResource.FILE) {
-        initMavenProject((IFile) memberPom, rootPomFile, mavenProjects, mavenModels, monitor);
+      if(memberPom != null && memberPom.getType() == IResource.FILE && memberPom.isAccessible()) {
+        initMavenProject((IFile) memberPom, rootPomFile, mavenProjects, monitor);
       }
     }
   }
@@ -299,7 +339,8 @@ public class MavenModelManager {
 
   public Model readMavenModel(File pomFile) throws CoreException {
     try {
-      return embedderManager.getProjectEmbedder().readModel(pomFile);
+      MavenEmbedder projectEmbedder = embedderManager.getProjectEmbedder();
+      return projectEmbedder.readModel(pomFile);
     } catch(XmlPullParserException ex) {
       String msg = "Parsing error " + pomFile.getAbsolutePath()+"; " + ex.toString();
       console.logError(msg);
@@ -361,6 +402,8 @@ public class MavenModelManager {
           
         }
       }
+      
+      return result.getMavenProject();
 
 //    } catch(Exception ex) {
 //      Util.deleteMarkers(this.file);
@@ -374,7 +417,7 @@ public class MavenModelManager {
       monitor.done();
     }
 
-    return null;
+    // return null;
   }
   
   public void addDependency(IFile pomFile, Dependency dependency) {
