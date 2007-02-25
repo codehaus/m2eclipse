@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.project.MavenProject;
 
 import org.eclipse.core.resources.IFile;
@@ -126,7 +127,8 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
 
       MavenProject mavenProject = null;
       try {
-        mavenProject = modelManager.readMavenProject(pomFile, new NullProgressMonitor(), true, false);
+        MavenExecutionResult result = modelManager.readMavenProject(pomFile, new NullProgressMonitor(), true, false);
+        mavenProject = result.getMavenProject();
 //      } catch(CoreException ex) {
 //        // TODO move into ReadProjectTask
 //        Maven2Plugin.log(ex);

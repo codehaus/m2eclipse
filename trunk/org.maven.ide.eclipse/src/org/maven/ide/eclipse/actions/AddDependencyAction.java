@@ -22,6 +22,7 @@ package org.maven.ide.eclipse.actions;
 import java.util.Collections;
 import java.util.Set;
 
+import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.project.MavenProject;
 
 import org.eclipse.core.resources.IFile;
@@ -62,7 +63,8 @@ public class AddDependencyAction implements IObjectActionDelegate {
     
     MavenProject mavenProject;
     try {
-      mavenProject = modelManager.readMavenProject(file, new NullProgressMonitor(), true, false);
+      MavenExecutionResult result = modelManager.readMavenProject(file, new NullProgressMonitor(), true, false);
+      mavenProject = result.getMavenProject(); 
 //    } catch(CoreException ex) {
 //      // TODO move into ReadProjectTask
 //      Maven2Plugin.log(ex);
@@ -70,7 +72,7 @@ public class AddDependencyAction implements IObjectActionDelegate {
 //      return;
     } catch(Exception ex) {
       // TODO move into ReadProjectTask
-      String msg = "Unable to read model";
+      String msg = "Unable to read project";
       Maven2Plugin.log(msg, ex);
       Maven2Plugin.getDefault().getConsole().logError(msg + "; " + ex.toString());
       return;

@@ -45,9 +45,13 @@ import org.apache.maven.execution.ReactorManager;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.Resource;
+import org.apache.maven.project.InvalidProjectModelException;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.ProjectBuildingException;
+import org.apache.maven.project.validation.ModelValidationResult;
 
 import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -74,6 +78,7 @@ import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jdt.launching.LibraryLocation;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.Messages;
 import org.maven.ide.eclipse.container.Maven2ClasspathContainer;
 import org.maven.ide.eclipse.index.MavenRepositoryIndexManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
@@ -106,11 +111,11 @@ public class BuildPathManager {
 
     Set dependentProjects = mavenModelManager.getDependentProjects(pomFile);
     
-    Util.deleteMarkers(project);
+    deleteMarkers(project);
     try {
       mavenModelManager.updateMavenModel(pomFile, true, monitor);
     } catch(CoreException ex) {
-      Util.addMarker(pomFile, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
+      addMarker(pomFile, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
     }
     
     resolveClasspathEntries(entries, moduleArtifacts, pomFile, pomFile, true, monitor);
@@ -150,7 +155,8 @@ public class BuildPathManager {
       boolean downloadJavadoc = !offline & preferenceStore.getBoolean(Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC);
       boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
 
-      MavenProject mavenProject = mavenModelManager.readMavenProject(pomFile, monitor, offline, debug);
+      MavenExecutionResult result = mavenModelManager.readMavenProject(pomFile, monitor, offline, debug);
+      MavenProject mavenProject = getMavenProject(pomFile, result);
       if(mavenProject == null) {
         return;
       }
@@ -245,14 +251,14 @@ public class BuildPathManager {
 
     } catch(InvalidArtifactRTException ex) {
       // TODO move into ReadProjectTask
-      Util.deleteMarkers(pomFile);
-      Util.addMarker(pomFile, ex.getBaseMessage(), 1, IMarker.SEVERITY_ERROR);
+      deleteMarkers(pomFile);
+      addMarker(pomFile, ex.getBaseMessage(), 1, IMarker.SEVERITY_ERROR);
       console.logError("Unable to read model; " + ex.toString());
 
     } catch(Throwable ex) {
       // TODO move into ReadProjectTask
-      Util.deleteMarkers(pomFile);
-      Util.addMarker(pomFile, "Unable to read model; " + ex.toString(), 1, IMarker.SEVERITY_ERROR);
+      deleteMarkers(pomFile);
+      addMarker(pomFile, "Unable to read model; " + ex.toString(), 1, IMarker.SEVERITY_ERROR);
       
       String msg = "Unable to read model from " + pomFile.getFullPath();
       Maven2Plugin.log(msg, ex);
@@ -263,6 +269,77 @@ public class BuildPathManager {
 
     }
   }
+
+  private MavenProject getMavenProject(IFile pomFile, MavenExecutionResult result) {
+    deleteMarkers(pomFile);
+
+    if(!result.hasExceptions()) {
+      return result.getMavenProject();
+    }
+
+    for(Iterator it = result.getExceptions().iterator(); it.hasNext();) {
+      Exception ex = (Exception) it.next();
+      if(ex instanceof ProjectBuildingException) {
+        handleProjectBuildingException(pomFile, (ProjectBuildingException) ex);
+
+      } else if(ex instanceof AbstractArtifactResolutionException) {
+        String msg = ex.getMessage()
+            .replaceAll("----------", "")
+            .replaceAll("\r\n\r\n", "\n")
+            .replaceAll("\n\n", "\n");
+        addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR);
+        console.logError(msg);
+
+        try {
+          // TODO
+          File file = pomFile.getLocation().toFile();
+          return embedderManager.getProjectEmbedder().readProject(file);
+        
+        } catch(ProjectBuildingException ex2) {
+          handleProjectBuildingException(pomFile, ex2);
+        } catch(Exception ex2) {
+          handleBuildException(pomFile, ex2);
+        }
+        
+      } else {
+        handleBuildException(pomFile, ex);
+      }
+    }
+    return null;
+  }
+  
+  private void handleBuildException(IFile pomFile, Exception ex) {
+    String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
+    addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+    console.logError(msg);
+  }
+  
+  private void handleProjectBuildingException(IFile pomFile, ProjectBuildingException ex) {
+    Throwable cause = ex.getCause();
+    if(cause instanceof XmlPullParserException) {
+      XmlPullParserException pex = (XmlPullParserException) cause;
+      String msg = Messages.getString("plugin.markerParsingError") + pex.getMessage();
+      addMarker(pomFile, msg, pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+      console.logError(msg + " at line " + pex.getLineNumber());
+    } else if(ex instanceof InvalidProjectModelException) {
+      InvalidProjectModelException mex = (InvalidProjectModelException) ex;
+      ModelValidationResult validationResult = mex.getValidationResult();
+      String msg = Messages.getString("plugin.markerBuildError") + mex.getMessage();
+      console.logError(msg);
+      if(validationResult == null) {
+        addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+      } else {
+        for(Iterator it = validationResult.getMessages().iterator(); it.hasNext();) {
+          String message = (String) it.next();
+          addMarker(pomFile, message, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+          console.logError("  " + message);
+        }
+      }
+    } else {
+      handleBuildException(pomFile, ex);
+    }
+  }
+  
 
   // type = "java-source"
   private Path materializeArtifactPath(MavenEmbedder embedder, MavenProject mavenProject, Artifact a, String type,
@@ -713,5 +790,31 @@ public class BuildPathManager {
     }
   }  
 
+  private static void addMarker(IResource resource, String message, int lineNumber, int severity) {
+    try {
+      if(resource.isAccessible()) {
+        IMarker marker = resource.createMarker(Maven2Plugin.MARKER_ID);
+        marker.setAttribute(IMarker.MESSAGE, message);
+        marker.setAttribute(IMarker.SEVERITY, severity);
+        if(lineNumber == -1) {
+          lineNumber = 1;
+        }
+        marker.setAttribute(IMarker.LINE_NUMBER, lineNumber);
+      }
+    } catch(CoreException ex) {
+      Maven2Plugin.getDefault().getConsole().logError("Unable to add marker; " + ex.toString());
+    }
+  }
+
+  private static void deleteMarkers(IResource resource) {
+    try {
+      if(resource.isAccessible()) {
+        resource.deleteMarkers(Maven2Plugin.MARKER_ID, false, IResource.DEPTH_ZERO);
+      }
+    } catch(CoreException ex) {
+      Maven2Plugin.getDefault().getConsole().logError("Unable to delete marker; " + ex.toString());
+    }
+  }
+  
 }
 
