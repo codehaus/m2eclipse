@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.wizards;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +16,8 @@ package org.maven.ide.eclipse.wizards;
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.maven.ide.eclipse.wizards;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -200,7 +199,7 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
     try {
       StringWriter w = new StringWriter();
       MavenEmbedder mavenEmbedder = Maven2Plugin.getDefault().getMavenEmbedderManager().getProjectEmbedder();
-      mavenEmbedder.writeModel(w, model);
+      mavenEmbedder.writeModel(w, model, true);
 
       file.create(new ByteArrayInputStream(w.toString().getBytes("ASCII")), true, null);
     } catch(Exception ex) {
