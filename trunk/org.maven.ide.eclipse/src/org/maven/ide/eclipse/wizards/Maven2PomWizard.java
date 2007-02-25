@@ -146,7 +146,7 @@ public class Maven2PomWizard extends Wizard implements INewWizard {
       StringWriter w = new StringWriter();
 
       MavenEmbedder mavenEmbedder = Maven2Plugin.getDefault().getMavenEmbedderManager().getProjectEmbedder();
-      mavenEmbedder.writeModel(w, model);
+      mavenEmbedder.writeModel(w, model, true);
 
       file.create( new ByteArrayInputStream( w.toString().getBytes( "ASCII" ) ), true, null );
 
