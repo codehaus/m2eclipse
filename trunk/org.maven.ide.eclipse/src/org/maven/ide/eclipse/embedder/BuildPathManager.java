@@ -345,14 +345,26 @@ public class BuildPathManager {
   private Path materializeArtifactPath(MavenEmbedder embedder, MavenProject mavenProject, Artifact a, String type,
       String suffix, boolean download, IProgressMonitor monitor) throws Exception {
     String artifactLocation = a.getFile().getAbsolutePath();
-    // artifactLocation ends on '.jar' or '.zip'
-    File file = new File(artifactLocation.substring(0, artifactLocation.length() - 4) + "-" + suffix + ".jar");
+
+    // XXX MNGECLIPSE-205
+    File file;
+    if("java-source".equals(type) && "tests".equals(a.getArtifactHandler().getClassifier())) {
+      suffix = "test-sources";
+      file = new File(artifactLocation.substring(0, artifactLocation.length() - "-tests.jar".length()) + "-" + suffix + ".jar");
+    } else {
+      // artifactLocation ends on '.jar' or '.zip'
+      file = new File(artifactLocation.substring(0, artifactLocation.length() - ".jar".length()) + "-" + suffix + ".jar");
+    }
+    
     if(file.exists()) {
-      // XXX ugly hack to do not download any artifacts
+      // workaround to not download already existing archive
       return new Path(file.getAbsolutePath());
-    } else if(download) {
+    }
+    
+    if(download) {
       monitor.beginTask("Resolve " + type + " " + a.getId(), IProgressMonitor.UNKNOWN);
       try {
+        // TODO need to take into account issue with the "test-sources"
         Artifact f = embedder.createArtifactWithClassifier(a.getGroupId(), a.getArtifactId(), a.getVersion(),
             type, suffix);
         if(f != null) {
