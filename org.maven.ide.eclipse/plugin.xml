@@ -463,6 +463,17 @@
       </wizard>
       
    </extension>
+   
+   <extension point="org.eclipse.ui.importWizards">
+	   <wizard id="org.maven.ide.eclipse.wizards.Maven2ImportWizard"
+             class="org.maven.ide.eclipse.wizards.Maven2ImportWizard"
+             icon="icons/new_m2_project.gif"
+             category="org.eclipse.ui.Basic"
+             name="%m2.wizard.import.name">
+       <description>%m2.wizard.import.description</description>
+     </wizard>
+     <category id="org.eclipse.ui.Basic" name="General"/>
+   </extension>
 
    <extension
          point="org.eclipse.ui.console.consoleFactories">
