@@ -116,6 +116,7 @@ public class BuildPathManager {
     resolveClasspathEntries(entries, moduleArtifacts, pomFile, pomFile, true, monitor);
 
     dependentProjects.addAll(mavenModelManager.getDependentProjects(pomFile));
+    dependentProjects.remove(project);
 
     Maven2ClasspathContainer container = new Maven2ClasspathContainer(entries);
 
@@ -133,6 +134,10 @@ public class BuildPathManager {
       IProgressMonitor monitor) {
     if(monitor.isCanceled()) {
       throw new OperationCanceledException();
+    }
+    
+    if(pomFile==null || !pomFile.isAccessible()) {
+      return;
     }
 
     console.logMessage("Reading " + pomFile.getFullPath());
