@@ -32,21 +32,16 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
-import org.apache.maven.project.InvalidProjectModelException;
 import org.apache.maven.project.MavenProject;
-import org.apache.maven.project.ProjectBuildingException;
-import org.apache.maven.project.validation.ModelValidationResult;
 
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -56,10 +51,8 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Status;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.Messages;
 import org.maven.ide.eclipse.index.MavenRepositoryIndexManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
-import org.maven.ide.eclipse.util.Util;
 
 
 /**
@@ -185,12 +178,12 @@ public class MavenModelManager {
   private void initMavenProject(IFile pomFile, IFile rootPomFile, Map mavenProjects, IProgressMonitor monitor)
       throws CoreException {
     String pomKey = getPomFileKey(pomFile);
-    MavenProject mavenProject = (MavenProject) mavenProjects.get(pomKey);
-    if(mavenProject!=null) {
+    if(mavenProjects.containsKey(pomKey)) {
       return;
     }
 
-    mavenProject = readMavenProject(pomFile, monitor, true, false);
+    MavenExecutionResult result = readMavenProject(pomFile, monitor, true, false);
+    MavenProject mavenProject = result.getMavenProject(); 
     if(mavenProject == null) {
       return;
     }
@@ -304,7 +297,7 @@ public class MavenModelManager {
     Model mavenModel = (Model) models.remove(pomKey);
     
     
-    Set a = (Set) projectsToArtifacts.remove(pomKey);
+    projectsToArtifacts.remove(pomKey);
 //    if(artifacts!=null) {
 //      for(Iterator it = artifacts.iterator(); it.hasNext();) {
 //        String artifactKey = (String) it.next();
@@ -352,7 +345,7 @@ public class MavenModelManager {
     }
   }
 
-  public MavenProject readMavenProject(IFile pomFile, IProgressMonitor monitor, boolean offline, boolean debug) {
+  public MavenExecutionResult readMavenProject(IFile pomFile, IProgressMonitor monitor, boolean offline, boolean debug) {
     try {
       monitor.subTask("Reading " + pomFile.getFullPath());
       
@@ -364,46 +357,16 @@ public class MavenModelManager {
       request.setBaseDirectory(file.getParentFile());
       request.setTransferListener(new TransferListenerAdapter(monitor, console, indexManager));
 
-      MavenExecutionResult result = mavenEmbedder.readProjectWithDependencies(request);
+      return mavenEmbedder.readProjectWithDependencies(request);
 
-      Util.deleteMarkers(pomFile);
+      // XXX need to manage markers somehow see MNGECLIPSE-XXX
+      // Util.deleteMarkers(pomFile);
 
-      if(!result.hasExceptions()) {
-        return result.getMavenProject();
-      }
-      
-      for(Iterator it = result.getExceptions().iterator(); it.hasNext();) {
-        Exception ex = (Exception) it.next();
-        if(ex instanceof ProjectBuildingException) {
-          handleProjectBuildingException(pomFile, (ProjectBuildingException) ex);
-
-        } else if(ex instanceof AbstractArtifactResolutionException) {
-          String msg = ex.getMessage()
-              .replaceAll("----------", "")
-              .replaceAll("\r\n\r\n", "\n")
-              .replaceAll("\n\n", "\n");
-          Util.addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR);
-          console.logError(msg);
-
-          try {
-            // TODO
-            return mavenEmbedder.readProject(file);
-          
-          } catch(ProjectBuildingException ex2) {
-            handleProjectBuildingException(pomFile, ex2);
-          
-          } catch(Exception ex2) {
-            handleBuildException(pomFile, ex2);
-            
-          }
-          
-        } else {
-          handleBuildException(pomFile, ex);
-          
-        }
-      }
-      
-      return result.getMavenProject();
+//      if(!result.hasExceptions()) {
+//        return result.getMavenProject();
+//      }
+//      
+//      return result.getMavenProject();
 
 //    } catch(Exception ex) {
 //      Util.deleteMarkers(this.file);
@@ -416,8 +379,6 @@ public class MavenModelManager {
     } finally {
       monitor.done();
     }
-
-    // return null;
   }
   
   public void addDependency(IFile pomFile, Dependency dependency) {
@@ -438,40 +399,6 @@ public class MavenModelManager {
       pomFile.refreshLocal(IResource.DEPTH_ONE, null); // TODO ???
     } catch(Exception ex) {
       console.logError("Unable to update POM: " + pom + "; " + ex.getMessage());
-    }
-  }
-
-  
-
-  private void handleBuildException(IFile pomFile, Exception ex) {
-    String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
-    Util.addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-    console.logError(msg);
-  }
-
-  private void handleProjectBuildingException(IFile pomFile, ProjectBuildingException ex) {
-    Throwable cause = ex.getCause();
-    if(cause instanceof XmlPullParserException) {
-      XmlPullParserException pex = (XmlPullParserException) cause;
-      String msg = Messages.getString("plugin.markerParsingError") + pex.getMessage();
-      Util.addMarker(pomFile, msg, pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-      console.logError(msg + " at line " + pex.getLineNumber());
-    } else if(ex instanceof InvalidProjectModelException) {
-      InvalidProjectModelException mex = (InvalidProjectModelException) ex;
-      ModelValidationResult validationResult = mex.getValidationResult();
-      String msg = Messages.getString("plugin.markerBuildError") + mex.getMessage();
-      console.logError(msg);
-      if(validationResult == null) {
-        Util.addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-      } else {
-        for(Iterator it = validationResult.getMessages().iterator(); it.hasNext();) {
-          String message = (String) it.next();
-          Util.addMarker(pomFile, message, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-          console.logError("  " + message);
-        }
-      }
-    } else {
-      handleBuildException(pomFile, ex);
     }
   }
   
@@ -498,7 +425,7 @@ public class MavenModelManager {
   }
   
   public static String getPomFileKey(IFile pomFile) {
-    return pomFile.getLocation().toString();
+    return pomFile.getFullPath().toPortableString();
   }
 
 }
