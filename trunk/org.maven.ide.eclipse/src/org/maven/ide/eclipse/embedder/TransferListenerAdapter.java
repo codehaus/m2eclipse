@@ -92,7 +92,9 @@ public final class TransferListenerAdapter implements TransferListener {
     String repository = e.getWagon().getRepository().getName();
     Resource resource = e.getResource();
     
-    indexManager.updateIndex(e.getLocalFile(), repository, resource.getName(), resource.getContentLength(), resource.getLastModified());
+    if(indexManager!=null) {
+      indexManager.updateIndex(e.getLocalFile(), repository, resource.getName(), resource.getContentLength(), resource.getLastModified());
+    }
   }
 
   public void transferError(TransferEvent e) {
