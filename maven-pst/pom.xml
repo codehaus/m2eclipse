@@ -50,7 +50,7 @@
 			<name>Maven Snapshots</name>
 			<url>http://people.apache.org/maven-snapshot-repository</url>
 			<releases>
-				<enabled>true</enabled>
+				<enabled>false</enabled>
 			</releases>
 			<snapshots>
 				<enabled>true</enabled>
@@ -63,7 +63,7 @@
 			<name>Maven Snapshots</name>
 			<url>http://people.apache.org/maven-snapshot-repository</url>
 			<releases>
-				<enabled>true</enabled>
+				<enabled>false</enabled>
 			</releases>
 			<snapshots>
 				<enabled>true</enabled>
