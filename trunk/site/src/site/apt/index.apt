@@ -57,6 +57,9 @@ The Maven Integration for Eclipse (Tycho)
  
  {{http://m2eclipse.codehaus.org/update/}}
 
+ Latest stable development build is available from the update site at the following location:  
+ 
+ {{http://m2eclipse.codehaus.org/update-dev/}}
 
 * Source Code
   
