@@ -2,7 +2,7 @@
 <feature
       id="org.maven.ide.eclipse.mylar.feature"
       label="Maven Integration for Mylar"
-      version="0.0.11"
+      version="0.0.11.20070603-1200"
       provider-name="maven.org">
 
    <description url="http://m2eclipse.codehaus.org/">
@@ -43,7 +43,7 @@ under the License.
          id="org.maven.ide.eclipse.mylar"
          download-size="0"
          install-size="0"
-         version="0.0.11"
+         version="0.0.0"
          unpack="false"/>
 
 </feature>
