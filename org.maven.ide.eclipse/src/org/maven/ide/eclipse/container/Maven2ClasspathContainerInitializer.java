@@ -20,9 +20,18 @@
 package org.maven.ide.eclipse.container;
 
 import java.io.File;
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Properties;
 
-import org.codehaus.plexus.util.FileUtils;
+import org.apache.maven.embedder.MavenEmbedder;
+import org.apache.maven.execution.MavenExecutionRequest;
+import org.apache.maven.execution.MavenExecutionResult;
+
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -43,6 +52,8 @@ import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Display;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
+import org.maven.ide.eclipse.embedder.EmbedderFactory;
+import org.maven.ide.eclipse.launch.console.Maven2Console;
 
 
 /**
@@ -51,7 +62,7 @@ import org.maven.ide.eclipse.embedder.BuildPathManager;
  * @author Eugene Kuleshov
  */
 public class Maven2ClasspathContainerInitializer extends ClasspathContainerInitializer {
-
+  
   public void initialize(IPath containerPath, final IJavaProject project) {
     if(BuildPathManager.isMaven2ClasspathContainer(containerPath)) {
       IClasspathContainer container;
@@ -140,7 +151,9 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
 
     public void run() {
       for( int j = 0; j < newEntries.length; j++ ) {
-        final IClasspathEntry entry = newEntries[j];
+        IClasspathEntry entry = newEntries[j];
+        List attributes = Arrays.asList(entry.getExtraAttributes());
+        
         IPath entryPath = entry.getPath();
         IClasspathEntry oldEntry = getClasspathentry(entryPath);
         if(oldEntry==null) {
@@ -150,43 +163,48 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
         
         File oldSrcPath = getSourceFile(oldEntry);
         File newSrcPath = getSourceFile(entry);
-        boolean sourceUpdated = updateBundle(entryPath, oldSrcPath, newSrcPath, "sources");
+        boolean sourceUpdated = updateBundle(entry, oldSrcPath, newSrcPath, Maven2ClasspathContainer.SOURCES_CLASSIFIER);
           
-        IClasspathAttribute oldJavaDocAttribute = getJavaDocAttribute(oldEntry);
-        IClasspathAttribute newJavaDocAttribute = getJavaDocAttribute(entry);
-        File oldJavaDocFile = getJavaDocFile(oldJavaDocAttribute);
-        File newJavaDocFile = getJavaDocFile(newJavaDocAttribute);
-        boolean javadocUpdated = updateBundle(entryPath, oldJavaDocFile, newJavaDocFile, "javadoc");
+        String oldJavaDocValue = getAttribute(oldEntry, IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME);
+        String newJavaDocValue = getAttribute(entry, IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME);
+        File oldJavaDocFile = getJavaDocFile(oldJavaDocValue);
+        File newJavaDocFile = getJavaDocFile(newJavaDocValue);
+        boolean javadocUpdated = updateBundle(entry, oldJavaDocFile, newJavaDocFile, Maven2ClasspathContainer.JAVADOC_CLASSIFIER);
         
         if(sourceUpdated || javadocUpdated) {
           IPath sourcePath = oldEntry.getSourceAttachmentPath();
           if(sourceUpdated) {
-            sourcePath = newSrcPath==null ? null : new Path(getTargetFile(entryPath, "sources").getAbsolutePath()); 
+            sourcePath = newSrcPath==null ? null : new Path(getTargetFile(entryPath, Maven2ClasspathContainer.SOURCES_CLASSIFIER).getAbsolutePath()); 
           }
           
-          IClasspathAttribute javaDocAttribute = oldJavaDocAttribute;
+          List newAttributes = new ArrayList(attributes);
+          
           if(javadocUpdated) {
-            if(newJavaDocAttribute==null || newJavaDocAttribute.getValue()==null) {
-              javaDocAttribute = null;
-            } else {
-              javaDocAttribute = JavaCore.newClasspathAttribute( IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME,
-                  Maven2ClasspathContainer.getJavaDocUrl(getTargetFile(entryPath, "javadoc").getAbsolutePath()));
+            for(ListIterator it = newAttributes.listIterator(); it.hasNext();) {
+              IClasspathAttribute attribute = (IClasspathAttribute) it.next();
+              if(attribute.getName().equals(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME)) {
+                it.remove();
+              }
+            }
+            
+            if(newJavaDocValue!=null) {
+              newAttributes.add(JavaCore.newClasspathAttribute( IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME,
+                  Maven2ClasspathContainer.getJavaDocUrl(getTargetFile(entryPath, Maven2ClasspathContainer.JAVADOC_CLASSIFIER).getAbsolutePath())));
             }
           }
           
           newEntries[j] = JavaCore.newLibraryEntry(
               entryPath, sourcePath, null, new IAccessRule[0],
-              javaDocAttribute==null ? new IClasspathAttribute[0] : new IClasspathAttribute[] {javaDocAttribute},
+              (IClasspathAttribute[]) newAttributes.toArray(new IClasspathAttribute[newAttributes.size()]),
               false /*not exported*/);
           
-          containerUpdated |= true;
+          containerUpdated = true;
         }
       }
     }
 
-    private File getJavaDocFile(IClasspathAttribute javaDocAttribute) {
-      if(javaDocAttribute==null) return null;
-      String value = javaDocAttribute.getValue();
+    private File getJavaDocFile(String value) {
+      if(value==null) return null;
       
       // jar:file:/C:/temp/spring-framework-1.2.7.zip!/
       if(value.startsWith("jar:")) {
@@ -203,38 +221,75 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       return value==null ? null : new File(value);
     }
 
-    private boolean updateBundle(IPath entryPath, File oldFile, File newFile, String suffix) {
+    private boolean updateBundle(IClasspathEntry entry, File oldFile, File newFile, String suffix) {
       boolean entryUpdated = false;
       if(oldFile==null) {
         if(newFile!=null) {
-          entryUpdated = installBundle(newFile, entryPath, suffix, this.display);
+          entryUpdated = installBundle(newFile, entry, suffix, this.display);
         }
       } else {
         if(newFile==null) {
           entryUpdated = removeBundle(oldFile, this.display);
         } else if(!oldFile.equals(newFile)) {
-          entryUpdated = installBundle(newFile, entryPath, suffix, this.display);
+          entryUpdated = installBundle(newFile, entry, suffix, this.display);
         }
       }
       return entryUpdated;
     }
 
-    private boolean installBundle(final File srcFile, IPath entryPath, String suffix, Display display) {
-      String entryName = entryPath.lastSegment();
+    private boolean installBundle(final File srcFile, IClasspathEntry entry, String classifier, Display display) {
+      String groupId = getAttribute(entry, Maven2ClasspathContainer.GROUP_ID_ATTRIBUTE);
+      String artifactId = getAttribute(entry, Maven2ClasspathContainer.ARTIFACT_ID_ATTRIBUTE);
+      String version = getAttribute(entry, Maven2ClasspathContainer.VERSION_ATTRIBUTE);
+
+      String entryName = entry.getPath().lastSegment();
+      
       if(entryName.endsWith(".zip") || entryName.endsWith(".jar")) {            
-        final File target = getTargetFile(entryPath, suffix);
-        if(target.getAbsolutePath().equals(srcFile.getAbsolutePath())) {
-          return false;
-        }
+//        final File target = getTargetFile(entry, suffix);
+//        if(target.getAbsolutePath().equals(srcFile.getAbsolutePath())) {
+//          return false;
+//        }
         if(MessageDialog.openConfirm(display.getActiveShell(), 
-              "Install Bundle", "Install "+srcFile+" as "+target.getAbsolutePath())) {
-          try {
-            FileUtils.copyFile( srcFile, target );
-            return true;
-          } catch( IOException ex ) {
-            Maven2Plugin.getDefault().getConsole().logError( "Unable to copy "+srcFile.getAbsolutePath()+
-                " to "+target.getAbsolutePath()+"; "+ex.getMessage() );
+              "Install Bundle", "Install "+srcFile+" as "+groupId + ":" + artifactId + ":" + version + ":" + classifier)) {
+//          try {
+//            FileUtils.copyFile( srcFile, target );
+//          } catch( IOException ex ) {
+//            Maven2Plugin.getDefault().getConsole().logError( "Unable to copy "+srcFile.getAbsolutePath()+
+//                " to "+target.getAbsolutePath()+"; "+ex.getMessage() );
+//          }
+          
+          // TODO maybe move this into MavenEmbedderManager
+          MavenEmbedder embedder = Maven2Plugin.getDefault().getMavenEmbedderManager().getProjectEmbedder();
+          
+          // TODO read offline and debug settings
+          MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(embedder, false, true);
+          
+          // TODO convert to request.addProperty();
+          Properties properties = new Properties();
+          properties.put("file", srcFile.getAbsolutePath());
+          properties.put("groupId", groupId);
+          properties.put("artifactId", artifactId);
+          properties.put("version", version);
+          properties.put("createChecksum", "true");
+          properties.put("packaging", "jar");
+          properties.put("classifier", classifier); // "sources" or "javadoc"
+
+          request.setProperties(properties);
+          request.setGoals(Collections.singletonList("install:install-file"));
+          request.setBaseDirectory(new File(".")); // HACK!
+            
+          MavenExecutionResult result = embedder.execute(request);
+          
+          if(result.hasExceptions()) {
+            Maven2Console console = Maven2Plugin.getDefault().getConsole();
+            console.logError("Unable to install " + srcFile.getAbsolutePath());
+            for(Iterator it = result.getExceptions().iterator(); it.hasNext();) {
+              Throwable ex = (Throwable) it.next();
+              console.logError("  " + ex.getMessage());
+            }
           }
+            
+          return true;
         }
       }
       return false;
@@ -247,13 +302,13 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
 
     private boolean removeBundle(final File file, Display display) {
       if(file.exists()) {
-        if(MessageDialog.openConfirm(display.getActiveShell(), 
+        if(!MessageDialog.openConfirm(display.getActiveShell(), 
               "Delete Bundle", "Delete bundle "+file.getAbsolutePath())) {
-          file.delete();
-          return true;
+          return false;
         }
+        file.delete();
       }
-      return false;
+      return true;
     }
 
     private IClasspathEntry getClasspathentry(IPath path) {
@@ -271,17 +326,16 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       return path==null ? null : path.toFile();
     }
 
-    private IClasspathAttribute getJavaDocAttribute(IClasspathEntry entry) {
+    private String getAttribute(IClasspathEntry entry, String name) {
       IClasspathAttribute[] attributes = entry.getExtraAttributes();
       for(int i = 0; i < attributes.length; i++ ) {
         IClasspathAttribute attribute = attributes[i];
-        if(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME.equals(attribute.getName())) {
-          return attribute;
+        if(attribute.getName().equals(name)) {
+          return attribute.getValue();
         }
       }
       return null;
     }
-  
   }
 
 }

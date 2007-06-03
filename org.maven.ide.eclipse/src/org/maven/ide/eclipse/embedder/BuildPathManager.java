@@ -210,7 +210,11 @@ public class BuildPathManager {
 
         Path srcPath = materializeArtifactPath(embedder, mavenProject, a, "java-source", "sources", downloadSources, monitor);
         
-        IClasspathAttribute[] attributes = new IClasspathAttribute[0];
+        ArrayList attributes = new ArrayList();
+        attributes.add(JavaCore.newClasspathAttribute(Maven2ClasspathContainer.GROUP_ID_ATTRIBUTE, a.getGroupId()));
+        attributes.add(JavaCore.newClasspathAttribute(Maven2ClasspathContainer.ARTIFACT_ID_ATTRIBUTE, a.getArtifactId()));
+        attributes.add(JavaCore.newClasspathAttribute(Maven2ClasspathContainer.VERSION_ATTRIBUTE, a.getVersion()));
+        
         if(srcPath == null) { // no need to search for javadoc if we have source code
           Path javadocPath = materializeArtifactPath(embedder, mavenProject, a, "javadoc", "javadoc", downloadJavadoc, monitor);
           String javaDocUrl = null;
@@ -220,13 +224,13 @@ public class BuildPathManager {
             javaDocUrl = getJavaDocUrl(artifactLocation, monitor);
           }
           if(javaDocUrl != null) {
-            attributes = new IClasspathAttribute[] {JavaCore.newClasspathAttribute(
-                IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, javaDocUrl)};
+            attributes.add(JavaCore.newClasspathAttribute(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME, javaDocUrl));
           }
         }
 
         libraryEntries.add(JavaCore.newLibraryEntry(new Path(artifactLocation), srcPath, null, new IAccessRule[0],
-            attributes, false /*not exported*/));
+            (IClasspathAttribute[]) attributes.toArray(new IClasspathAttribute[attributes.size()]), 
+            false /*not exported*/));
       }
 
       if(recursive) {
