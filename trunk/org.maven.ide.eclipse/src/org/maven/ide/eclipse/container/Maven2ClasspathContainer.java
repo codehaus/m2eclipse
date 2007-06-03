@@ -43,6 +43,13 @@ import org.maven.ide.eclipse.Maven2Plugin;
  * @author Eugene Kuleshov
  */
 public class Maven2ClasspathContainer implements IClasspathContainer {
+  public static final String GROUP_ID_ATTRIBUTE = "maven.groupId";
+  public static final String ARTIFACT_ID_ATTRIBUTE = "maven.artifactId";
+  public static final String VERSION_ATTRIBUTE = "maven.version";
+  
+  public static final String JAVADOC_CLASSIFIER = "javadoc";
+  public static final String SOURCES_CLASSIFIER = "sources";
+
   private IClasspathEntry[] entries;
 
   
