@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <description url="http://m2eclipse.codehaus.org/">
+      Maven Integration for Eclipse
+   </description>
+   <feature url="features/org.maven.ide.eclipse.feature_0.0.11.20070603-1200.jar" id="org.maven.ide.eclipse.feature" version="0.0.11.20070603-1200">
+      <category name="Maven 2.0 Integration"/>
+   </feature>
+   <feature url="features/org.maven.ide.eclipse.mylar.feature_0.0.11.20070603-1200.jar" id="org.maven.ide.eclipse.mylar.feature" version="0.0.11.20070603-1200">
+      <category name="Maven Integration for Mylar"/>
+   </feature>
+   <category-def name="Maven 2.0 Integration" label="org.maven.ide.eclipse"/>
+   <category-def name="Maven Integration for Mylar" label="org.maven.ide.eclipse.mylar"/>
+</site>
