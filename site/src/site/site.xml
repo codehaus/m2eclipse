@@ -23,8 +23,9 @@
       <item name="Eclipse" href="http://www.eclipse.org/" />
     </links>
 
-    <menu name="Maven Extension for Eclipse">
+    <menu name="Main">
       <item name="About" href="/index.html" />
+      <item name="FAQ" href="http://docs.codehaus.org/display/M2ECLIPSE/Project+FAQ"/>
       <item name="Wiki" href="http://docs.codehaus.org/display/M2ECLIPSE/"/>
       <item name="Xircles" href="http://xircles.codehaus.org/projects/m2eclipse" />
     </menu>
