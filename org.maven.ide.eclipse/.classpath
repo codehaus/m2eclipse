@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry exported="true" kind="lib" path="lib/lucene-core-2.0.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/lucene-core-2.1.0.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/maven-embedder-2.1.0.v20070601-0109-dep.jar" sourcepath="lib/maven-embedder-2.1.0.v20070601-0109-depsrc.zip"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/J2SE-1.4"/>
 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
