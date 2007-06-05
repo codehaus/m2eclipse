@@ -366,7 +366,7 @@ public class BuildPathManager {
     }
     
     if(download) {
-      monitor.beginTask("Resolve " + type + " " + a.getId(), IProgressMonitor.UNKNOWN);
+      monitor.beginTask("Resolving " + type + " " + a.getId(), IProgressMonitor.UNKNOWN);
       try {
         // TODO need to take into account issue with the "test-sources"
         Artifact f = embedder.createArtifactWithClassifier(a.getGroupId(), a.getArtifactId(), a.getVersion(),
@@ -377,7 +377,10 @@ public class BuildPathManager {
         }
       } catch(AbstractArtifactResolutionException ex) {
         String name = ex.getGroupId() + ":" + ex.getArtifactId() + "-" + ex.getVersion() + "." + ex.getType();
-        console.logError(ex.getOriginalMessage() + " " + name);
+        console.logError("Unable to download " + type + " for artifact " + name);
+        if(!"java-source".equals(type) && !"javadoc".equals(type)) {
+          console.logError("Error: " + ex.getOriginalMessage());
+        }
       } finally {
         monitor.done();
       }
