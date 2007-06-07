@@ -242,9 +242,8 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       String artifactId = getAttribute(entry, Maven2ClasspathContainer.ARTIFACT_ID_ATTRIBUTE);
       String version = getAttribute(entry, Maven2ClasspathContainer.VERSION_ATTRIBUTE);
 
-      String entryName = entry.getPath().lastSegment();
-      
-      if(entryName.endsWith(".zip") || entryName.endsWith(".jar")) {            
+      if(srcFile.exists() && srcFile.isFile()
+          && (srcFile.getName().endsWith(".zip") || srcFile.getName().endsWith(".jar"))) {
 //        final File target = getTargetFile(entry, suffix);
 //        if(target.getAbsolutePath().equals(srcFile.getAbsolutePath())) {
 //          return false;
