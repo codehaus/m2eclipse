@@ -57,6 +57,7 @@ public class Maven2Executor implements Maven2LaunchConstants {
     String globalSettings = System.getProperty(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
 
     MavenEmbedder embedder = null;
+    final ConsoleEventMonitor consoleEventMonitor = new ConsoleEventMonitor(debug);
     try {
       embedder = EmbedderFactory.createMavenEmbedder(EmbedderFactory.createExecutionCustomizer(), 
           new ConsoleMavenEmbeddedLogger(debug), globalSettings);
@@ -76,13 +77,14 @@ public class Maven2Executor implements Maven2LaunchConstants {
         request.addActiveProfiles(Arrays.asList(profiles.split(", ")));
       }
       
-      request.addEventMonitor(new ConsoleEventMonitor(debug));
+      request.addEventMonitor(consoleEventMonitor);
       request.setTransferListener(new ConsoleTransferMonitor());
       
       embedder.execute(request);
 
     } catch(Throwable e) {
       e.printStackTrace(System.out);
+      System.exit(1);
     } finally {
       try {
         if(embedder != null) {
@@ -92,6 +94,7 @@ public class Maven2Executor implements Maven2LaunchConstants {
         e.printStackTrace(System.out);
       }
     }
+    System.exit(consoleEventMonitor.getErrorCode());
   }
 
 }
