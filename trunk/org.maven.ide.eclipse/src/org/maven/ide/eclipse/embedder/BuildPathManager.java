@@ -103,7 +103,33 @@ public class BuildPathManager {
     this.preferenceStore = preferenceStore;
   }
   
+  public static boolean isIncludingModules(IClasspathEntry entry) {
+    return entry == null ? false : //
+        entry.getPath().toString().indexOf("/" + Maven2ClasspathContainer.INCLUDE_MODULES) > -1;
+  }
+  
+  public static boolean isResolvingWorkspaceProjects(IClasspathEntry entry) {
+    return entry == null ? false : //
+        entry.getPath().toString().indexOf("/" + Maven2ClasspathContainer.RESOLVE_WORKSPACE_PROJECTS) > -1;
+  }
+  
+  public static IClasspathEntry getMavenContainerEntry(IJavaProject javaProject) throws JavaModelException {
+    IClasspathEntry[] classpath = javaProject.getRawClasspath();
+    for(int i = 0; i < classpath.length; i++ ) {
+      IClasspathEntry entry = classpath[i];
+      if(isMaven2ClasspathContainer(entry.getPath())) {
+        return entry;
+      }
+    }
+    return null;
+  }
+  
+  
   public void updateClasspathContainer(IProject project, boolean recursive, IProgressMonitor monitor) throws CoreException {
+    IClasspathEntry containerEntry = getMavenContainerEntry(JavaCore.create(project));
+    boolean resolveWorkspaceProjects = isResolvingWorkspaceProjects(containerEntry);
+    boolean includeModules = isIncludingModules(containerEntry);
+    
     IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
 
     Set entries = new HashSet();
@@ -113,17 +139,17 @@ public class BuildPathManager {
     
     deleteMarkers(project);
     try {
-      mavenModelManager.updateMavenModel(pomFile, true, monitor);
+      mavenModelManager.updateMavenModel(pomFile, includeModules, monitor);
     } catch(CoreException ex) {
       addMarker(pomFile, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
     }
     
-    resolveClasspathEntries(entries, moduleArtifacts, pomFile, pomFile, true, monitor);
+    resolveClasspathEntries(entries, moduleArtifacts, pomFile, pomFile, includeModules, resolveWorkspaceProjects, monitor);
 
     dependentProjects.addAll(mavenModelManager.getDependentProjects(pomFile));
     dependentProjects.remove(project);
 
-    Maven2ClasspathContainer container = new Maven2ClasspathContainer(entries);
+    Maven2ClasspathContainer container = new Maven2ClasspathContainer(containerEntry.getPath(), entries);
 
     JavaCore.setClasspathContainer(container.getPath(), new IJavaProject[] {JavaCore.create(project)},
         new IClasspathContainer[] {container}, monitor);
@@ -135,8 +161,8 @@ public class BuildPathManager {
   }
   
 
-  private void resolveClasspathEntries(Set libraryEntries, Map moduleArtifacts, IFile rootPomFile, IFile pomFile, boolean recursive,
-      IProgressMonitor monitor) {
+  private void resolveClasspathEntries(Set libraryEntries, Map moduleArtifacts, IFile rootPomFile, IFile pomFile,
+      boolean recursive, boolean resolveWorkspaceProjects, IProgressMonitor monitor) {
     if(monitor.isCanceled()) {
       throw new OperationCanceledException();
     }
@@ -155,13 +181,13 @@ public class BuildPathManager {
       boolean downloadJavadoc = !offline & preferenceStore.getBoolean(Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC);
       boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
 
-      MavenExecutionResult result = mavenModelManager.readMavenProject(pomFile, monitor, offline, debug);
+      MavenExecutionResult result = mavenModelManager.readMavenProject(pomFile, monitor, offline, debug, resolveWorkspaceProjects);
       MavenProject mavenProject = getMavenProject(pomFile, result);
       if(mavenProject == null) {
         return;
       }
 
-      MavenEmbedder embedder = embedderManager.getProjectEmbedder();
+      MavenEmbedder embedder = embedderManager.getWorkspaceEmbedder();
       
       // deleteMarkers(pomFile);
       // TODO use version?
@@ -191,21 +217,23 @@ public class BuildPathManager {
         }
 
         moduleArtifacts.put(artifactLocation, a);
-        mavenModelManager.addProjectArtifact(pomFile, a);
-        // this is needed to projects with have modules (either inner or external)
-        mavenModelManager.addProjectArtifact(rootPomFile, a);
-        
-        IFile artifactPomFile = mavenModelManager.getArtifactFile(a);
-        if(artifactPomFile != null) {
-          IProject artifactProject = artifactPomFile.getProject();
-          if(artifactProject.getFullPath().equals(currentProject.getFullPath())) {
-            // This is another artifact in our current project so we should not
-            // add our own project to ourself
+        if(resolveWorkspaceProjects) {
+          mavenModelManager.addProjectArtifact(pomFile, a);
+          // this is needed to projects with have modules (either inner or external)
+          mavenModelManager.addProjectArtifact(rootPomFile, a);
+          
+          IFile artifactPomFile = mavenModelManager.getArtifactFile(a);
+          if(artifactPomFile != null) {
+            IProject artifactProject = artifactPomFile.getProject();
+            if(artifactProject.getFullPath().equals(currentProject.getFullPath())) {
+              // This is another artifact in our current project so we should not
+              // add our own project to ourself
+              continue;
+            }
+  
+            libraryEntries.add(JavaCore.newProjectEntry(artifactProject.getFullPath(), false));
             continue;
           }
-
-          libraryEntries.add(JavaCore.newProjectEntry(artifactProject.getFullPath(), false));
-          continue;
         }
 
         Path srcPath = materializeArtifactPath(embedder, mavenProject, a, "java-source", "sources", downloadSources, monitor);
@@ -234,7 +262,7 @@ public class BuildPathManager {
       }
 
       if(recursive) {
-        IContainer parent = pomFile.getParent();
+        IContainer basedir = pomFile.getParent();
 
         List modules = mavenProject.getModules();
         for(Iterator it = modules.iterator(); it.hasNext() && !monitor.isCanceled();) {
@@ -243,9 +271,10 @@ public class BuildPathManager {
           }
 
           String module = (String) it.next();
-          IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
+          IResource memberPom = basedir.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
           if(memberPom != null && memberPom.getType() == IResource.FILE) {
-            resolveClasspathEntries(libraryEntries, moduleArtifacts, rootPomFile, (IFile) memberPom, true, monitor);
+            resolveClasspathEntries(libraryEntries, moduleArtifacts, // 
+                rootPomFile, (IFile) memberPom, true, resolveWorkspaceProjects, monitor);
           }
         }
       }
@@ -297,7 +326,7 @@ public class BuildPathManager {
         try {
           // TODO
           File file = pomFile.getLocation().toFile();
-          return embedderManager.getProjectEmbedder().readProject(file);
+          return embedderManager.getWorkspaceEmbedder().readProject(file);
         
         } catch(ProjectBuildingException ex2) {
           handleProjectBuildingException(pomFile, ex2);
@@ -557,6 +586,7 @@ public class BuildPathManager {
     
     MavenEmbedder mavenEmbedder;
     try {
+      // XXX should use project embedder with resolving from workspace?
       mavenEmbedder = EmbedderFactory.createMavenEmbedder(EmbedderFactory.createExecutionCustomizer(),
           new PluginConsoleMavenEmbeddedLogger(console, debug), globalSettings);
     } catch(MavenEmbedderException ex) {
@@ -711,15 +741,17 @@ public class BuildPathManager {
   
     IJavaProject javaProject = JavaCore.create(project);
     if(javaProject != null) {
-      IClasspathContainer container = getMaven2ClasspathContainer(javaProject);
-      IClasspathEntry[] entries = container.getClasspathEntries();
       HashSet containerEntrySet = new HashSet();
-      for(int i = 0; i < entries.length; i++ ) {
-        containerEntrySet.add(entries[i].getPath().toString());
+      IClasspathContainer container = getMaven2ClasspathContainer(javaProject);
+      if(container!=null) {
+        IClasspathEntry[] entries = container.getClasspathEntries();
+        for(int i = 0; i < entries.length; i++ ) {
+          containerEntrySet.add(entries[i].getPath().toString());
+        }
       }
   
       // remove classpath container from JavaProject
-      entries = javaProject.getRawClasspath();
+      IClasspathEntry[] entries = javaProject.getRawClasspath();
       ArrayList newEntries = new ArrayList();
       for(int i = 0; i < entries.length; i++ ) {
         IClasspathEntry entry = entries[i];
@@ -728,7 +760,7 @@ public class BuildPathManager {
           newEntries.add(entry);
         }
       }
-      newEntries.add(JavaCore.newContainerEntry(new Path(Maven2Plugin.CONTAINER_ID)));
+      newEntries.add(JavaCore.newContainerEntry(new Path(Maven2Plugin.CONTAINER_ID).append(Maven2ClasspathContainer.RESOLVE_WORKSPACE_PROJECTS)));
   
       javaProject.setRawClasspath((IClasspathEntry[]) newEntries.toArray(new IClasspathEntry[newEntries.size()]),
           null);
@@ -774,7 +806,14 @@ public class BuildPathManager {
   }
 
   public static IClasspathContainer getMaven2ClasspathContainer(IJavaProject project) throws JavaModelException {
-    return JavaCore.getClasspathContainer(new Path(Maven2Plugin.CONTAINER_ID), project);
+    IClasspathEntry[] entries = project.getRawClasspath();
+    for(int i = 0; i < entries.length; i++ ) {
+      IClasspathEntry entry = entries[i];
+      if(entry.getEntryKind() == IClasspathEntry.CPE_CONTAINER && isMaven2ClasspathContainer(entry.getPath())) {
+        return (IClasspathContainer) entry;
+      }
+    }
+    return null; 
   }
 
   private static String getBuildOption(MavenProject project, String artifactId, String optionName) {

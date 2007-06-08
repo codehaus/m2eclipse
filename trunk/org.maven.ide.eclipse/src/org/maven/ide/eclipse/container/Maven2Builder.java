@@ -19,7 +19,11 @@
 
 package org.maven.ide.eclipse.container;
 
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+
+import org.apache.maven.model.Model;
 
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
@@ -30,6 +34,10 @@ import org.eclipse.core.resources.IResourceDeltaVisitor;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
@@ -56,16 +64,25 @@ public class Maven2Builder extends IncrementalProjectBuilder {
   protected IProject[] build(int kind, Map args, IProgressMonitor monitor) throws CoreException {
     IProject project = getProject();
     if(project.hasNature(Maven2Plugin.NATURE_ID)) {
+      IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
+      if(pomFile==null) {
+        console.logError("Project "+project.getName()+" is missing pom.xml");
+        return null;
+      }
 
       // if( kind == AUTO_BUILD || kind == INCREMENTAL_BUILD ) {
       IResourceDelta delta = getDelta(project);
-      if(delta == null) {
-        IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
-        if(pomFile==null) {
-          console.logError("Project "+project.getName()+" is missing pom.xml");
+      if(delta != null) {
+        IJavaProject javaProject = JavaCore.create(project);
+        IClasspathEntry entry = BuildPathManager.getMavenContainerEntry(javaProject);
+        HashSet poms = new HashSet();
+        if(BuildPathManager.isIncludingModules(entry)) {
+          addModulePoms(poms, pomFile, monitor);
+        } else {
+          poms.add(pomFile.getLocation().toString());
         }
-      } else {
-        Verifier verifier = new Verifier();
+        
+        Verifier verifier = new Verifier(poms);
         delta.accept(verifier, IContainer.EXCLUDE_DERIVED);
         if(!verifier.updated) {
           return null;
@@ -77,22 +94,41 @@ public class Maven2Builder extends IncrementalProjectBuilder {
     return null;
   }
 
+  private void addModulePoms(HashSet poms, IFile pomFile, IProgressMonitor monitor) {
+    poms.add(pomFile.getLocation().toString());
+
+    Model model = plugin.getMavenModelManager().getMavenModel(pomFile);
+    
+    IContainer parent = pomFile.getParent();
+    for(Iterator it = model.getModules().iterator(); it.hasNext();) {
+      if(monitor.isCanceled()) {
+        throw new OperationCanceledException();
+      }
+      String module = (String) it.next();
+      IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
+      if(memberPom != null && memberPom.getType() == IResource.FILE && memberPom.isAccessible()) {
+        addModulePoms(poms, (IFile) memberPom, monitor);
+      }
+    }
+  }
+
   static final class Verifier implements IResourceDeltaVisitor {
     boolean updated;
+    private final HashSet poms;
+
+    public Verifier(HashSet poms) {
+      this.poms = poms;
+    }
 
     public boolean visit(IResourceDelta delta) {
       IResource resource = delta.getResource();
       if(resource.getType() == IResource.FILE && Maven2Plugin.POM_FILE_NAME.equals(resource.getName())) {
-        updated = true;
-//
-//        Util.deleteMarkers(resource);
-//        try {
-//          mavenModelManager.updateMavenModel((IFile) resource, true, monitor);
-//        } catch(CoreException ex) {
-//          Util.addMarker(resource, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
-//        }
+        if(poms.contains(resource.getLocation().toString())) {
+          updated = true;
+          return false;
+        }
       }
-      return true;
+      return !updated;
     }
 
   }

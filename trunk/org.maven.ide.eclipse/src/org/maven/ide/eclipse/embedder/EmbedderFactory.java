@@ -73,7 +73,7 @@ public class EmbedderFactory {
   }
 
 
-  public static ContainerCustomizer createProjectCustomizer() {
+  public static ContainerCustomizer createWorkspaceCustomizer(final boolean resolveWorkspaceProjects) {
     return new ContainerCustomizer() {
         public void customize(PlexusContainer container) {
           // desc = plexusContainer.getComponentDescriptor(ArtifactFactory.ROLE);
@@ -89,11 +89,13 @@ public class EmbedderFactory {
           // desc.setImplementation(EclipseResolutionListener.class.getName());
 
           // Custom artifact resolver for resolving artifacts from Eclipse Worspace
-          ComponentDescriptor resolverDescriptor = container.getComponentDescriptor(ArtifactResolver.ROLE);
-          // ComponentRequirement requirement = new ComponentRequirement();
-          // requirement.setRole(ResolutionListener.ROLE);
-          // desc.addRequirement(requirement);
-          resolverDescriptor.setImplementation(EclipseArtifactResolver.class.getName());
+          if(resolveWorkspaceProjects) {
+            ComponentDescriptor resolverDescriptor = container.getComponentDescriptor(ArtifactResolver.ROLE);
+            // ComponentRequirement requirement = new ComponentRequirement();
+            // requirement.setRole(ResolutionListener.ROLE);
+            // desc.addRequirement(requirement);
+            resolverDescriptor.setImplementation(EclipseArtifactResolver.class.getName());
+          }
         
 //          desc = container.getComponentDescriptor(WagonManager.ROLE);
 //          desc.setImplementation(EclipseWagonManager.class.getName());

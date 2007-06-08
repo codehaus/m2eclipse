@@ -80,7 +80,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       if(container == null) {
         mavenContainer = new Maven2ClasspathContainer();
       } else {
-        mavenContainer = new Maven2ClasspathContainer(container.getClasspathEntries());
+        mavenContainer = new Maven2ClasspathContainer(containerPath, container.getClasspathEntries());
       }
 
       try {
@@ -129,7 +129,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
     if(bundleUpdater.containerUpdated) {
       try {
         JavaCore.setClasspathContainer(containerSuggestion.getPath(), new IJavaProject[] {project},
-            new IClasspathContainer[] {new Maven2ClasspathContainer(bundleUpdater.newEntries)}, null);
+            new IClasspathContainer[] {new Maven2ClasspathContainer(containerPath, bundleUpdater.newEntries)}, null);
       } catch(JavaModelException ex) {
         Maven2Plugin.getDefault().getConsole().logError(ex.getMessage());
       }
@@ -258,7 +258,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
 //          }
           
           // TODO maybe move this into MavenEmbedderManager
-          MavenEmbedder embedder = Maven2Plugin.getDefault().getMavenEmbedderManager().getProjectEmbedder();
+          MavenEmbedder embedder = Maven2Plugin.getDefault().getMavenEmbedderManager().getWorkspaceEmbedder();
           
           // TODO read offline and debug settings
           MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(embedder, false, true);

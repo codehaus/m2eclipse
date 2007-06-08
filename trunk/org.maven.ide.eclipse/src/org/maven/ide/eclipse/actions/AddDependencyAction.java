@@ -28,6 +28,9 @@ import org.apache.maven.project.MavenProject;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -38,6 +41,7 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
 import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.index.Indexer.FileInfo;
@@ -49,27 +53,29 @@ public class AddDependencyAction implements IObjectActionDelegate {
 
   public void run(IAction action) {
     Object o = selection.iterator().next();
-    final IFile file;
+    IFile file;
+    IProject project;
     if(o instanceof IProject) {
-      file = ((IProject) o).getFile(Maven2Plugin.POM_FILE_NAME);
+      project = (IProject) o;
+      file = project.getFile(Maven2Plugin.POM_FILE_NAME);
     } else if(o instanceof IFile) {
       file = (IFile) o;
+      project = file.getProject();
     } else {
       return;
     }
 
-    Maven2Plugin plugin = Maven2Plugin.getDefault();
-    MavenModelManager modelManager = plugin.getMavenModelManager();
     
-    MavenProject mavenProject;
+    MavenModelManager modelManager = Maven2Plugin.getDefault().getMavenModelManager();
+    Set artifacts;
     try {
-      MavenExecutionResult result = modelManager.readMavenProject(file, new NullProgressMonitor(), true, false);
-      mavenProject = result.getMavenProject(); 
-//    } catch(CoreException ex) {
-//      // TODO move into ReadProjectTask
-//      Maven2Plugin.log(ex);
-//      Maven2Plugin.getDefault().getConsole().logError(ex.getMessage());
-//      return;
+      IJavaProject javaProject = JavaCore.create(project);
+      IClasspathEntry entry = BuildPathManager.getMavenContainerEntry(javaProject);
+      boolean resolveWorkspaceProjects = BuildPathManager.isResolvingWorkspaceProjects(entry);
+
+      MavenExecutionResult result = modelManager.readMavenProject(file, new NullProgressMonitor(), true, false, resolveWorkspaceProjects);
+      MavenProject mavenProject = result.getMavenProject();
+      artifacts = mavenProject == null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
     } catch(Exception ex) {
       // TODO move into ReadProjectTask
       String msg = "Unable to read project";
@@ -77,8 +83,6 @@ public class AddDependencyAction implements IObjectActionDelegate {
       Maven2Plugin.getDefault().getConsole().logError(msg + "; " + ex.toString());
       return;
     }
-
-    Set artifacts = mavenProject == null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
 
     Maven2RepositorySearchDialog dialog = new Maven2RepositorySearchDialog(getShell(), artifacts, Indexer.JAR_NAME);
     if(dialog.open() == Window.OK) {

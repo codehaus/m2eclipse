@@ -43,6 +43,11 @@ import org.maven.ide.eclipse.Maven2Plugin;
  * @author Eugene Kuleshov
  */
 public class Maven2ClasspathContainer implements IClasspathContainer {
+  // container settings
+  public static final String INCLUDE_MODULES = "modules";
+  public static final String RESOLVE_WORKSPACE_PROJECTS = "workspace";
+  
+  // entry attributes
   public static final String GROUP_ID_ATTRIBUTE = "maven.groupId";
   public static final String ARTIFACT_ID_ATTRIBUTE = "maven.artifactId";
   public static final String VERSION_ATTRIBUTE = "maven.version";
@@ -50,14 +55,17 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
   public static final String JAVADOC_CLASSIFIER = "javadoc";
   public static final String SOURCES_CLASSIFIER = "sources";
 
-  private IClasspathEntry[] entries;
+  private final IClasspathEntry[] entries;
+  private final IPath path;
 
   
   public Maven2ClasspathContainer() {
+    this.path = new Path(Maven2Plugin.CONTAINER_ID).append(RESOLVE_WORKSPACE_PROJECTS);
     this.entries = new IClasspathEntry[0];
   }
   
-  public Maven2ClasspathContainer(IClasspathEntry[] entries) {
+  public Maven2ClasspathContainer(IPath path, IClasspathEntry[] entries) {
+    this.path = path;
     IClasspathEntry[] e = new IClasspathEntry[entries.length]; 
     System.arraycopy(entries, 0, e, 0, entries.length);
     Arrays.sort( e, new Comparator() {
@@ -68,8 +76,8 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
     this.entries = e;
   }
   
-  public Maven2ClasspathContainer(Set entrySet) {
-    this((IClasspathEntry[]) entrySet.toArray(new IClasspathEntry[entrySet.size()]));
+  public Maven2ClasspathContainer(IPath path, Set entrySet) {
+    this(path, (IClasspathEntry[]) entrySet.toArray(new IClasspathEntry[entrySet.size()]));
   }
 
   public synchronized IClasspathEntry[] getClasspathEntries() {
@@ -77,7 +85,7 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
   }
 
   public String getDescription() {
-    return "Maven2 Dependencies";  // TODO move to properties
+    return "Maven Dependencies";  // TODO move to properties
   }
 
   public int getKind() {
@@ -85,9 +93,18 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
   }
 
   public IPath getPath() {
-    return new Path(Maven2Plugin.CONTAINER_ID);
+    return path; 
   }
 
+  public static String getJavaDocUrl(String fileName) {
+    try {
+      URL fileUrl = new File(fileName).toURL();
+      return "jar:"+fileUrl.toExternalForm()+"!/"+Maven2ClasspathContainer.getJavaDocPathInArchive(fileName);
+    } catch(MalformedURLException ex) {
+      return null;
+    }
+  }
+  
   private static String getJavaDocPathInArchive(String name) {
     long l1 = System.currentTimeMillis();
     ZipFile jarFile = null;
@@ -114,15 +131,6 @@ public class Maven2ClasspathContainer implements IClasspathContainer {
     }
     
     return "";
-  }
-
-  public static String getJavaDocUrl(String fileName) {
-    try {
-      URL fileUrl = new File(fileName).toURL();
-      return "jar:"+fileUrl.toExternalForm()+"!/"+Maven2ClasspathContainer.getJavaDocPathInArchive(fileName);
-    } catch(MalformedURLException ex) {
-      return null;
-    }
   }
   
 }
