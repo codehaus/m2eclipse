@@ -96,7 +96,7 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
     public Object[] getChildren(Object parentElement) {
       if(parentElement instanceof LifecyclePhases) {
         try {
-          List lifecyclePhases = embedderManager.getProjectEmbedder().getLifecyclePhases();
+          List lifecyclePhases = embedderManager.getWorkspaceEmbedder().getLifecyclePhases();
           List result = new ArrayList();
           for(Iterator it = lifecyclePhases.iterator(); it.hasNext();) {
             result.add(new LifecyclePhase((String) it.next()));

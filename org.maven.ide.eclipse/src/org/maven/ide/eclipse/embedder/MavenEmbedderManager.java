@@ -21,6 +21,7 @@ package org.maven.ide.eclipse.embedder;
 
 import java.io.File;
 
+import org.apache.maven.embedder.ContainerCustomizer;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
 
@@ -44,7 +45,7 @@ public class MavenEmbedderManager {
   private final Maven2Console console;
   private final IPreferenceStore preferenceStore;
 
-  private MavenEmbedder projectEmbedder;
+  private MavenEmbedder workspaceEmbedder;
 
   
   public MavenEmbedderManager(Maven2Console console, IPreferenceStore preferenceStore) {
@@ -52,20 +53,26 @@ public class MavenEmbedderManager {
     this.preferenceStore = preferenceStore;
   }
 
-  public MavenEmbedder getProjectEmbedder() {
-    if(this.projectEmbedder==null) {
-      try {
-        String globalSettings = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
-        boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
+  
+  public MavenEmbedder createEmbedder(ContainerCustomizer customizer) {
+    try {
+      String globalSettings = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
+      boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
 
-        this.projectEmbedder = EmbedderFactory.createMavenEmbedder(EmbedderFactory.createProjectCustomizer(),
-            new PluginConsoleMavenEmbeddedLogger(console, debug), globalSettings);
-        
-      } catch(MavenEmbedderException ex) {
-        console.logError("Can't create project embedder; " + ex.toString());
-      }
+      return EmbedderFactory.createMavenEmbedder(customizer,
+          new PluginConsoleMavenEmbeddedLogger(console, debug), globalSettings);
+      
+    } catch(MavenEmbedderException ex) {
+      console.logError("Can't create project embedder; " + ex.toString());
     }
-    return this.projectEmbedder;
+    return null;
+  }
+  
+  public MavenEmbedder getWorkspaceEmbedder() {
+    if(this.workspaceEmbedder==null) {
+      this.workspaceEmbedder = createEmbedder(EmbedderFactory.createExecutionCustomizer()); 
+    }
+    return this.workspaceEmbedder;
   }
 
   public void invalidateMavenSettings() {
@@ -73,7 +80,7 @@ public class MavenEmbedderManager {
   }
 
   public Object executeInEmbedder(String name, MavenEmbedderCallback template) throws CoreException {
-    EmbedderJob job = new EmbedderJob(name, template, getProjectEmbedder());
+    EmbedderJob job = new EmbedderJob(name, template, getWorkspaceEmbedder());
     job.schedule();
     try {
       job.join();
@@ -98,19 +105,19 @@ public class MavenEmbedderManager {
   
   public void shutdown() {
     // XXX need to wait when embedder jobs will be completed 
-    if(projectEmbedder!=null) {
+    if(workspaceEmbedder!=null) {
       try {
-        projectEmbedder.stop();
+        workspaceEmbedder.stop();
       } catch(MavenEmbedderException ex) {
         console.logError("Error on stopping project embedder "+ex.getMessage());
       }
-      projectEmbedder = null;
+      workspaceEmbedder = null;
     }
   }
   
 
   public File getLocalRepositoryDir() {
-    String localRepository = getProjectEmbedder().getLocalRepository().getBasedir();
+    String localRepository = getWorkspaceEmbedder().getLocalRepository().getBasedir();
     
     File localRepositoryDir = new File(localRepository);
     

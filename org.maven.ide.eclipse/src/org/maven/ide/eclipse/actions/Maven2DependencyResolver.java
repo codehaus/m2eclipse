@@ -28,10 +28,11 @@ import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.project.MavenProject;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.internal.ui.text.correction.ChangeCorrectionProposal;
 import org.eclipse.jdt.ui.actions.OrganizeImportsAction;
@@ -47,6 +48,7 @@ import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
 import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.index.Indexer.FileInfo;
@@ -122,12 +124,15 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
       MavenModelManager modelManager = plugin.getMavenModelManager();
 
       ICompilationUnit cu = context.getCompilationUnit();
-      IProject project = cu.getJavaProject().getProject();
-      IFile pomFile = project.getFile(new Path(Maven2Plugin.POM_FILE_NAME));
+      IJavaProject javaProject = cu.getJavaProject();
+      IFile pomFile = javaProject.getProject().getFile(new Path(Maven2Plugin.POM_FILE_NAME));
 
       MavenProject mavenProject = null;
       try {
-        MavenExecutionResult result = modelManager.readMavenProject(pomFile, new NullProgressMonitor(), true, false);
+        IClasspathEntry entry = BuildPathManager.getMavenContainerEntry(javaProject);
+        boolean resolveWorkspaceProjects = BuildPathManager.isResolvingWorkspaceProjects(entry);
+        
+        MavenExecutionResult result = modelManager.readMavenProject(pomFile, new NullProgressMonitor(), true, false, resolveWorkspaceProjects);
         mavenProject = result.getMavenProject();
 //      } catch(CoreException ex) {
 //        // TODO move into ReadProjectTask
@@ -135,7 +140,7 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
 //        Maven2Plugin.getDefault().getConsole().logError(ex.getMessage());
       } catch(Exception ex) {
         // TODO move into ReadProjectTask
-        String msg = "Unable to read model";
+        String msg = "Unable to read project";
         Maven2Plugin.log(msg, ex);
         Maven2Plugin.getDefault().getConsole().logError(msg + "; " + ex.toString());
       }

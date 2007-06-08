@@ -50,15 +50,15 @@ class ConsoleEventMonitor implements EventMonitor {
   }
 
   public void endEvent(String eventName, String target, long timestamp) {
-    if("project-execute".equals(eventName)) {
-      System.out.println(PREFIX + "----------------------------------------------------------------------------");
-      System.out.println(PREFIX + "BUILD SUCCESSFUL");
-      System.out.println(PREFIX + "----------------------------------------------------------------------------");
-      System.out.println(PREFIX + getTotalTime());
-      System.out.println(PREFIX + getFinishedAt());
-      System.out.println(PREFIX + getMemory());
-      System.out.println(PREFIX + "----------------------------------------------------------------------------");
-    }
+//    if("project-execute".equals(eventName)) {
+//      System.out.println(PREFIX + "----------------------------------------------------------------------------");
+//      System.out.println(PREFIX + "BUILD SUCCESSFUL");
+//      System.out.println(PREFIX + "----------------------------------------------------------------------------");
+//      System.out.println(PREFIX + getTotalTime());
+//      System.out.println(PREFIX + getFinishedAt());
+//      System.out.println(PREFIX + getMemory());
+//      System.out.println(PREFIX + "----------------------------------------------------------------------------");
+//    }
   }
 
   private String getTotalTime() {
@@ -82,11 +82,13 @@ class ConsoleEventMonitor implements EventMonitor {
 
     System.out.println("[ERROR] " + eventName + " : " + target);
     if(cause != null) {
-      if(debug && "project-execute".equals(eventName)) {
+      if(debug) {
         cause.printStackTrace(System.out);
       } else {
-        System.out.println("Diagnosis: " + cause.getMessage());
+        System.out.println("Diagnosis: " + (cause.getMessage()==null ? cause.toString() : cause.getMessage()));
       }
+      
+      //  && "project-execute".equals(eventName)
     }
     System.out.println("FATAL ERROR: Error executing Maven for a project");
   }
