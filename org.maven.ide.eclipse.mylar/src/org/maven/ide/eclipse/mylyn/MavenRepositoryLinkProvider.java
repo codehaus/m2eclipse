@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.maven.ide.eclipse.mylar;
+package org.maven.ide.eclipse.mylyn;
 
 import org.apache.maven.model.IssueManagement;
 import org.apache.maven.model.Model;
@@ -25,9 +25,9 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.mylar.tasks.core.TaskRepository;
-import org.eclipse.mylar.tasks.core.TaskRepositoryManager;
-import org.eclipse.mylar.tasks.ui.AbstractTaskRepositoryLinkProvider;
+import org.eclipse.mylyn.tasks.core.TaskRepository;
+import org.eclipse.mylyn.tasks.core.TaskRepositoryManager;
+import org.eclipse.mylyn.tasks.ui.AbstractTaskRepositoryLinkProvider;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
 
