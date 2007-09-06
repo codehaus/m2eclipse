@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.maven.ide.eclipse.mylar;
+package org.maven.ide.eclipse.mylyn;
 
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
@@ -29,7 +29,7 @@ import org.osgi.framework.BundleContext;
  */
 public class MavenMylarPlugin extends AbstractUIPlugin {
 
-	public static final String PLUGIN_ID = "org.maven.ide.eclipse.mylar";
+	public static final String PLUGIN_ID = "org.maven.ide.eclipse.mylyn";
 
 	// The shared instance
 	private static MavenMylarPlugin plugin;
