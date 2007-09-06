@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
-      id="org.maven.ide.eclipse.mylar.feature"
-      label="Maven Integration for Mylar"
-      version="0.0.11.20070603-1200"
+      id="org.maven.ide.eclipse.mylyn.feature"
+      label="Maven Integration for Mylyn (Optional)"
+      version="0.0.11.20070906-1200"
       provider-name="maven.org">
 
    <description url="http://m2eclipse.codehaus.org/">
-      Maven integration for Mylar allows to use issue management information
-from pom.xml to link projects with Task Respositories in Mylar.
+      Maven integration for Mylyn allows to use issue management information
+from pom.xml to link projects with issue tracking repositories.
    </description>
 
    <copyright>
@@ -36,11 +36,11 @@ under the License.
    </url>
 
    <requires>
-      <import plugin="org.eclipse.mylar.tasks.ui" version="2.0.0.v20070221-0830" match="greaterOrEqual"/>
+      <import plugin="org.eclipse.mylyn.tasks.ui"/>
    </requires>
 
    <plugin
-         id="org.maven.ide.eclipse.mylar"
+         id="org.maven.ide.eclipse.mylyn"
          download-size="0"
          install-size="0"
          version="0.0.0"
