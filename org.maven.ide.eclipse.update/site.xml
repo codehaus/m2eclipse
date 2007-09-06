@@ -6,9 +6,9 @@
    <feature url="features/org.maven.ide.eclipse.feature_0.0.11.20070603-1200.jar" id="org.maven.ide.eclipse.feature" version="0.0.11.20070603-1200">
       <category name="Maven 2.0 Integration"/>
    </feature>
-   <feature url="features/org.maven.ide.eclipse.mylar.feature_0.0.11.20070603-1200.jar" id="org.maven.ide.eclipse.mylar.feature" version="0.0.11.20070603-1200">
-      <category name="Maven Integration for Mylar"/>
+   <feature url="features/org.maven.ide.eclipse.mylyn.feature_0.0.11.20070906-1200.jar" id="org.maven.ide.eclipse.mylyn.feature" version="0.0.11.20070906-1200">
+      <category name="Maven Integration for Mylyn"/>
    </feature>
    <category-def name="Maven 2.0 Integration" label="org.maven.ide.eclipse"/>
-   <category-def name="Maven Integration for Mylar" label="org.maven.ide.eclipse.mylar"/>
+   <category-def name="Maven Integration for Mylyn" label="org.maven.ide.eclipse.mylyn"/>
 </site>
