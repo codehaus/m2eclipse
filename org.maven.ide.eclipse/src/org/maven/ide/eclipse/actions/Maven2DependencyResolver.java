@@ -30,7 +30,6 @@ import org.apache.maven.project.MavenProject;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
-import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.compiler.IProblem;
@@ -50,6 +49,7 @@ import org.eclipse.ui.IWorkbenchWindow;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.index.Indexer.FileInfo;
 
@@ -129,11 +129,9 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
 
       MavenProject mavenProject = null;
       try {
-        IClasspathEntry entry = BuildPathManager.getMavenContainerEntry(javaProject);
-        boolean resolveWorkspaceProjects = BuildPathManager.isResolvingWorkspaceProjects(entry);
-        
-        MavenExecutionResult result = modelManager.readMavenProject(pomFile, new NullProgressMonitor(), true, false, resolveWorkspaceProjects);
-        mavenProject = result.getMavenProject();
+        ResolverConfiguration resolverConfiguration = BuildPathManager.getResolverConfiguration(javaProject);
+        MavenExecutionResult result = modelManager.readMavenProject(pomFile, new NullProgressMonitor(), true, false, resolverConfiguration);
+        mavenProject = result.getProject();
 //      } catch(CoreException ex) {
 //        // TODO move into ReadProjectTask
 //        Maven2Plugin.log(ex);

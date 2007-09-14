@@ -35,11 +35,11 @@ import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
-import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
 
 
@@ -74,9 +74,9 @@ public class Maven2Builder extends IncrementalProjectBuilder {
       IResourceDelta delta = getDelta(project);
       if(delta != null) {
         IJavaProject javaProject = JavaCore.create(project);
-        IClasspathEntry entry = BuildPathManager.getMavenContainerEntry(javaProject);
+        ResolverConfiguration resolverConfiguration = BuildPathManager.getResolverConfiguration(javaProject);
         HashSet poms = new HashSet();
-        if(BuildPathManager.isIncludingModules(entry)) {
+        if(resolverConfiguration.shouldIncludeModules()) {
           addModulePoms(poms, pomFile, monitor);
         } else {
           poms.add(pomFile.getLocation().toString());
@@ -89,7 +89,7 @@ public class Maven2Builder extends IncrementalProjectBuilder {
         }
       }
 
-      buildpathManager.updateClasspathContainer(project, true, monitor);
+      buildpathManager.updateClasspathContainer(project, monitor);
     }
     return null;
   }

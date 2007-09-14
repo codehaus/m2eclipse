@@ -23,6 +23,12 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.core.runtime.IConfigurationElement;
+import org.eclipse.core.runtime.IExecutableExtension;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.core.runtime.Path;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -36,14 +42,29 @@ import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.wizards.Maven2PomWizard;
 
 
-public class EnableNatureAction implements IObjectActionDelegate {
+public class EnableNatureAction implements IObjectActionDelegate, IExecutableExtension {
+
   private ISelection selection;
 
-  /*
-   * (non-Javadoc)
-   * 
-   * @see org.eclipse.ui.IActionDelegate#run(org.eclipse.jface.action.IAction)
-   */
+  private boolean includeModules = false;
+
+  private boolean workspaceProjects = true;
+
+  public void setInitializationData(IConfigurationElement config, String propertyName, Object data) {
+    if(Maven2Plugin.INCLUDE_MODULES.equals(data)) {
+      this.includeModules = true;
+    } else if(Maven2Plugin.NO_WORKSPACE_PROJECTS.equals(data)) {
+      this.workspaceProjects = false;
+    }
+  }
+
+  public void selectionChanged(IAction action, ISelection selection) {
+    this.selection = selection;
+  }
+
+  public void setActivePart(IAction action, IWorkbenchPart targetPart) {
+  }
+
   public void run(IAction action) {
     if(selection instanceof IStructuredSelection) {
       IStructuredSelection structuredSelection = (IStructuredSelection) selection;
@@ -60,25 +81,6 @@ public class EnableNatureAction implements IObjectActionDelegate {
         }
       }
     }
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see org.eclipse.ui.IActionDelegate#selectionChanged(org.eclipse.jface.action.IAction,
-   *      org.eclipse.jface.viewers.ISelection)
-   */
-  public void selectionChanged(IAction action, ISelection selection) {
-    this.selection = selection;
-  }
-
-  /*
-   * (non-Javadoc)
-   * 
-   * @see org.eclipse.ui.IObjectActionDelegate#setActivePart(org.eclipse.jface.action.IAction,
-   *      org.eclipse.ui.IWorkbenchPart)
-   */
-  public void setActivePart(IAction action, IWorkbenchPart targetPart) {
   }
 
   private void enableNature(IProject project, boolean isSingle) {
@@ -99,8 +101,16 @@ public class EnableNatureAction implements IObjectActionDelegate {
           return;
         }
       }
-      
-      plugin.getBuildpathManager().enableMavenNature(project);
+
+      IPath containerPath = new Path(Maven2Plugin.CONTAINER_ID);
+      if(!workspaceProjects) {
+        containerPath = containerPath.append(Maven2Plugin.NO_WORKSPACE_PROJECTS);
+      }
+      if(includeModules) {
+        containerPath = containerPath.append(Maven2Plugin.INCLUDE_MODULES);
+      }
+      plugin.getBuildpathManager().enableMavenNature(project, JavaCore.newContainerEntry(containerPath),
+          new NullProgressMonitor());
 
     } catch(CoreException ex) {
       Maven2Plugin.log(ex);

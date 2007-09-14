@@ -23,15 +23,10 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.maven.model.Model;
 
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.SubProgressMonitor;
-import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.viewers.CheckStateChangedEvent;
 import org.eclipse.jface.viewers.CheckboxTreeViewer;
 import org.eclipse.jface.viewers.ICheckStateListener;
@@ -51,20 +46,30 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
+import org.eclipse.ui.forms.events.ExpansionAdapter;
+import org.eclipse.ui.forms.events.ExpansionEvent;
+import org.eclipse.ui.forms.widgets.ExpandableComposite;
+import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.embedder.MavenModelManager;
+
 
 /**
  * Maven2ImportWizardPage
- *
+ * 
  * @author Eugene Kuleshov
  */
 public class Maven2ImportWizardPage extends WizardPage {
 
   Text rootDirectoryText;
+
   CheckboxTreeViewer projectTreeViewer;
 
-  
+  private Button projectsForModules;
+
+  private Button resolveWorkspaceProjects;
+
+  private Text activeProfiles;
+
   protected Maven2ImportWizardPage() {
     super("Maven2ImportPage");
     setTitle("Import Maven projects");
@@ -73,14 +78,25 @@ public class Maven2ImportWizardPage extends WizardPage {
   }
 
   public void createControl(Composite parent) {
-    Composite composite = new Composite(parent, SWT.NONE);
+    FormToolkit toolkit = new FormToolkit(Display.getCurrent());
+
+    final Composite composite = new Composite(parent, SWT.NONE);
     composite.setLayout(new GridLayout(3, false));
-    
+    setControl(composite);
+
     final Label selectRootDirectoryLabel = new Label(composite, SWT.NONE);
-    selectRootDirectoryLabel.setText("Root Directory:");
+    selectRootDirectoryLabel.setLayoutData(new GridData());
+    selectRootDirectoryLabel.setText("&Root Directory:");
 
     rootDirectoryText = new Text(composite, SWT.BORDER);
     rootDirectoryText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    rootDirectoryText.addSelectionListener(new SelectionAdapter() {
+      public void widgetDefaultSelected(SelectionEvent e) {
+        if(rootDirectoryText.getText().trim().length() > 0) {
+          scanProjects();
+        }
+      }
+    });
 
     final Button browseButton = new Button(composite, SWT.NONE);
     browseButton.setText("&Browse...");
@@ -90,9 +106,9 @@ public class Maven2ImportWizardPage extends WizardPage {
         DirectoryDialog dialog = new DirectoryDialog(getShell(), SWT.NONE);
         dialog.setText("Select Root Folder");
         dialog.setFilterPath(rootDirectoryText.getText());
-        
+
         String result = dialog.open();
-        if(result!=null) {
+        if(result != null) {
           rootDirectoryText.setText(result);
           scanProjects();
         }
@@ -100,34 +116,38 @@ public class Maven2ImportWizardPage extends WizardPage {
     });
 
     final Label projectsLabel = new Label(composite, SWT.NONE);
-    projectsLabel.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 3, 1));
-    projectsLabel.setText("Projects:");
+    projectsLabel.setLayoutData(new GridData());
+    projectsLabel.setText("&Projects:");
+    new Label(composite, SWT.NONE);
 
     projectTreeViewer = new CheckboxTreeViewer(composite, SWT.BORDER);
-      
+
     projectTreeViewer.addCheckStateListener(new ICheckStateListener() {
       public void checkStateChanged(CheckStateChangedEvent event) {
+        projectTreeViewer.setSubtreeChecked(event.getElement(), event.getChecked());
+
         Object[] checkedElements = projectTreeViewer.getCheckedElements();
-        setPageComplete(checkedElements!=null && checkedElements.length>0);
-      }});
-    
+        setPageComplete(checkedElements != null && checkedElements.length > 0);
+      }
+    });
+
     projectTreeViewer.setContentProvider(new ITreeContentProvider() {
 
       public Object[] getElements(Object element) {
         if(element instanceof List) {
           List projects = (List) element;
-          return projects.toArray(new MavenProject[projects.size()]);
+          return projects.toArray(new MavenProjectInfo[projects.size()]);
         }
         return new Object[0];
       }
-      
+
       public Object[] getChildren(Object parentElement) {
         if(parentElement instanceof List) {
           List projects = (List) parentElement;
-          return projects.toArray(new MavenProject[projects.size()]);
-        } else if(parentElement instanceof MavenProject) {
-          MavenProject mavenProject = (MavenProject) parentElement;
-          return mavenProject.projects.toArray(new MavenProject[mavenProject.projects.size()]);
+          return projects.toArray(new MavenProjectInfo[projects.size()]);
+        } else if(parentElement instanceof MavenProjectInfo) {
+          MavenProjectInfo mavenProjectInfo = (MavenProjectInfo) parentElement;
+          return mavenProjectInfo.projects.toArray(new MavenProjectInfo[mavenProjectInfo.projects.size()]);
         }
         return new Object[0];
       }
@@ -140,9 +160,9 @@ public class Maven2ImportWizardPage extends WizardPage {
         if(parentElement instanceof List) {
           List projects = (List) parentElement;
           return !projects.isEmpty();
-        } else if(parentElement instanceof MavenProject) {
-          MavenProject mavenProject = (MavenProject) parentElement;
-          return !mavenProject.projects.isEmpty();
+        } else if(parentElement instanceof MavenProjectInfo) {
+          MavenProjectInfo mavenProjectInfo = (MavenProjectInfo) parentElement;
+          return !mavenProjectInfo.projects.isEmpty();
         }
         return false;
       }
@@ -152,31 +172,35 @@ public class Maven2ImportWizardPage extends WizardPage {
 
       public void inputChanged(Viewer viewer, Object oldInput, Object newInput) {
       }
-      });
-    
+    });
+
     projectTreeViewer.setLabelProvider(new LabelProvider() {
-        public String getText(Object element) {
-          if(element instanceof MavenProject) {
-            MavenProject mavenProject = (MavenProject) element;
-            Model model = mavenProject.model;
-            String path = mavenProject.pomFile.getAbsolutePath();
-            return path.substring(getRootPath().length())  + " - " + model.getId();
-          }
-          return super.getText(element);
+      public String getText(Object element) {
+        if(element instanceof MavenProjectInfo) {
+          MavenProjectInfo mavenProjectInfo = (MavenProjectInfo) element;
+          Model model = mavenProjectInfo.model;
+          String path = mavenProjectInfo.pomFile.getAbsolutePath();
+          return path.substring(getRootPath().length()) + " - " + model.getId();
         }
-      });
-    
-    Tree projectTree = projectTreeViewer.getTree();
-    projectTree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 3));
+        return super.getText(element);
+      }
+    });
+
+    final Tree projectTree = projectTreeViewer.getTree();
+    GridData projectTreeData = new GridData(SWT.FILL, SWT.FILL, false, true, 2, 3);
+    projectTreeData.heightHint = 300;
+    projectTreeData.widthHint = 500;
+    projectTree.setLayoutData(projectTreeData);
 
     final Button selectAllButton = new Button(composite, SWT.NONE);
     selectAllButton.setLayoutData(new GridData(SWT.FILL, SWT.TOP, false, false));
     selectAllButton.setText("Select &All");
     selectAllButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
-        // TODO
+        projectTreeViewer.expandAll();
+        projectTreeViewer.setAllChecked(true);
+        setPageComplete(projectTreeViewer.getCheckedElements().length > 0);
       }
-      
     });
 
     final Button deselectAllButton = new Button(composite, SWT.NONE);
@@ -184,12 +208,13 @@ public class Maven2ImportWizardPage extends WizardPage {
     deselectAllButton.setText("&Deselect All");
     deselectAllButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
-        // TODO
+        projectTreeViewer.setAllChecked(false);
+        setPageComplete(false);
       }
     });
 
     final Button refreshButton = new Button(composite, SWT.NONE);
-    refreshButton.setLayoutData(new GridData(SWT.FILL, SWT.TOP, false, false));
+    refreshButton.setLayoutData(new GridData(SWT.FILL, SWT.TOP, false, true));
     refreshButton.setText("&Refresh");
     refreshButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
@@ -197,130 +222,93 @@ public class Maven2ImportWizardPage extends WizardPage {
       }
     });
 
-    setControl(composite);
+    ExpandableComposite expandable = toolkit.createExpandableComposite(composite, ExpandableComposite.COMPACT | ExpandableComposite.TWISTIE);
+    expandable.clientVerticalSpacing = 1;
+    expandable.setLayoutData(new GridData(SWT.FILL, SWT.TOP, false, false, 3, 1));
+    expandable.setText("Ad&vanced");
+    expandable.setFont(composite.getFont());
+    expandable.setBackground(composite.getBackground());
+    expandable.addExpansionListener(new ExpansionAdapter() {
+      public void expansionStateChanged(ExpansionEvent e) {
+        getControl().getShell().pack();
+      }
+    });
+    
+    toolkit.paintBordersFor(expandable);
+
+    Composite advancedComposite = toolkit.createComposite(expandable, SWT.NONE);
+    expandable.setClient(advancedComposite);
+    
+    final GridLayout gridLayout = new GridLayout();
+    gridLayout.marginLeft = 10;
+    gridLayout.numColumns = 2;
+    advancedComposite.setLayout(gridLayout);
+    advancedComposite.setBackground(composite.getBackground());
+    // toolkit.paintBordersFor(advancedComposite);
+
+    resolveWorkspaceProjects = new Button(advancedComposite, SWT.CHECK);
+    resolveWorkspaceProjects.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 2, 1));
+    resolveWorkspaceProjects.setText("&Resolve workspace projects");
+    resolveWorkspaceProjects.setSelection(true);
+
+    projectsForModules = new Button(advancedComposite, SWT.CHECK);
+    projectsForModules.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 2, 1));
+    projectsForModules.setText("&Separate projects for modules");
+    projectsForModules.setSelection(true);
+
+    final Label profilesLabel = new Label(advancedComposite, SWT.NONE);
+    profilesLabel.setLayoutData(new GridData());
+    profilesLabel.setText("Pr&ofiles:");
+
+    activeProfiles = new Text(advancedComposite, SWT.BORDER);
+    activeProfiles.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
   }
 
   protected void scanProjects() {
     final File folder = new File(getRootPath());
     try {
-      getWizard().getContainer().run(true, true, new ProjectScanner(folder, projectTreeViewer, getShell().getDisplay()));
+      List projects = new ArrayList();
+      getWizard().getContainer().run(true, true, new Maven2ProjectScanner(folder, projects));
+      
+      projectTreeViewer.setInput(projects);
+      projectTreeViewer.expandAll();
+      projectTreeViewer.setAllChecked(true);
+      Object[] checkedElements = projectTreeViewer.getCheckedElements();
+      setPageComplete(checkedElements != null && checkedElements.length > 0);
+      
     } catch(InterruptedException ex) {
       // canceled
     } catch(InvocationTargetException ex) {
-      Throwable e = ex.getTargetException()==null ? ex : ex.getTargetException();
-      Maven2Plugin.getDefault().getConsole().logError("Scanning error " + folder.getAbsolutePath()+"; " + e.toString());
+      Throwable e = ex.getTargetException() == null ? ex : ex.getTargetException();
+      Maven2Plugin.getDefault().getConsole().logError(
+          "Scanning error " + folder.getAbsolutePath() + "; " + e.toString());
     } catch(Exception ex) {
-      Maven2Plugin.getDefault().getConsole().logError("Scanning error " + folder.getAbsolutePath()+"; " + ex.toString());
+      Maven2Plugin.getDefault().getConsole().logError(
+          "Scanning error " + folder.getAbsolutePath() + "; " + ex.toString());
     }
   }
-
-
 
   String getRootPath() {
     return rootDirectoryText.getText();
   }
-  
-  public List getPomFiles() {
+
+  public List getProjects() {
+    return (List) projectTreeViewer.getInput();
+  }
+  public List getCheckedProjects() {
     return Arrays.asList(projectTreeViewer.getCheckedElements());
   }
 
-  
-  private static final class ProjectScanner implements IRunnableWithProgress {
-    private final File folder;
-    private final Display display;
-
-    final CheckboxTreeViewer viewer;
-    
-    List projects = new ArrayList();
-
-    ProjectScanner(File folder, CheckboxTreeViewer viewer, Display display) {
-      this.folder = folder;
-      this.viewer = viewer;
-      this.display = display;
-    }
-
-    public void run(IProgressMonitor monitor) throws InterruptedException {
-      monitor.beginTask("Scanning folders", IProgressMonitor.UNKNOWN);
-      try {
-        scanFolder(this.folder, new SubProgressMonitor(monitor, IProgressMonitor.UNKNOWN));
-        display.syncExec(new Runnable() {
-          public void run() {
-            viewer.setInput(projects);
-          }
-        });
-        
-      } finally {
-        monitor.done();
-      }
-    }
-
-    private void scanFolder(File file, IProgressMonitor monitor) throws InterruptedException {
-      if(monitor.isCanceled()) {
-        throw new InterruptedException();
-      }
-      
-      monitor.worked(1);
-      
-      if(!file.exists() || !file.isDirectory()) {
-        return;
-      }
-      
-      File pomFile = new File(file, Maven2Plugin.POM_FILE_NAME);
-      MavenProject mavenProject = readMavenProject(pomFile);
-      if(mavenProject!=null) {
-        projects.add(mavenProject);
-        return;  // don't scan subfolders of the Maven project
-      }
-      
-      File[] files = file.listFiles();
-      for(int i = 0; i < files.length; i++ ) {
-        if(files[i].isDirectory()) {
-          scanFolder(files[i], monitor);
-        }
-      }
-    }
-
-    private MavenProject readMavenProject(File pomFile) {
-      if(!pomFile.exists()) {
-        return null;
-      }
-      
-      MavenModelManager modelManager = Maven2Plugin.getDefault().getMavenModelManager();
-      try {
-        Model model = modelManager.readMavenModel(pomFile);
-        MavenProject mavenProject = new MavenProject(pomFile, model);
-
-        for(Iterator it = model.getModules().iterator(); it.hasNext();) {
-          String module = (String) it.next();
-          File modulePom = new File(pomFile.getParent(), module + "/" + Maven2Plugin.POM_FILE_NAME);
-          MavenProject moduleMavenProject = readMavenProject(modulePom);
-          if(moduleMavenProject!=null) {
-            mavenProject.add(moduleMavenProject);
-          }
-        }
-        
-        return mavenProject; 
-      } catch(CoreException ex) {
-        Maven2Plugin.getDefault().getConsole().logError("Unable to read model " + pomFile.getAbsolutePath());
-      }
-      return null;
-    }
+  public boolean createProjectsForModules() {
+    return this.projectsForModules.getSelection();
   }
 
+  public boolean resolveWorkspaceProjects() {
+    return this.resolveWorkspaceProjects.getSelection();
+  }
 
-  public static class MavenProject {
-    public final File pomFile;
-    public final Model model;
-    public final ArrayList projects = new ArrayList();
-
-    public MavenProject(File pomFile, Model model) {
-      this.pomFile = pomFile;
-      this.model = model;
-    }
-
-    public void add(MavenProject mavenProject) {
-      projects.add(mavenProject);
-    }
+  public String getActiveProfiles() {
+    return this.activeProfiles.getText();
   }
 
 }

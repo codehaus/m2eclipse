@@ -49,7 +49,7 @@ import org.maven.ide.eclipse.launch.console.Maven2Console;
 final class Maven2ResourceChangeListener implements IResourceChangeListener {
   private final MavenModelManager mavenModelManager;
   private final BuildPathManager buildpathManager;
-  private final Maven2Console console;
+  final Maven2Console console;
 
   public Maven2ResourceChangeListener(MavenModelManager mavenModelManager, BuildPathManager buildpathManager, Maven2Console console) {
     this.mavenModelManager = mavenModelManager;
@@ -90,7 +90,7 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
     private final int type;
     private final IProgressMonitor monitor;
     private final MavenModelManager mavenModelManager;
-    private final BuildPathManager buildpathManager;
+    final BuildPathManager buildpathManager;
 
     boolean updated;
 
@@ -110,7 +110,7 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
       return visitProject((IProject) resource);
     }
 
-    public boolean visit(IResource resource) throws CoreException {
+    public boolean visit(IResource resource) {
       if(resource.getType() != IResource.PROJECT) {
         return true;
       }
@@ -137,7 +137,7 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
             for(Iterator it = projects.iterator(); it.hasNext();) {
               IProject project = (IProject) it.next();
               try {
-                buildpathManager.updateClasspathContainer(project, true, monitor);
+                buildpathManager.updateClasspathContainer(project, monitor);
               } catch(CoreException ex) {
                 console.logError(ex.toString());
                 Maven2Plugin.log(ex);
@@ -151,48 +151,48 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
       return false;
     }
 
-    private String getType() {
-      switch(type) {
-        case IResourceChangeEvent.PRE_CLOSE:
-          return "PRE_CLOSE";
-        case IResourceChangeEvent.PRE_DELETE:
-          return "PRE_DELETE";
-        case IResourceChangeEvent.PRE_BUILD:
-          return "PRE_BUILD";
-        case IResourceChangeEvent.POST_BUILD:
-          return "POST_BUILD";
-        case IResourceChangeEvent.POST_CHANGE:
-          return "POST_CHANGE";
-      }
-      return "" + type;
-    }
-
-    private String getFlags(IResourceDelta delta) {
-      int kind = delta.getKind();
-      String s = "";
-      if((kind & IResourceDelta.CHANGED) > 0) {
-        s += "CHANGED ";
-        
-        int flags = delta.getFlags();
-        if((flags & IResourceDelta.CONTENT) > 0) s += "CONTENT ";
-        if((flags & IResourceDelta.DESCRIPTION) > 0) s += "DESCRIPTION ";
-        if((flags & IResourceDelta.ENCODING) > 0) s += "ENCODING ";
-        if((flags & IResourceDelta.OPEN) > 0) s += "OPEN ";
-        if((flags & IResourceDelta.MOVED_TO) > 0) s += "MOVED_TO ";
-        if((flags & IResourceDelta.MOVED_FROM) > 0) s += "MOVED_FROM ";
-        if((flags & IResourceDelta.TYPE) > 0) s += "TYPE ";
-        if((flags & IResourceDelta.SYNC) > 0) s += "SYNC ";
-        if((flags & IResourceDelta.MARKERS) > 0) s += "MARKERS ";
-        if((flags & IResourceDelta.REPLACED) > 0) s += "REPLACED ";
-        
-      }
-      if((kind & IResourceDelta.ADDED) > 0) s += "ADDED ";
-      if((kind & IResourceDelta.REMOVED) > 0) s += "REMOVED ";
-      if((kind & IResourceDelta.ADDED_PHANTOM) > 0) s += "ADDED_PHANTOM ";
-      if((kind & IResourceDelta.REMOVED_PHANTOM) > 0) s += "REMOVED_PHANTOM ";
-      
-      return s;
-    }
+//    private String getType() {
+//      switch(type) {
+//        case IResourceChangeEvent.PRE_CLOSE:
+//          return "PRE_CLOSE";
+//        case IResourceChangeEvent.PRE_DELETE:
+//          return "PRE_DELETE";
+//        case IResourceChangeEvent.PRE_BUILD:
+//          return "PRE_BUILD";
+//        case IResourceChangeEvent.POST_BUILD:
+//          return "POST_BUILD";
+//        case IResourceChangeEvent.POST_CHANGE:
+//          return "POST_CHANGE";
+//      }
+//      return "" + type;
+//    }
+//
+//    private String getFlags(IResourceDelta delta) {
+//      int kind = delta.getKind();
+//      String s = "";
+//      if((kind & IResourceDelta.CHANGED) > 0) {
+//        s += "CHANGED ";
+//        
+//        int flags = delta.getFlags();
+//        if((flags & IResourceDelta.CONTENT) > 0) s += "CONTENT ";
+//        if((flags & IResourceDelta.DESCRIPTION) > 0) s += "DESCRIPTION ";
+//        if((flags & IResourceDelta.ENCODING) > 0) s += "ENCODING ";
+//        if((flags & IResourceDelta.OPEN) > 0) s += "OPEN ";
+//        if((flags & IResourceDelta.MOVED_TO) > 0) s += "MOVED_TO ";
+//        if((flags & IResourceDelta.MOVED_FROM) > 0) s += "MOVED_FROM ";
+//        if((flags & IResourceDelta.TYPE) > 0) s += "TYPE ";
+//        if((flags & IResourceDelta.SYNC) > 0) s += "SYNC ";
+//        if((flags & IResourceDelta.MARKERS) > 0) s += "MARKERS ";
+//        if((flags & IResourceDelta.REPLACED) > 0) s += "REPLACED ";
+//        
+//      }
+//      if((kind & IResourceDelta.ADDED) > 0) s += "ADDED ";
+//      if((kind & IResourceDelta.REMOVED) > 0) s += "REMOVED ";
+//      if((kind & IResourceDelta.ADDED_PHANTOM) > 0) s += "ADDED_PHANTOM ";
+//      if((kind & IResourceDelta.REMOVED_PHANTOM) > 0) s += "REMOVED_PHANTOM ";
+//      
+//      return s;
+//    }
 
   }
   

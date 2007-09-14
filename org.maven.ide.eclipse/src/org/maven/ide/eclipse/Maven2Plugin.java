@@ -43,13 +43,24 @@ import org.osgi.framework.BundleContext;
 public class Maven2Plugin extends AbstractUIPlugin {
 
   public static final String PLUGIN_ID = Maven2Plugin.class.getPackage().getName();
-  public static final String CONTAINER_ID = PLUGIN_ID + ".MAVEN2_CLASSPATH_CONTAINER"; //$NON-NLS-1$
   public static final String NATURE_ID = PLUGIN_ID + ".maven2Nature"; //$NON-NLS-1$
   public static final String BUILDER_ID = PLUGIN_ID + ".maven2Builder"; //$NON-NLS-1$
   public static final String MARKER_ID = PLUGIN_ID + ".maven2Problem"; //$NON-NLS-1$
 
   public static final String POM_FILE_NAME = "pom.xml"; //$NON-NLS-1$
 
+  // container settings
+  public static final String CONTAINER_ID = PLUGIN_ID + ".MAVEN2_CLASSPATH_CONTAINER"; //$NON-NLS-1$
+  public static final String INCLUDE_MODULES = "modules"; //$NON-NLS-1$
+  public static final String NO_WORKSPACE_PROJECTS = "noworkspace"; //$NON-NLS-1$
+  public static final String ACTIVE_PROFILES = "profiles"; //$NON-NLS-1$
+  // entry attributes
+  public static final String GROUP_ID_ATTRIBUTE = "maven.groupId"; //$NON-NLS-1$
+  public static final String ARTIFACT_ID_ATTRIBUTE = "maven.artifactId"; //$NON-NLS-1$
+  public static final String VERSION_ATTRIBUTE = "maven.version"; //$NON-NLS-1$
+  public static final String JAVADOC_CLASSIFIER = "javadoc"; //$NON-NLS-1$
+  public static final String SOURCES_CLASSIFIER = "sources"; //$NON-NLS-1$
+  
   // The shared instance
   private static Maven2Plugin plugin;
 
@@ -60,7 +71,6 @@ public class Maven2Plugin extends AbstractUIPlugin {
 
   private BuildPathManager buildpathManager;
   private IResourceChangeListener resourceChangeListener;
-  
   
   public Maven2Plugin() {
     plugin = this;

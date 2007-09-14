@@ -27,12 +27,14 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.IObjectActionDelegate;
 import org.eclipse.ui.IWorkbenchPart;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
 
 
 public class UpdateSourcesAction implements IObjectActionDelegate {
@@ -59,8 +61,8 @@ public class UpdateSourcesAction implements IObjectActionDelegate {
         final IProject p = project;
         new Job("Updating " + project.getName() + " Sources") {
           protected IStatus run(IProgressMonitor monitor) {
-            Maven2Plugin plugin = Maven2Plugin.getDefault();
-            plugin.getBuildpathManager().updateSourceFolders(p, monitor);
+            Maven2Plugin.getDefault().getBuildpathManager().updateSourceFolders(p,
+                BuildPathManager.getResolverConfiguration(JavaCore.create(p)), monitor);
             return Status.OK_STATUS;
           }
         }.schedule();

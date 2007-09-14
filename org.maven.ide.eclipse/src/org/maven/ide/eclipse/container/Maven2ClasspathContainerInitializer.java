@@ -98,7 +98,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       new Job("Initializing " + project.getProject().getName()) {
         protected IStatus run(IProgressMonitor monitor) {
           try {
-            plugin.getBuildpathManager().updateClasspathContainer(project.getProject(), true, monitor);
+            plugin.getBuildpathManager().updateClasspathContainer(project.getProject(), monitor);
           } catch(CoreException ex) {
             Maven2Plugin.log("Can't set classpath container", ex);
           }
@@ -163,18 +163,18 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
         
         File oldSrcPath = getSourceFile(oldEntry);
         File newSrcPath = getSourceFile(entry);
-        boolean sourceUpdated = updateBundle(entry, oldSrcPath, newSrcPath, Maven2ClasspathContainer.SOURCES_CLASSIFIER);
+        boolean sourceUpdated = updateBundle(entry, oldSrcPath, newSrcPath, Maven2Plugin.SOURCES_CLASSIFIER);
           
         String oldJavaDocValue = getAttribute(oldEntry, IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME);
         String newJavaDocValue = getAttribute(entry, IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME);
         File oldJavaDocFile = getJavaDocFile(oldJavaDocValue);
         File newJavaDocFile = getJavaDocFile(newJavaDocValue);
-        boolean javadocUpdated = updateBundle(entry, oldJavaDocFile, newJavaDocFile, Maven2ClasspathContainer.JAVADOC_CLASSIFIER);
+        boolean javadocUpdated = updateBundle(entry, oldJavaDocFile, newJavaDocFile, Maven2Plugin.JAVADOC_CLASSIFIER);
         
         if(sourceUpdated || javadocUpdated) {
           IPath sourcePath = oldEntry.getSourceAttachmentPath();
           if(sourceUpdated) {
-            sourcePath = newSrcPath==null ? null : new Path(getTargetFile(entryPath, Maven2ClasspathContainer.SOURCES_CLASSIFIER).getAbsolutePath()); 
+            sourcePath = newSrcPath==null ? null : new Path(getTargetFile(entryPath, Maven2Plugin.SOURCES_CLASSIFIER).getAbsolutePath()); 
           }
           
           List newAttributes = new ArrayList(attributes);
@@ -189,7 +189,7 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
             
             if(newJavaDocValue!=null) {
               newAttributes.add(JavaCore.newClasspathAttribute( IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME,
-                  Maven2ClasspathContainer.getJavaDocUrl(getTargetFile(entryPath, Maven2ClasspathContainer.JAVADOC_CLASSIFIER).getAbsolutePath())));
+                  Maven2ClasspathContainer.getJavaDocUrl(getTargetFile(entryPath, Maven2Plugin.JAVADOC_CLASSIFIER).getAbsolutePath())));
             }
           }
           
@@ -238,9 +238,9 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
     }
 
     private boolean installBundle(final File srcFile, IClasspathEntry entry, String classifier, Display display) {
-      String groupId = getAttribute(entry, Maven2ClasspathContainer.GROUP_ID_ATTRIBUTE);
-      String artifactId = getAttribute(entry, Maven2ClasspathContainer.ARTIFACT_ID_ATTRIBUTE);
-      String version = getAttribute(entry, Maven2ClasspathContainer.VERSION_ATTRIBUTE);
+      String groupId = getAttribute(entry, Maven2Plugin.GROUP_ID_ATTRIBUTE);
+      String artifactId = getAttribute(entry, Maven2Plugin.ARTIFACT_ID_ATTRIBUTE);
+      String version = getAttribute(entry, Maven2Plugin.VERSION_ATTRIBUTE);
 
       if(srcFile.exists() && srcFile.isFile()
           && (srcFile.getName().endsWith(".zip") || srcFile.getName().endsWith(".jar"))) {

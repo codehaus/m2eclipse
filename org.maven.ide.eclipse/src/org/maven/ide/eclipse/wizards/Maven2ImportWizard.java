@@ -19,20 +19,16 @@
 
 package org.maven.ide.eclipse.wizards;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
-import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IProjectDescription;
-import org.eclipse.core.resources.IWorkspace;
-import org.eclipse.core.resources.IWorkspaceRoot;
-import org.eclipse.core.resources.IWorkspaceRunnable;
-import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.resources.WorkspaceJob;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.NullProgressMonitor;
-import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -40,7 +36,8 @@ import org.eclipse.jface.wizard.Wizard;
 import org.eclipse.ui.IImportWizard;
 import org.eclipse.ui.IWorkbench;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.wizards.Maven2ImportWizardPage.MavenProject;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 
 
 /**
@@ -50,7 +47,7 @@ import org.maven.ide.eclipse.wizards.Maven2ImportWizardPage.MavenProject;
  */
 public class Maven2ImportWizard extends Wizard implements IImportWizard {
 
-  private Maven2ImportWizardPage page;
+  Maven2ImportWizardPage page;
 
   public Maven2ImportWizard() {
     setNeedsProgressMonitor(true);
@@ -69,65 +66,48 @@ public class Maven2ImportWizard extends Wizard implements IImportWizard {
       return false;
     }
 
-    Job job = new ProjectImportJob("Importing projects", page.getPomFiles());
+    boolean includeModules = !page.createProjectsForModules();
+    boolean resolveWorkspaceProjects = page.resolveWorkspaceProjects();
+    final ResolverConfiguration configuration = new ResolverConfiguration(includeModules, resolveWorkspaceProjects,
+        page.getActiveProfiles());
+
+    final List mavenProjects = new ArrayList();
+    if(!configuration.shouldIncludeModules()) {
+      mavenProjects.addAll(page.getCheckedProjects());
+    } else {
+      Set checkedProjects = new HashSet(page.getCheckedProjects());
+      collectProjects(mavenProjects, checkedProjects, page.getProjects());
+    }
+    
+    Job job = new WorkspaceJob("Importing projects") {
+      public IStatus runInWorkspace(IProgressMonitor monitor) {
+        BuildPathManager buildpathManager = Maven2Plugin.getDefault().getBuildpathManager();
+        for(Iterator it = mavenProjects.iterator(); it.hasNext();) {
+          MavenProjectInfo projectInfo = (MavenProjectInfo) it.next();
+          monitor.subTask(projectInfo.pomFile.getAbsolutePath());
+          try {
+            buildpathManager.createProject(projectInfo.pomFile, projectInfo.model, configuration, monitor);
+          } catch(CoreException ex) {
+            Maven2Plugin.getDefault().getConsole().logError(
+                "Unable to create project " + projectInfo.model.getId() + "; " + ex.toString());
+          }
+        }
+        return Status.OK_STATUS;
+      }
+    };
     job.schedule();
 
     return true;
   }
 
-  private static final class ProjectImportJob extends Job {
-    private List files;
-
-    ProjectImportJob(String name, List files) {
-      super(name);
-      this.files = files;
-    }
-
-    protected IStatus run(IProgressMonitor monitor) {
-      for(Iterator it = files.iterator(); it.hasNext();) {
-        MavenProject mavenProject = (MavenProject) it.next();
-        try {
-          createMavenProject(mavenProject, new NullProgressMonitor());
-        } catch(CoreException ex) {
-          Maven2Plugin.getDefault().getConsole().logError(
-              "Unable to create project " + mavenProject.model.getId() + "; " + ex.toString());
-        }
+  private void collectProjects(final List mavenProjects, Set checkedProjects, List childProjects) {
+    for(Iterator it = childProjects.iterator(); it.hasNext();) {
+      MavenProjectInfo projectInfo = (MavenProjectInfo) it.next();
+      if(checkedProjects.contains(projectInfo)) {
+        mavenProjects.add(projectInfo);
+      } else {
+        collectProjects(mavenProjects, checkedProjects, projectInfo.projects);
       }
-
-      return Status.OK_STATUS;
-    }
-
-    private void createMavenProject(final MavenProject mavenProject, IProgressMonitor monitor) throws CoreException {
-      final String projectName = mavenProject.model.getArtifactId();
-      final IWorkspace workspace = ResourcesPlugin.getWorkspace();
-
-      workspace.run(new IWorkspaceRunnable() {
-        public void run(IProgressMonitor monitor) throws CoreException {
-          IWorkspaceRoot root = workspace.getRoot();
-
-          IProject project = root.getProject(projectName);
-          if(project.exists()) {
-            return;
-          }
-
-          IProjectDescription description = workspace.newProjectDescription(projectName);
-          description.setLocation(new Path(mavenProject.pomFile.getParentFile().getAbsolutePath()));
-
-          project.create(description, monitor);
-
-          if(!project.isOpen()) {
-            project.open(monitor);
-          }
-
-          // TODO set natures, source folders, etc
-
-          Maven2Plugin plugin = Maven2Plugin.getDefault();
-
-          plugin.getBuildpathManager().enableMavenNature(project);
-          plugin.getBuildpathManager().updateSourceFolders(project, monitor);
-          plugin.getBuildpathManager().updateClasspathContainer(project, true, monitor);
-        }
-      }, monitor);
     }
   }
 

@@ -52,6 +52,7 @@ import org.eclipse.ui.INewWizard;
 import org.eclipse.ui.IWorkbench;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.Messages;
+import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.util.Util;
 
 
@@ -222,7 +223,7 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
     System.arraycopy(entries, 0, classpath, 0, entries.length);
 
     classpath[classpath.length - 2] = JavaCore.newContainerEntry(new Path(JavaRuntime.JRE_CONTAINER));
-    classpath[classpath.length - 1] = JavaCore.newContainerEntry(new Path(Maven2Plugin.CONTAINER_ID));
+    classpath[classpath.length - 1] = BuildPathManager.getDefaultContainerEntry();
 
     return classpath;
   }

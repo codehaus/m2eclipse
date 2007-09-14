@@ -35,6 +35,7 @@ import org.apache.maven.extension.ExtensionManager;
 import org.apache.maven.lifecycle.DefaultLifecycleExecutor;
 import org.apache.maven.lifecycle.LifecycleExecutionException;
 import org.apache.maven.lifecycle.LifecycleExecutor;
+import org.apache.maven.lifecycle.TaskValidationResult;
 import org.apache.maven.monitor.event.EventDispatcher;
 import org.apache.maven.plugin.PluginManager;
 import org.apache.maven.project.MavenProject;
@@ -103,7 +104,11 @@ public class EclipseLifecycleExecutor extends AbstractLogEnabled implements Life
     }
   }
 
-//  public Map getLifecycleMappings(MavenSession mavenSession, String string, String string0, MavenProject mavenProject)
+  public TaskValidationResult isTaskValid(String s, MavenSession mavensession, MavenProject mavenproject) {
+    return createExecutor().isTaskValid(s, mavensession, mavenproject);
+  }
+
+//  public Map getLifecycleMappings(MavenSession mavenSession, String string, String string0, MavenProjectInfo mavenProject)
 //      throws LifecycleExecutionException, BuildFailureException, PluginNotFoundException {
 //    return createExecutor().getLifecycleMappings(mavenSession, string, string0, mavenProject);
 //  }

@@ -105,16 +105,25 @@
             </objectState>
          </visibility>
          <action
-               class="org.maven.ide.eclipse.actions.UpdateSourcesAction"
                id="org.maven.ide.eclipse.updateSourcesAction"
+               class="org.maven.ide.eclipse.actions.UpdateSourcesAction"
                label="%m2.popup.project.update-sources.label"
                menubarPath="maven2/natureGroup"/>
          <action
+               id="org.maven.ide.eclipse.enableModules"
+               label="%m2.popup.project.includeModules.label"
+               class="org.maven.ide.eclipse.actions.EnableNatureAction:modules"
+               menubarPath="maven2/enable"/>
+         <action
+               id="org.maven.ide.eclipse.workspaceResolution"
+               label="%m2.popup.project.workspaceResolution.label"
+               class="org.maven.ide.eclipse.actions.EnableNatureAction:workspace"
+               menubarPath="maven2/enable"/>
+         <action
+               id="org.maven.ide.eclipse.disableAction"
                label="%m2.popup.project.disable.label"
                class="org.maven.ide.eclipse.actions.DisableNatureAction"
-               menubarPath="maven2/enable"
-               id="org.maven.ide.eclipse.disableAction">
-         </action>
+               menubarPath="maven2/enable"/>
       </objectContribution>      
 
       <objectContribution
@@ -135,10 +144,10 @@
             <separator name="enable"/>
          </menu>
          <action
-               class="org.maven.ide.eclipse.actions.AddDependencyAction"
-               enablesFor="1"
                id="org.maven.ide.eclipse.addDependencyAction"
                label="%m2.popup.project.add-dependency.label"
+               class="org.maven.ide.eclipse.actions.AddDependencyAction"
+               enablesFor="1"
                menubarPath="maven2/natureGroup"/>
       </objectContribution>
 
@@ -179,8 +188,8 @@
    <extension
          point="org.eclipse.core.expressions.propertyTesters">
       <propertyTester
-            class="org.maven.ide.eclipse.actions.MavenPropertyTester"
             id="org.maven.ide.eclipse.MavenPropertyTester"
+            class="org.maven.ide.eclipse.actions.MavenPropertyTester"
             namespace="org.maven.ide.eclipse"
             properties="launchable"
             type="org.eclipse.core.runtime.IAdaptable"/>
@@ -360,8 +369,7 @@
           point="org.eclipse.jdt.core.classpathContainerInitializer">
       <classpathContainerInitializer
             class="org.maven.ide.eclipse.container.Maven2ClasspathContainerInitializer"
-            id="org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER">
-      </classpathContainerInitializer>
+            id="org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER"/>
    </extension>
    
    <extension
@@ -371,8 +379,7 @@
       <classpathContainerPage
           id="org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER"
           name="%m2.classpath-container.page.dependencies.name"
-            class="org.maven.ide.eclipse.container.Maven2ClasspathContainerPage">
-      </classpathContainerPage>
+          class="org.maven.ide.eclipse.container.Maven2ClasspathContainerPage"/>
    </extension>
 
    <extension point="org.eclipse.ui.preferencePages">

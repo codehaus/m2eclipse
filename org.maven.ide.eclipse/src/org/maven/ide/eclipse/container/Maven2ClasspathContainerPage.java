@@ -28,13 +28,18 @@ import org.eclipse.jdt.ui.wizards.IClasspathContainerPage;
 import org.eclipse.jdt.ui.wizards.IClasspathContainerPageExtension;
 import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CTabFolder;
+import org.eclipse.swt.custom.CTabItem;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Text;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 
 
 /**
@@ -50,70 +55,107 @@ public class Maven2ClasspathContainerPage extends WizardPage implements IClasspa
 
   private Button resolveWorspaceProjectsButton;
   private Button includeModulesButton;
-  private boolean resolveWorkspaceProjects;
-  private boolean includeModules;
+  private Text activeProfilesText;
+
+  private ResolverConfiguration resolverConfiguration;
 
   
   public Maven2ClasspathContainerPage() {
-    super("Maven2 Contener");
+    super("Maven2 Container");
   }
 
+  
+  // IClasspathContainerPageExtension
+  
   public void initialize(IJavaProject javaProject, IClasspathEntry[] currentEntries) {
     this.javaProject = javaProject;
     // this.currentEntries = currentEntries;
   }
+  
+  
+  // IClasspathContainerPage
 
   public IClasspathEntry getSelection() {
     return this.containerEntry;
   }
 
   public void setSelection(IClasspathEntry containerEntry) {
-    this.containerEntry = containerEntry == null ? createDefaultEntry() : containerEntry;
-  }
-
-  private IClasspathEntry createDefaultEntry() {
-    return JavaCore.newContainerEntry(new Path(Maven2Plugin.CONTAINER_ID));
+    this.containerEntry = containerEntry == null ? BuildPathManager.getDefaultContainerEntry() : containerEntry;
   }
 
   public void createControl(Composite parent) {
-    setTitle("Maven2 Managed Libraries");
-    setDescription("Set the configuration details.");
+    setTitle("Maven Managed Dependencies");
+    setDescription("Set the dependency resolver configuration");
 
-    Composite control = new Composite(parent, SWT.NONE);
-    control.setLayout(new GridLayout());
+    resolverConfiguration = BuildPathManager.getResolverConfiguration(containerEntry);
 
-    setControl(control);
+    final CTabFolder tabFolder = new CTabFolder(parent, SWT.FLAT);
+    tabFolder.setBorderVisible(true);
+    tabFolder.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+    tabFolder.setLayout(new FillLayout());
+    setControl(tabFolder);
 
-    Label label = new Label(control, SWT.NONE);
-    label.setText(javaProject.getElementName() + " : " + containerEntry.getPath().toString());
+    final CTabItem configurationTabItem = new CTabItem(tabFolder, SWT.NONE);
+    configurationTabItem.setText("Resolver Configuration");
 
-    includeModules = BuildPathManager.isIncludingModules(containerEntry);
+    final Composite tabComposite = new Composite(tabFolder, SWT.NONE);
+    final GridLayout gridLayout = new GridLayout();
+    gridLayout.marginWidth = 10;
+    gridLayout.marginHeight = 10;
+    tabComposite.setLayout(gridLayout);
+    configurationTabItem.setControl(tabComposite);
+
+    Label label = new Label(tabComposite, SWT.NONE);
+    label.setBounds(0, 0, 0, 16);
+    label.setText("Project: " + javaProject.getElementName());
     
-    includeModulesButton = new Button(control, SWT.CHECK);
+    includeModulesButton = new Button(tabComposite, SWT.CHECK);
     includeModulesButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false));
-    includeModulesButton.setText("Include Modules");
-    includeModulesButton.setSelection(includeModules);
+    includeModulesButton.setBounds(0, 0, 337, 16);
+    includeModulesButton.setText("Include dependencies and source folders from modules");
+    includeModulesButton.setSelection(resolverConfiguration.shouldIncludeModules());
 
-    resolveWorkspaceProjects = BuildPathManager.isResolvingWorkspaceProjects(containerEntry);
-
-    resolveWorspaceProjectsButton = new Button(control, SWT.CHECK);
+    resolveWorspaceProjectsButton = new Button(tabComposite, SWT.CHECK);
     resolveWorspaceProjectsButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false));
-    resolveWorspaceProjectsButton.setText("Resolve Worspace Projects");
-    resolveWorspaceProjectsButton.setSelection(resolveWorkspaceProjects);
-    
+    resolveWorspaceProjectsButton.setBounds(0, 0, 288, 16);
+    resolveWorspaceProjectsButton.setText("Resolve depndencies from Workspace projects");
+    resolveWorspaceProjectsButton.setSelection(resolverConfiguration.shouldResolveWorkspaceProjects());
+
+//    /* uncomment when profiles will be fixed in the embedder
+    Label profilesLabel = new Label(tabComposite, SWT.NONE);
+    final GridData gd_profilesLabel = new GridData(SWT.LEFT, SWT.CENTER, true, false);
+    gd_profilesLabel.verticalIndent = 5;
+    profilesLabel.setLayoutData(gd_profilesLabel);
+    profilesLabel.setBounds(0, 0, 191, 16);
+    profilesLabel.setText("Active Profiles (comma separated):");
+
+    activeProfilesText = new Text(tabComposite, SWT.BORDER);
+    activeProfilesText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    activeProfilesText.setBounds(0, 0, 472, 22);
+    activeProfilesText.setText(resolverConfiguration.getActiveProfiles());
+//    */
+
     // TODO show/manage container entries
+    final CTabItem dependenciesTabItem = new CTabItem(tabFolder, SWT.NONE);
+    dependenciesTabItem.setText("Dependencies");
   }
 
   public boolean finish() {
     boolean newIncludeModules = includeModulesButton.getSelection();
     boolean newResolveWorspaceProjects = resolveWorspaceProjectsButton.getSelection();
-    if(newIncludeModules!=includeModules || newResolveWorspaceProjects!=resolveWorkspaceProjects) {
+    String newProfiles = activeProfilesText.getText();
+    if(newIncludeModules != resolverConfiguration.shouldIncludeModules()
+        || newResolveWorspaceProjects != resolverConfiguration.shouldResolveWorkspaceProjects()
+        || !newProfiles.equals(resolverConfiguration.getActiveProfiles())) {
       IPath newPath = new Path(Maven2Plugin.CONTAINER_ID);
       if(newIncludeModules) {
-        newPath = newPath.append(Maven2ClasspathContainer.INCLUDE_MODULES);
+        newPath = newPath.append(Maven2Plugin.INCLUDE_MODULES);
       }
-      if(newResolveWorspaceProjects) {
-        newPath = newPath.append(Maven2ClasspathContainer.RESOLVE_WORKSPACE_PROJECTS);
+      if(!newResolveWorspaceProjects) {
+        newPath = newPath.append(Maven2Plugin.NO_WORKSPACE_PROJECTS);
+      }
+      if(newProfiles.length()>0) {
+        newPath = newPath.append(Maven2Plugin.ACTIVE_PROFILES + "["  + newProfiles.trim() + "]");
       }
       
       containerEntry = JavaCore.newContainerEntry(newPath, containerEntry.isExported());

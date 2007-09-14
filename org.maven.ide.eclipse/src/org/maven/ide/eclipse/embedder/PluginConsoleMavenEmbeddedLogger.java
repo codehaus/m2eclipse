@@ -130,5 +130,8 @@ public class PluginConsoleMavenEmbeddedLogger implements MavenEmbedderLogger {
     return treshold;
   }
 
+  public void close() {
+  }
+
 }
 

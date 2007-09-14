@@ -28,7 +28,6 @@ import org.apache.maven.project.MavenProject;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.NullProgressMonitor;
-import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.action.IAction;
@@ -43,6 +42,7 @@ import org.eclipse.ui.IWorkbenchWindow;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 import org.maven.ide.eclipse.index.Indexer;
 import org.maven.ide.eclipse.index.Indexer.FileInfo;
 
@@ -70,11 +70,10 @@ public class AddDependencyAction implements IObjectActionDelegate {
     Set artifacts;
     try {
       IJavaProject javaProject = JavaCore.create(project);
-      IClasspathEntry entry = BuildPathManager.getMavenContainerEntry(javaProject);
-      boolean resolveWorkspaceProjects = BuildPathManager.isResolvingWorkspaceProjects(entry);
+      ResolverConfiguration resolverConfiguration = BuildPathManager.getResolverConfiguration(javaProject);
 
-      MavenExecutionResult result = modelManager.readMavenProject(file, new NullProgressMonitor(), true, false, resolveWorkspaceProjects);
-      MavenProject mavenProject = result.getMavenProject();
+      MavenExecutionResult result = modelManager.readMavenProject(file, new NullProgressMonitor(), true, false, resolverConfiguration);
+      MavenProject mavenProject = result.getProject();
       artifacts = mavenProject == null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
     } catch(Exception ex) {
       // TODO move into ReadProjectTask
