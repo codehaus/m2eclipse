@@ -125,6 +125,9 @@ class ConsoleMavenEmbeddedLogger implements MavenEmbedderLogger {
   public int getThreshold() {
     return treshold;
   }
+  
+  public void close() {
+  }
 
 }
 

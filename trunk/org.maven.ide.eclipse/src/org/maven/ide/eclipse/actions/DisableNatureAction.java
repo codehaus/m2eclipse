@@ -23,6 +23,7 @@ import java.util.Iterator;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -52,7 +53,7 @@ public class DisableNatureAction implements IObjectActionDelegate {
         }
         if(project != null) {
           BuildPathManager buildpathManager = Maven2Plugin.getDefault().getBuildpathManager();
-          buildpathManager.disableMavenNature(project);
+          buildpathManager.disableMavenNature(project, new NullProgressMonitor());
         }
       }
     }

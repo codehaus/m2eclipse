@@ -50,7 +50,6 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Status;
-import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.maven.ide.eclipse.Maven2Plugin;
@@ -128,10 +127,8 @@ public class MavenModelManager {
           } else {
 
             IJavaProject javaProject = JavaCore.create(project);
-            IClasspathEntry entry = BuildPathManager.getMavenContainerEntry(javaProject);
-            boolean includeModules = BuildPathManager.isIncludingModules(entry);
-            
-            initMavenModel(pomFile, pomFile, mavenModels, monitor, includeModules);
+            ResolverConfiguration resolverConfiguration = BuildPathManager.getResolverConfiguration(javaProject);
+            initMavenModel(pomFile, pomFile, mavenModels, monitor, resolverConfiguration);
           }
         }
       } catch(CoreException ex) {
@@ -153,11 +150,8 @@ public class MavenModelManager {
             console.logError("Project " + project.getName() + " is missing pom.xml");
           } else {
             IJavaProject javaProject = JavaCore.create(project);
-            IClasspathEntry entry = BuildPathManager.getMavenContainerEntry(javaProject);
-            boolean resolveWorkspaceProjects = BuildPathManager.isResolvingWorkspaceProjects(entry);
-            boolean includeModules = BuildPathManager.isIncludingModules(entry);
-            
-            initMavenProject(pomFile, pomFile, mavenProjects, monitor, includeModules, resolveWorkspaceProjects);
+            ResolverConfiguration resolverConfiguration = BuildPathManager.getResolverConfiguration(javaProject);
+            initMavenProject(pomFile, pomFile, mavenProjects, monitor, resolverConfiguration);
           }
         }
       } catch(CoreException ex) {
@@ -167,7 +161,7 @@ public class MavenModelManager {
   }
 
   private void initMavenModel(IFile pomFile, IFile rootPomFile, Map mavenModels, IProgressMonitor monitor,
-      boolean includeModules) throws CoreException {
+      ResolverConfiguration resolverConfiguration) throws CoreException {
     String pomKey = getPomFileKey(pomFile);
     Model mavenModel = (Model) mavenModels.get(pomKey);
     if(mavenModel==null) {
@@ -175,7 +169,7 @@ public class MavenModelManager {
       mavenModels.put(pomKey, mavenModel);
     }
 
-    if(includeModules) {
+    if(resolverConfiguration.shouldIncludeModules()) {
       IContainer parent = pomFile.getParent();
       for(Iterator it = mavenModel.getModules().iterator(); it.hasNext();) {
         if(monitor.isCanceled()) {
@@ -184,21 +178,21 @@ public class MavenModelManager {
         String module = (String) it.next();
         IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
         if(memberPom != null && memberPom.getType() == IResource.FILE && memberPom.isAccessible()) {
-          initMavenModel((IFile) memberPom, rootPomFile, mavenModels, monitor, includeModules);
+          initMavenModel((IFile) memberPom, rootPomFile, mavenModels, monitor, resolverConfiguration);
         }
       }
     }
   }
   
   private void initMavenProject(IFile pomFile, IFile rootPomFile, Map mavenProjects, IProgressMonitor monitor,
-      boolean includeModules, boolean resolveWorkspaceProjects) throws CoreException {
+      ResolverConfiguration resolverConfiguration) throws CoreException {
     String pomKey = getPomFileKey(pomFile);
     if(mavenProjects.containsKey(pomKey)) {
       return;
     }
 
-    MavenExecutionResult result = readMavenProject(pomFile, monitor, true, false, resolveWorkspaceProjects);
-    MavenProject mavenProject = result.getMavenProject(); 
+    MavenExecutionResult result = readMavenProject(pomFile, monitor, true, false, resolverConfiguration);
+    MavenProject mavenProject = result.getProject(); 
     if(mavenProject == null) {
       return;
     }
@@ -215,7 +209,7 @@ public class MavenModelManager {
       addProjectArtifact(rootPomFile, artifact);
     }
     
-    if(includeModules) {
+    if(resolverConfiguration.shouldIncludeModules()) {
       IContainer parent = pomFile.getParent();
       for(Iterator it = mavenProject.getModules().iterator(); it.hasNext();) {
         if(monitor.isCanceled()) {
@@ -224,7 +218,7 @@ public class MavenModelManager {
         String module = (String) it.next();
         IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
         if(memberPom != null && memberPom.getType() == IResource.FILE && memberPom.isAccessible()) {
-          initMavenProject((IFile) memberPom, rootPomFile, mavenProjects, monitor, includeModules, resolveWorkspaceProjects);
+          initMavenProject((IFile) memberPom, rootPomFile, mavenProjects, monitor, resolverConfiguration);
         }
       }
     }
@@ -248,7 +242,9 @@ public class MavenModelManager {
     return s;
   }
   
-  // set of projects 
+  /**
+   * @return Set of IProject 
+   */ 
   public Set getDependentProjects(IFile pomFile) {
     Set projects = new HashSet();
 
@@ -273,8 +269,8 @@ public class MavenModelManager {
     return projects;
   }
   
-  public Model updateMavenModel(IFile pomFile, boolean recursive, IProgressMonitor monitor) throws CoreException {
-    removeMavenModel(pomFile, false, monitor);
+  public Model updateMavenModel(IFile pomFile, boolean includeModules, IProgressMonitor monitor) throws CoreException {
+    removeMavenModel(pomFile, includeModules, monitor);
     if(!pomFile.isAccessible()) {
       return null;
     }
@@ -292,7 +288,7 @@ public class MavenModelManager {
     artifacts.put(artifactKey, pomFile);
     console.logMessage("Updated model " + pomFile.getFullPath().toString() + " : " + artifactKey);
 
-    if(recursive) {
+    if(includeModules) {
       IContainer parent = pomFile.getParent();
       for(Iterator it = mavenModel.getModules().iterator(); it.hasNext();) {
         if(monitor.isCanceled()) {
@@ -301,7 +297,7 @@ public class MavenModelManager {
         String module = (String) it.next();
         IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
         if(memberPom != null && memberPom.getType() == IResource.FILE) {
-          updateMavenModel((IFile) memberPom, recursive, monitor);
+          updateMavenModel((IFile) memberPom, includeModules, monitor);
         }
       }
     }
@@ -363,18 +359,20 @@ public class MavenModelManager {
   }
 
   public MavenExecutionResult readMavenProject(IFile pomFile, IProgressMonitor monitor, //
-      boolean offline, boolean debug, boolean resolveWorkspaceProjects) {
+      boolean offline, boolean debug, ResolverConfiguration resolverConfiguration) {
     try {
       monitor.subTask("Reading " + pomFile.getFullPath());
       
       File file = pomFile.getLocation().toFile();
 
       MavenEmbedder mavenEmbedder = embedderManager.createEmbedder( //
-          EmbedderFactory.createWorkspaceCustomizer(resolveWorkspaceProjects));
+          EmbedderFactory.createWorkspaceCustomizer(resolverConfiguration.shouldResolveWorkspaceProjects()));
       MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(mavenEmbedder, offline, debug);
       request.setPomFile(file.getAbsolutePath());
       request.setBaseDirectory(file.getParentFile());
       request.setTransferListener(new TransferListenerAdapter(monitor, console, indexManager));
+      request.setProfiles(resolverConfiguration.getActiveProfileList());
+      request.addActiveProfiles(resolverConfiguration.getActiveProfileList());
 
       return mavenEmbedder.readProjectWithDependencies(request);
 
