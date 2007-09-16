@@ -31,6 +31,8 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.dialogs.ElementTreeSelectionDialog;
 import org.eclipse.ui.dialogs.ISelectionStatusValidator;
@@ -47,6 +49,12 @@ public class Maven2GoalSelectionDialog extends ElementTreeSelectionDialog {
     setTitle(Messages.getString("launch.goalsDialog.title"));
     setValidator(new GoalsSelectionValidator());
     setInput(new Object());
+  }
+
+  protected Control createDialogArea(Composite parent) {
+    Control control = super.createDialogArea(parent);
+    getTreeViewer().expandAll();
+    return control;
   }
 
   static class GoalsSelectionValidator implements ISelectionStatusValidator {

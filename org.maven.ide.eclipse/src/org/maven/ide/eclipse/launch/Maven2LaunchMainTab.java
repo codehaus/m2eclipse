@@ -516,70 +516,37 @@ public class Maven2LaunchMainTab extends AbstractLaunchConfigurationTab implemen
       Maven2GoalSelectionDialog dialog = new Maven2GoalSelectionDialog(getShell());
       int rc = dialog.open();
       if(rc == IDialogConstants.OK_ID) {
-        Object[] o = dialog.getResult();
+        text.insert("");  // clear selected text
+        
+        String txt = text.getText();
+        int len = txt.length();
+        int pos = text.getCaretPosition();
+        
         StringBuffer sb = new StringBuffer();
+        if((pos > 0 && txt.charAt(pos - 1) != ' ')) {
+          sb.append(' ');
+        }
+
+        String sep = "";
+        Object[] o = dialog.getResult();
         for(int i = 0; i < o.length; i++ ) {
           if(o[i] instanceof Maven2GoalSelectionDialog.LifecyclePhase) {
-            sb.append(((Maven2GoalSelectionDialog.LifecyclePhase) o[i]).getName()).append(' ');
+            sb.append(sep).append(((Maven2GoalSelectionDialog.LifecyclePhase) o[i]).getName());
           } else if(o[i] instanceof MojoDescriptor) {
             MojoDescriptor mojoDescriptor = (MojoDescriptor) o[i];
-            sb.append(mojoDescriptor.getFullGoalName()).append(' ');
+            sb.append(sep).append(mojoDescriptor.getFullGoalName());
           }
+          sep = " ";
         }
-        if(sb.charAt(sb.length() - 1) == ' ') {
-          sb.deleteCharAt(sb.length() - 1);
+        
+        if(pos < len && txt.charAt(pos) != ' ') {
+          sb.append(' ');
         }
-        //setNewGoals(fGoals, sb.toString());
+        
         text.insert(sb.toString());
+        text.setFocus();
         entriesChanged();
       }
-    }
-
-    // fancy insert into fGoals field
-    private void setNewGoals(Text field, String newText) {
-      final boolean hadFocus = text.getData() != null;
-      final int currPos = field.getCaretPosition();
-      final String oldText = field.getText();
-
-      if(!hadFocus) {
-        // never had focus - add to the end
-        if(oldText.length() > 0 && !oldText.endsWith(" ")) {
-          newText = " " + newText;
-        }
-        field.setText(oldText + newText);
-        return;
-      }
-
-      // had focus before
-
-      // caret at the first position
-      if(currPos == 0) {
-        if(oldText.charAt(0) != ' ') {
-          field.insert(newText + " ");
-          return;
-        }
-        field.insert(newText);
-        return;
-      }
-
-      // caret at the last position
-      if(currPos == oldText.length()) {
-        if(!oldText.endsWith(" ")) {
-          field.insert(" " + newText);
-          return;
-        }
-        field.insert(newText);
-        return;
-      }
-
-      // caret somewhere in the middle
-      if(oldText.charAt(currPos) != ' ') {
-        newText = newText + " ";
-      }
-      if(oldText.charAt(currPos - 1) != ' ') {
-        newText = " " + newText;
-      }
-      field.insert(newText);
     }
   }
   
