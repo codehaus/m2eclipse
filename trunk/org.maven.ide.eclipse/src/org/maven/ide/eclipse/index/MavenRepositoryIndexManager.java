@@ -107,14 +107,14 @@ public class MavenRepositoryIndexManager {
     localIndexer.reindex(embedderManager.getLocalRepositoryDir());
   }
 
-  public void updateIndex(File localFile, String repository, String name, long size, long date) {
+  public synchronized void updateIndex(File localFile, String repository, String name, long size, long date) {
     String indexPath = new File(getIndexDir(), LOCAL_INDEX).getAbsolutePath();
     try {
       Indexer indexer = new Indexer();
       indexer.addDocument(repository, name, size, date, indexer.readNames(localFile), indexPath);
     } catch( IOException ex ) {
       String msg = "Unable to index "+name;
-      Maven2Plugin.getDefault().getConsole().logError(msg + "; " + ex.getMessage());
+      console.logError(msg + "; " + ex.getMessage());
       Maven2Plugin.log(msg, ex);
     }
   }
