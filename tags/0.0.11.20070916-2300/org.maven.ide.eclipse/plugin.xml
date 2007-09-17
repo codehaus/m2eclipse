@@ -1,0 +1,523 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+<plugin>
+
+   <extension
+         id="maven2Builder"
+         name="%m2.builder.name"
+         point="org.eclipse.core.resources.builders">
+      <builder
+            hasNature="true"
+            isConfigurable="false">
+         <run class="org.maven.ide.eclipse.container.Maven2Builder"/>
+      </builder>
+   </extension>
+   <extension
+         id="maven2Nature"
+         name="%m2.nature.name"
+         point="org.eclipse.core.resources.natures">
+      <runtime>
+         <run class="org.maven.ide.eclipse.container.Maven2Nature"/>
+      </runtime>
+      <requires-nature id="org.eclipse.jdt.core.javanature"/>
+      <builder id="org.maven.ide.eclipse.maven2Builder"/>
+   </extension>
+
+   <extension point="org.eclipse.ui.decorators">
+     <decorator
+           adaptable="true"
+           icon="icons/mlabel.gif"
+           id="org.maven.ide.eclipse.maven2decorator"
+           label="%m2.decorator.name"
+           lightweight="true"
+           location="TOP_LEFT"
+           state="true">
+       <description>
+          %m2.decorator.description
+       </description>
+       <enablement>
+          <or>
+	          <objectState name="nature" value="org.maven.ide.eclipse.maven2Nature"/>
+	          <objectState name="name" value="pom.xml"/>
+	        </or>
+       </enablement>
+     </decorator>
+   </extension>
+
+   <extension point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            adaptable="true"
+            objectClass="org.eclipse.core.resources.IProject"
+            id="org.maven.ide.eclipse.projectMenu" >
+         <menu
+               id="maven2"
+               label="%m2.popup.project.label"
+               path="additions">
+            <separator name="natureGroup"/>
+            <separator name="enable"/>
+         </menu>
+      </objectContribution>      
+
+      <objectContribution
+            adaptable="true"
+            objectClass="org.eclipse.core.resources.IProject"
+            id="org.maven.ide.eclipse.projectMenus">
+         <visibility>
+           <not>
+              <objectState name="nature"
+                    value="org.maven.ide.eclipse.maven2Nature">
+              </objectState>
+           </not>
+         </visibility>
+         <action
+               class="org.maven.ide.eclipse.actions.EnableNatureAction"
+               id="org.maven.ide.eclipse.enableAction"
+               label="%m2.popup.project.enable.label"
+               menubarPath="maven2/enable">
+         </action>
+      </objectContribution>
+
+      <objectContribution
+            adaptable="true"
+            objectClass="org.eclipse.core.resources.IProject"
+            id="org.maven.ide.eclipse.projectMenus">
+         <visibility>
+            <objectState
+                  name="nature"
+                  value="org.maven.ide.eclipse.maven2Nature">
+            </objectState>
+         </visibility>
+         <action
+               class="org.maven.ide.eclipse.actions.AddDependencyAction"
+               enablesFor="1"
+               id="org.maven.ide.eclipse.addDependencyAction"
+               label="%m2.popup.project.add-dependency.label"
+               menubarPath="maven2/natureGroup"/>
+      </objectContribution>
+      <objectContribution
+            adaptable="true"
+            objectClass="org.eclipse.core.resources.IProject"
+            id="org.maven.ide.eclipse.projectMenus">
+         <visibility>
+            <objectState
+                  name="nature"
+                  value="org.maven.ide.eclipse.maven2Nature">
+            </objectState>
+         </visibility>
+         <action
+               id="org.maven.ide.eclipse.updateSourcesAction"
+               class="org.maven.ide.eclipse.actions.UpdateSourcesAction"
+               label="%m2.popup.project.update-sources.label"
+               menubarPath="maven2/natureGroup"/>
+         <action
+               id="org.maven.ide.eclipse.enableModules"
+               label="%m2.popup.project.includeModules.label"
+               class="org.maven.ide.eclipse.actions.EnableNatureAction:modules"
+               menubarPath="maven2/enable"/>
+         <action
+               id="org.maven.ide.eclipse.workspaceResolution"
+               label="%m2.popup.project.workspaceResolution.label"
+               class="org.maven.ide.eclipse.actions.EnableNatureAction:workspace"
+               menubarPath="maven2/enable"/>
+         <action
+               id="org.maven.ide.eclipse.disableAction"
+               label="%m2.popup.project.disable.label"
+               class="org.maven.ide.eclipse.actions.DisableNatureAction"
+               menubarPath="maven2/enable"/>
+      </objectContribution>      
+
+      <objectContribution
+            adaptable="true"
+            objectClass="org.eclipse.core.resources.IFile"
+            id="org.maven.ide.eclipse.projectMenu" >
+         <visibility>
+            <objectState
+                  name="name"
+                  value="pom.xml">
+            </objectState>
+         </visibility>
+         <menu
+               id="maven2"
+               label="%m2.popup.project.label"
+               path="additions">
+            <separator name="natureGroup"/>
+            <separator name="enable"/>
+         </menu>
+         <action
+               id="org.maven.ide.eclipse.addDependencyAction"
+               label="%m2.popup.project.add-dependency.label"
+               class="org.maven.ide.eclipse.actions.AddDependencyAction"
+               enablesFor="1"
+               menubarPath="maven2/natureGroup"/>
+      </objectContribution>
+
+      <!-- DownloadSourcesAction
+      <objectContribution
+            objectClass="org.eclipse.jdt.core.IPackageFragmentRoot"
+            id="org.maven.ide.eclipse.jarMenu"
+            nameFilter="*.jar">
+         <menu
+               id="maven2"
+               label="%m2.popup.project.label"
+               path="additions">
+            <separator name="natureGroup"/>
+            <separator name="enable"/>
+         </menu>
+         <action
+               enablesFor="1"
+               class="org.maven.ide.eclipse.actions.DownloadSourcesAction"
+               id="org.maven.ide.eclipse.downloadSourcesAction"
+               label="Download Sources"
+               menubarPath="maven2/natureGroup"/>
+      </objectContribution>
+
+      <objectContribution
+            adaptable="true"
+            id="org.maven.ide.eclipse.containerMenu"
+            objectClass="org.eclipse.jdt.core.IClasspathContainer">
+         <action
+               enablesFor="1"
+               class="org.maven.ide.eclipse.actions.DownloadSourcesAction"
+               id="org.maven.ide.eclipse.downloadSourcesAction"
+               label="Download Sources"
+               />
+      </objectContribution>
+      -->
+
+   </extension>
+   <extension
+         point="org.eclipse.core.expressions.propertyTesters">
+      <propertyTester
+            id="org.maven.ide.eclipse.MavenPropertyTester"
+            class="org.maven.ide.eclipse.actions.MavenPropertyTester"
+            namespace="org.maven.ide.eclipse"
+            properties="launchable"
+            type="org.eclipse.core.runtime.IAdaptable"/>
+   </extension>
+
+	<extension point="org.eclipse.debug.ui.launchShortcuts">
+    	<shortcut
+           category="org.maven.ide.eclipse"
+           class="org.maven.ide.eclipse.actions.ExecutePomAction"
+           icon="icons/m2.gif"
+           id="org.maven.ide.eclipse.pomFileAction"
+           label="%m2.popup.pomFile.label"
+           modes="run">
+         <contextualLaunch>
+           <contextLabel mode="run" label="%m2.popup.pomFile.label"/>
+           <enablement>
+             <with variable="selection">
+               <count value="1"/>
+               <iterate>
+                 <and>
+                   <test property="org.maven.ide.eclipse.launchable"/>
+                   <adapt type="org.eclipse.core.runtime.IAdaptable"/>
+                 </and>
+               </iterate>
+             </with>
+           </enablement>
+  		 </contextualLaunch>
+     </shortcut>
+     <shortcut
+           category="org.maven.ide.eclipse"
+           class="org.maven.ide.eclipse.actions.ExecutePomAction:WITH_DIALOG"
+           icon="icons/m2.gif"
+           id="org.maven.ide.eclipse.pomFileActionWithDialog"
+           label="%m2.popup.pomFileWithDialog.label"
+           modes="run">
+        <contextualLaunch>
+           <contextLabel label="%m2.popup.pomFileWithDialog.label" mode="run"/>
+           <enablement>
+              <with variable="selection">
+                 <count value="1"/>
+                 <iterate>
+                    <and>
+                   <test property="org.maven.ide.eclipse.launchable"/>
+                   <adapt type="org.eclipse.core.runtime.IAdaptable"/>
+                    </and>
+                 </iterate>
+              </with>
+           </enablement>
+        </contextualLaunch>
+     </shortcut>
+     <shortcut
+           category="org.maven.ide.eclipse"
+           class="org.maven.ide.eclipse.actions.ExecutePomAction:install"
+           icon="icons/m2.gif"
+           id="org.maven.ide.eclipse.actions.LifeCycleInstall"
+           label="%m2.popup.lifecycle.install"
+           modes="run">
+        <contextualLaunch>
+           <contextLabel label="%m2.popup.lifecycle.install" mode="run"/>
+           <enablement>
+              <with variable="selection">
+                 <count value="1"/>
+                 <iterate>
+                    <and>
+                      <test property="org.maven.ide.eclipse.launchable"/>
+                      <adapt type="org.eclipse.core.runtime.IAdaptable"/>
+                    </and>
+                 </iterate>
+              </with>
+           </enablement>
+        </contextualLaunch>
+     </shortcut>
+     <shortcut
+           category="org.maven.ide.eclipse"
+           class="org.maven.ide.eclipse.actions.ExecutePomAction:clean"
+           icon="icons/m2.gif"
+           id="org.maven.ide.eclipse.actions.LifeCycleClean"
+           label="%m2.popup.lifecycle.clean"
+           modes="run">
+        <contextualLaunch>
+           <contextLabel label="%m2.popup.lifecycle.clean" mode="run"/>
+           <enablement>
+              <with variable="selection">
+                 <count value="1"/>
+                 <iterate>
+                    <and>
+                      <test property="org.maven.ide.eclipse.launchable"/>
+                      <adapt type="org.eclipse.core.runtime.IAdaptable"/>
+                    </and>
+                 </iterate>
+              </with>
+           </enablement>
+        </contextualLaunch>
+     </shortcut>
+     <shortcut
+           category="org.maven.ide.eclipse"
+           class="org.maven.ide.eclipse.actions.ExecutePomAction:test"
+           icon="icons/m2.gif"
+           id="org.maven.ide.eclipse.actions.LifeCycleTest"
+           label="%m2.popup.lifecycle.test"
+           modes="run">
+        <contextualLaunch>
+           <contextLabel label="%m2.popup.lifecycle.test" mode="run"/>
+           <enablement>
+              <with variable="selection">
+                 <count value="1"/>
+                 <iterate>
+                    <and>
+                      <test property="org.maven.ide.eclipse.launchable"/>
+                      <adapt type="org.eclipse.core.runtime.IAdaptable"/>
+                    </and>
+                 </iterate>
+              </with>
+           </enablement>
+        </contextualLaunch>
+     </shortcut>
+     <shortcut
+           category="org.maven.ide.eclipse"
+           class="org.maven.ide.eclipse.actions.ExecutePomAction:generate-sources"
+           icon="icons/m2.gif"
+           id="org.maven.ide.eclipse.actions.LifeCycleGenerateSources"
+           label="%m2.popup.lifecycle.generate-sources"
+           modes="run">
+        <contextualLaunch>
+           <contextLabel label="%m2.popup.lifecycle.generate-sources" mode="run"/>
+           <enablement>
+              <with variable="selection">
+                 <count value="1"/>
+                 <iterate>
+                    <and>
+                      <test property="org.maven.ide.eclipse.launchable"/>
+                      <adapt type="org.eclipse.core.runtime.IAdaptable"/>
+                    </and>
+                 </iterate>
+              </with>
+           </enablement>
+        </contextualLaunch>
+     </shortcut>
+	</extension>
+
+  <extension point="org.eclipse.ui.commands">
+    <command
+         name="%m2.shortcut.description.run"
+         description="%m2.shortcut.description.run"
+         categoryId="org.eclipse.debug.ui.category.run"
+         id="org.maven.ide.eclipse.pomFileAction.run">
+    </command>
+  </extension>	
+  <extension point="org.eclipse.ui.bindings">
+    <key sequence="M3+M2+X M"
+         contextId="org.eclipse.ui.globalScope"
+         commandId="org.maven.ide.eclipse.pomFileAction.run"
+         schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"/>
+  </extension>
+
+   <!--
+   <extension point="org.eclipse.ui.bindings">
+      <key
+            sequence="M1+M2+A M"
+            commandId=""
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
+      </key>      
+   </extension>
+   -->
+
+   <extension
+         id="maven2Problem"
+         name="%m2.marker.problem.name"
+         point="org.eclipse.core.resources.markers">
+      <super type="org.eclipse.core.resources.problemmarker"/>
+      <persistent value="false"/>
+   </extension>
+   
+   <extension
+          id="maven2ClasspathContainer"
+          name="%m2.classpath-container.name"
+          point="org.eclipse.jdt.core.classpathContainerInitializer">
+      <classpathContainerInitializer
+            class="org.maven.ide.eclipse.container.Maven2ClasspathContainerInitializer"
+            id="org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER"/>
+   </extension>
+   
+   <extension
+          id="maven2ClasspathContainerPage"
+          name="%m2.classpath-container.page.name"
+         point="org.eclipse.jdt.ui.classpathContainerPage">
+      <classpathContainerPage
+          id="org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER"
+          name="%m2.classpath-container.page.dependencies.name"
+          class="org.maven.ide.eclipse.container.Maven2ClasspathContainerPage"/>
+   </extension>
+
+   <extension point="org.eclipse.ui.preferencePages">
+      <page
+         class="org.maven.ide.eclipse.preferences.Maven2PreferencePage"
+         id="org.maven.ide.eclipse.preferences.Maven2PreferencePage"
+         name="%m2.preferences.page.name"/>
+   </extension>
+   <extension point="org.eclipse.core.runtime.preferences">
+      <initializer class="org.maven.ide.eclipse.preferences.Maven2PreferenceInitializer"/>
+   </extension>
+   
+   <!-- m2 LaunchGroup -->
+   <extension point="org.eclipse.debug.core.launchConfigurationTypes">
+	 <!-- careful when changing id, it's used to locate launch configuration from the java code! -->
+      <launchConfigurationType
+            category="org.eclipse.ui.externaltools"
+            delegate="org.maven.ide.eclipse.launch.Maven2LaunchDelegate"
+            id="org.maven.ide.eclipse.Maven2LaunchConfigurationType"
+            modes="run"
+            name="%m2.launch.type.name"
+            public="true"/>
+      <launchConfigurationType
+            category="org.eclipse.ui.externaltools.builder"
+            delegate="org.maven.ide.eclipse.launch.Maven2LaunchDelegate"
+            name="%m2.launch.type.builder.name"
+            id="org.maven.ide.eclipse.Maven2BuilderConfigurationType"
+            modes="run">
+      </launchConfigurationType>
+   </extension>
+
+   <extension point="org.eclipse.debug.ui.launchConfigurationTabGroups">
+      <launchConfigurationTabGroup id="org.maven.ide.eclipse.LaunchConfigurationTabGroup"
+            type="org.maven.ide.eclipse.Maven2LaunchConfigurationType"
+            class="org.maven.ide.eclipse.launch.Maven2LaunchConfigurationTabGroup"/>
+      <launchConfigurationTabGroup id="org.maven.ide.eclipse.BuilderConfigurationTabGroup"
+            type="org.maven.ide.eclipse.Maven2BuilderConfigurationType"
+            class="org.maven.ide.eclipse.launch.Maven2BuilderConfigurationTabGroup"/>
+   </extension>
+
+   <!-- Maven launcher configuration type image -->
+   <extension point="org.eclipse.debug.ui.launchConfigurationTypeImages">
+      <launchConfigurationTypeImage
+            icon="icons/m2.gif"
+            configTypeID="org.maven.ide.eclipse.Maven2LaunchConfigurationType"
+            id="org.maven.ide.eclipse.launch.Maven2LaunchConfigurationTypeImage"/>
+      <launchConfigurationTypeImage
+            icon="icons/m2.gif"
+            configTypeID="org.maven.ide.eclipse.Maven2BuilderConfigurationType"
+            id="org.maven.ide.eclipse.launch.Maven2BuilderConfigurationTypeImage"/>
+   </extension>
+
+
+   <!-- need an entire index
+   <extension
+         point="org.eclipse.jdt.ui.quickAssistProcessors">
+      <quickAssistProcessor
+            class="org.maven.ide.eclipse.assist.Maven2DependencyResolver"
+            name="org.maven.ide.eclipse.assist.Maven2DependencyResolver"
+            id="org.maven.ide.eclipse.quickAssistProcessor"/>
+   </extension>
+   -->
+   
+   <extension
+         point="org.eclipse.ui.newWizards">
+      <category
+            id="org.maven.ide.eclipse"
+            name="%m2.wizard.name"/>
+      <wizard
+            category="org.maven.ide.eclipse"
+            class="org.maven.ide.eclipse.wizards.Maven2PomWizard"
+            icon="icons/new_m2_pom.gif"
+            id="org.maven.ide.eclipse.wizards.Maven2PomWizard"
+            name="%m2.wizard.pom.name">
+         <selection class="org.eclipse.core.resources.IProject"/>
+         <selection class="org.eclipse.core.resources.IResource"/>
+      </wizard>
+
+      <!-- wait for archetype support -->
+      <wizard
+            category="org.maven.ide.eclipse"
+            class="org.maven.ide.eclipse.wizards.Maven2ProjectWizard"
+            icon="icons/new_m2_project.gif"
+            id="org.maven.ide.eclipse.wizards.Maven2ProjectWizard"
+            name="%m2.wizard.project.name"
+            project="true">
+         <description>%m2.wizard.project.description</description>
+      </wizard>
+      
+   </extension>
+   
+   <extension point="org.eclipse.ui.importWizards">
+	   <wizard id="org.maven.ide.eclipse.wizards.Maven2ImportWizard"
+             class="org.maven.ide.eclipse.wizards.Maven2ImportWizard"
+             icon="icons/new_m2_project.gif"
+             category="org.eclipse.ui.Basic"
+             name="%m2.wizard.import.name">
+       <description>%m2.wizard.import.description</description>
+     </wizard>
+     <category id="org.eclipse.ui.Basic" name="General"/>
+   </extension>
+
+   <extension
+         point="org.eclipse.ui.console.consoleFactories">
+      <consoleFactory
+            label="M2"
+            icon="icons/m2.gif"
+            class="org.maven.ide.eclipse.launch.console.Maven2ConsoleFactory"/>
+   </extension>
+   <extension
+         point="org.eclipse.ui.console.consolePageParticipants">
+      <consolePageParticipant
+            class="org.maven.ide.eclipse.launch.console.Maven2ConsolePageParticipant"
+            id="org.maven.ide.eclipse.launch.console.Maven2ConsolePageParticipant">
+         <enablement>
+            <instanceof value="org.maven.ide.eclipse.launch.console.Maven2Console"/>
+         </enablement>
+      </consolePageParticipant>
+   </extension>
+   
+   <!-- -->
+   <extension
+         point="org.eclipse.jdt.ui.quickAssistProcessors">
+      <quickAssistProcessor
+            class="org.maven.ide.eclipse.actions.Maven2DependencyResolver"
+            name="org.maven.ide.eclipse.actions.Maven2DependencyResolver"
+            id="org.maven.ide.eclipse.quickAssistProcessor"/>
+   </extension>
+   <!-- -->
+   
+   <!-- pom editor -->
+   <!--
+   <extension 
+   		point="org.eclipse.ui.editors">
+      <editor name="%m2.editor.pom.name" icon="icons/m2.gif" filenames="pom.xml" extensions="xml" class="org.maven.ide.eclipse.editors.pom.Maven2PomEditor" 
+      	contributorClass="org.maven.ide.eclipse.editors.pom.Maven2PomEditorContributor" id="org.maven.ide.eclipse.editors.pom.Maven2PomEditor"/>
+   </extension>
+   -->
+   
+</plugin>
+
