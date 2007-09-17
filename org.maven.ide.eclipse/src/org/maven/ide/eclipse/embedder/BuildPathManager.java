@@ -131,6 +131,21 @@ public class BuildPathManager {
 
     return new ResolverConfiguration(includeModules, resolveWorkspaceProjects, getActiveProfiles(entry));
   }
+  
+  public static IClasspathEntry createContainerEntry(ResolverConfiguration configuration) {
+    IPath newPath = new Path(Maven2Plugin.CONTAINER_ID);
+    if(configuration.shouldIncludeModules()) {
+      newPath = newPath.append(Maven2Plugin.INCLUDE_MODULES);
+    }
+    if(!configuration.shouldResolveWorkspaceProjects()) {
+      newPath = newPath.append(Maven2Plugin.NO_WORKSPACE_PROJECTS);
+    }
+    if(configuration.getActiveProfiles().length()>0) {
+      newPath = newPath.append(Maven2Plugin.ACTIVE_PROFILES + "["  + configuration.getActiveProfiles().trim() + "]");
+    }
+    
+    return JavaCore.newContainerEntry(newPath);
+  }
 
   public static IClasspathEntry getMavenContainerEntry(IJavaProject javaProject) {
     IClasspathEntry[] classpath;
@@ -812,7 +827,7 @@ public class BuildPathManager {
     return relative.replace('\\', '/'); //$NON-NLS-1$ //$NON-NLS-2$
   }
 
-  public void enableMavenNature(IProject project, IClasspathEntry containerEntry, IProgressMonitor monitor)
+  public void enableMavenNature(IProject project, ResolverConfiguration configuration, IProgressMonitor monitor)
       throws CoreException, JavaModelException {
     monitor.subTask("Enable Maven nature");
 
@@ -852,7 +867,7 @@ public class BuildPathManager {
         }
       }
 
-      newEntries.add(containerEntry);
+      newEntries.add(createContainerEntry(configuration));
 
       javaProject.setRawClasspath((IClasspathEntry[]) newEntries.toArray(new IClasspathEntry[newEntries.size()]),
           monitor);
@@ -1002,16 +1017,8 @@ public class BuildPathManager {
 
     Maven2Plugin plugin = Maven2Plugin.getDefault();
 
-    IPath containerPath = new Path(Maven2Plugin.CONTAINER_ID);
-    if(!configuration.shouldResolveWorkspaceProjects()) {
-      containerPath = containerPath.append(Maven2Plugin.NO_WORKSPACE_PROJECTS);
-    }
-    if(configuration.shouldIncludeModules()) {
-      containerPath = containerPath.append(Maven2Plugin.INCLUDE_MODULES);
-    }
-
     BuildPathManager buildpathManager = plugin.getBuildpathManager();
-    buildpathManager.enableMavenNature(project, JavaCore.newContainerEntry(containerPath), monitor);
+    buildpathManager.enableMavenNature(project, configuration, monitor);
     buildpathManager.updateSourceFolders(project, configuration, monitor);
     buildpathManager.updateClasspathContainer(project, monitor);
     

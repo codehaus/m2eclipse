@@ -19,11 +19,8 @@
 
 package org.maven.ide.eclipse.container;
 
-import org.eclipse.core.runtime.IPath;
-import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.ui.wizards.IClasspathContainerPage;
 import org.eclipse.jdt.ui.wizards.IClasspathContainerPageExtension;
 import org.eclipse.jface.wizard.WizardPage;
@@ -37,7 +34,6 @@ import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
-import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 
@@ -49,30 +45,30 @@ import org.maven.ide.eclipse.embedder.ResolverConfiguration;
  */
 public class Maven2ClasspathContainerPage extends WizardPage implements IClasspathContainerPage,
     IClasspathContainerPageExtension {
-  
+
   private IJavaProject javaProject;
+
   private IClasspathEntry containerEntry;
 
   private Button resolveWorspaceProjectsButton;
+
   private Button includeModulesButton;
+
   private Text activeProfilesText;
 
   private ResolverConfiguration resolverConfiguration;
 
-  
   public Maven2ClasspathContainerPage() {
     super("Maven2 Container");
   }
 
-  
   // IClasspathContainerPageExtension
-  
+
   public void initialize(IJavaProject javaProject, IClasspathEntry[] currentEntries) {
     this.javaProject = javaProject;
     // this.currentEntries = currentEntries;
   }
-  
-  
+
   // IClasspathContainerPage
 
   public IClasspathEntry getSelection() {
@@ -108,7 +104,7 @@ public class Maven2ClasspathContainerPage extends WizardPage implements IClasspa
     Label label = new Label(tabComposite, SWT.NONE);
     label.setBounds(0, 0, 0, 16);
     label.setText("Project: " + javaProject.getElementName());
-    
+
     includeModulesButton = new Button(tabComposite, SWT.CHECK);
     includeModulesButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false));
     includeModulesButton.setBounds(0, 0, 337, 16);
@@ -147,20 +143,12 @@ public class Maven2ClasspathContainerPage extends WizardPage implements IClasspa
     if(newIncludeModules != resolverConfiguration.shouldIncludeModules()
         || newResolveWorspaceProjects != resolverConfiguration.shouldResolveWorkspaceProjects()
         || !newProfiles.equals(resolverConfiguration.getActiveProfiles())) {
-      IPath newPath = new Path(Maven2Plugin.CONTAINER_ID);
-      if(newIncludeModules) {
-        newPath = newPath.append(Maven2Plugin.INCLUDE_MODULES);
-      }
-      if(!newResolveWorspaceProjects) {
-        newPath = newPath.append(Maven2Plugin.NO_WORKSPACE_PROJECTS);
-      }
-      if(newProfiles.length()>0) {
-        newPath = newPath.append(Maven2Plugin.ACTIVE_PROFILES + "["  + newProfiles.trim() + "]");
-      }
-      
-      containerEntry = JavaCore.newContainerEntry(newPath, containerEntry.isExported());
+
+      ResolverConfiguration newConfiguration = new ResolverConfiguration(newIncludeModules, //
+          newResolveWorspaceProjects, newProfiles);
+      containerEntry = BuildPathManager.createContainerEntry(newConfiguration);
     }
     return true;
   }
-  
+
 }
