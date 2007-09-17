@@ -2,12 +2,11 @@
 <feature
       id="org.maven.ide.eclipse.mylyn.feature"
       label="Maven Integration for Mylyn (Optional)"
-      version="0.0.11.20070906-1200"
+      version="0.0.11.20070916-2300"
       provider-name="maven.org">
 
    <description url="http://m2eclipse.codehaus.org/">
-      Maven integration for Mylyn allows to use issue management information
-from pom.xml to link projects with issue tracking repositories.
+      Link projects to Mylyn issue tracking repositories using issue management information from Maven&apos;s pom.xml.
    </description>
 
    <copyright>
@@ -32,7 +31,7 @@ under the License.
    </license>
 
    <url>
-      <update label="Maven 2.0 Integration" url="http://m2eclipse.codehaus.org/update/"/>
+      <update label="Maven Integration" url="http://m2eclipse.codehaus.org/update/"/>
    </url>
 
    <requires>
