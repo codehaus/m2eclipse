@@ -39,7 +39,6 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.index.IndexModifier;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.MultiReader;
@@ -346,9 +345,9 @@ public class Indexer {
   }
 
   public void addDocument(String repository, String name, long size, long date, String names, String indexPath) throws IOException {
-    IndexModifier m = null;
+    IndexWriter m = null;
     try {
-      m = new IndexModifier(indexPath, new StandardAnalyzer(), false);
+      m = new IndexWriter(indexPath, new StandardAnalyzer(), false);
       m.addDocument(getDocument(repository, name, size, date, names));
       m.optimize();
     } finally {
