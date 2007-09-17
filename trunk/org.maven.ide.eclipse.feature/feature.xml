@@ -2,13 +2,13 @@
 <feature
       id="org.maven.ide.eclipse.feature"
       label="Maven Integration for Eclipse"
-      version="0.0.11.20070716-2300"
+      version="0.0.11.20070916-2300"
       provider-name="maven.org"
       plugin="org.maven.ide.eclipse">
    <install-handler/>
 
    <description url="http://m2eclipse.codehaus.org/">
-      Maven 2.0 integration, including transitive dependencies support, running Maven goals, and adding dependencies from repository.
+      Maven integration. Launching Maven from Eclipse, dependency management and search.
    </description>
 
    <copyright>
@@ -33,7 +33,7 @@ under the License.
    </license>
 
    <url>
-      <update label="Maven 2.0 Integration" url="http://m2eclipse.codehaus.org/update/"/>
+      <update label="Maven Integration" url="http://m2eclipse.codehaus.org/update/"/>
    </url>
 
    <requires>
