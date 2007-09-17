@@ -26,6 +26,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.lucene.index.IndexReader;
+
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.jobs.Job;
 import org.maven.ide.eclipse.Maven2Plugin;
@@ -68,7 +70,20 @@ public class MavenRepositoryIndexManager {
     
     File localRepositoryIndexDir = new File(indexDir, LOCAL_INDEX);
     if(localRepositoryIndexDir.exists()) {
-      indexes.add(LOCAL_INDEX);
+      IndexReader reader = null;
+      try {
+        reader = IndexReader.open(localRepositoryIndexDir);        
+        indexes.add(LOCAL_INDEX);
+      } catch(Exception ex) {
+        reindexLocal();
+      } finally {
+        try {
+          reader.close();
+        } catch(IOException ex) {
+          // ignore
+        }
+      }
+      
     } else {
       reindexLocal();
     }
