@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
       id="org.maven.ide.eclipse.feature"
-      label="Maven 2.0 Integration"
-      version="0.0.11.20070603-1200"
+      label="Maven Integration for Eclipse"
+      version="0.0.11.20070716-2300"
       provider-name="maven.org"
       plugin="org.maven.ide.eclipse">
    <install-handler/>
@@ -46,7 +46,6 @@ under the License.
          id="org.maven.ide.eclipse"
          download-size="0"
          install-size="0"
-         version="0.0.0"
-         unpack="false"/>
+         version="0.0.0"/>
 
 </feature>
