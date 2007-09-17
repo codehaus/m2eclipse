@@ -488,7 +488,10 @@ public class Indexer {
     public static FileInfo getFileInfo(Document doc) {
       String repository = doc.get( REPOSITORY);
       
-      String jarName = doc.get( JAR_NAME);    
+      String jarName = doc.get( JAR_NAME);
+      if(jarName.charAt(0)=='/') {
+        jarName = jarName.substring(1);
+      }
       int n1 = jarName.lastIndexOf( '/');
       if(n1==-1) return null;
       int n2 = jarName.substring( 0, n1).lastIndexOf( '/');
