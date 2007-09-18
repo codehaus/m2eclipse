@@ -45,16 +45,17 @@ import org.maven.ide.eclipse.launch.console.Maven2Console;
 
 public class Maven2Builder extends IncrementalProjectBuilder {
   private final Maven2Plugin plugin;
-  private final Maven2Console  console;
+
+  private final Maven2Console console;
+
   private final BuildPathManager buildpathManager;
 
-  
   public Maven2Builder() {
     plugin = Maven2Plugin.getDefault();
     console = plugin.getConsole();
     buildpathManager = plugin.getBuildpathManager();
   }
-  
+
   /*
    * (non-Javadoc)
    * 
@@ -65,8 +66,8 @@ public class Maven2Builder extends IncrementalProjectBuilder {
     IProject project = getProject();
     if(project.hasNature(Maven2Plugin.NATURE_ID)) {
       IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
-      if(pomFile==null) {
-        console.logError("Project "+project.getName()+" is missing pom.xml");
+      if(pomFile == null) {
+        console.logError("Project " + project.getName() + " is missing pom.xml");
         return null;
       }
 
@@ -81,7 +82,7 @@ public class Maven2Builder extends IncrementalProjectBuilder {
         } else {
           poms.add(pomFile.getLocation().toString());
         }
-        
+
         Verifier verifier = new Verifier(poms);
         delta.accept(verifier, IContainer.EXCLUDE_DERIVED);
         if(!verifier.updated) {
@@ -98,22 +99,24 @@ public class Maven2Builder extends IncrementalProjectBuilder {
     poms.add(pomFile.getLocation().toString());
 
     Model model = plugin.getMavenModelManager().getMavenModel(pomFile);
-    
-    IContainer parent = pomFile.getParent();
-    for(Iterator it = model.getModules().iterator(); it.hasNext();) {
-      if(monitor.isCanceled()) {
-        throw new OperationCanceledException();
-      }
-      String module = (String) it.next();
-      IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
-      if(memberPom != null && memberPom.getType() == IResource.FILE && memberPom.isAccessible()) {
-        addModulePoms(poms, (IFile) memberPom, monitor);
+    if(model != null) {
+      IContainer parent = pomFile.getParent();
+      for(Iterator it = model.getModules().iterator(); it.hasNext();) {
+        if(monitor.isCanceled()) {
+          throw new OperationCanceledException();
+        }
+        String module = (String) it.next();
+        IResource memberPom = parent.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
+        if(memberPom != null && memberPom.getType() == IResource.FILE && memberPom.isAccessible()) {
+          addModulePoms(poms, (IFile) memberPom, monitor);
+        }
       }
     }
   }
 
   static final class Verifier implements IResourceDeltaVisitor {
     boolean updated;
+
     private final HashSet poms;
 
     public Verifier(HashSet poms) {
