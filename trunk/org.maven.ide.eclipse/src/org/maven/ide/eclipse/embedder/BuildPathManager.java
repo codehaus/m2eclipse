@@ -131,7 +131,7 @@ public class BuildPathManager {
 
     return new ResolverConfiguration(includeModules, resolveWorkspaceProjects, getActiveProfiles(entry));
   }
-  
+
   public static IClasspathEntry createContainerEntry(ResolverConfiguration configuration) {
     IPath newPath = new Path(Maven2Plugin.CONTAINER_ID);
     if(configuration.shouldIncludeModules()) {
@@ -140,10 +140,10 @@ public class BuildPathManager {
     if(!configuration.shouldResolveWorkspaceProjects()) {
       newPath = newPath.append(Maven2Plugin.NO_WORKSPACE_PROJECTS);
     }
-    if(configuration.getActiveProfiles().length()>0) {
-      newPath = newPath.append(Maven2Plugin.ACTIVE_PROFILES + "["  + configuration.getActiveProfiles().trim() + "]");
+    if(configuration.getActiveProfiles().length() > 0) {
+      newPath = newPath.append(Maven2Plugin.ACTIVE_PROFILES + "[" + configuration.getActiveProfiles().trim() + "]");
     }
-    
+
     return JavaCore.newContainerEntry(newPath);
   }
 
@@ -203,7 +203,7 @@ public class BuildPathManager {
     Set dependentProjects = mavenModelManager.getDependentProjects(pomFile);
     for(Iterator it = dependentProjects.iterator(); it.hasNext();) {
       IProject p = (IProject) it.next();
-      if(p!=project) {
+      if(p != project) {
         updateClasspathContainer(p, monitor);
       }
     }
@@ -240,7 +240,8 @@ public class BuildPathManager {
 
       // deleteMarkers(pomFile);
       // TODO use version?
-      moduleArtifacts.put(mavenProject.getGroupId() + ":" + mavenProject.getArtifactId() + ":" + mavenProject.getVersion(), mavenProject.getArtifact());
+      moduleArtifacts.put(mavenProject.getGroupId() + ":" + mavenProject.getArtifactId() + ":"
+          + mavenProject.getVersion(), mavenProject.getArtifact());
 
       Set artifacts = mavenProject.getArtifacts();
       for(Iterator it = artifacts.iterator(); it.hasNext();) {
@@ -265,7 +266,7 @@ public class BuildPathManager {
         }
 
         moduleArtifacts.put(artifactKey, a);
-        
+
         mavenModelManager.addProjectArtifact(pomFile, a);
         // this is needed to projects with have modules (either inner or external)
         mavenModelManager.addProjectArtifact(rootPomFile, a);
@@ -279,7 +280,7 @@ public class BuildPathManager {
             continue;
           }
         }
-        
+
         if(resolverConfiguration.shouldResolveWorkspaceProjects()) {
           mavenModelManager.addProjectArtifact(pomFile, a);
           // this is needed to projects with have modules (either inner or external)
@@ -296,7 +297,7 @@ public class BuildPathManager {
             monitor);
 
         String artifactLocation = a.getFile().getAbsolutePath();
-        
+
         ArrayList attributes = new ArrayList();
         attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.GROUP_ID_ATTRIBUTE, a.getGroupId()));
         attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.ARTIFACT_ID_ATTRIBUTE, a.getArtifactId()));
@@ -505,13 +506,9 @@ public class BuildPathManager {
     long t1 = System.currentTimeMillis();
     try {
       Set sources = new HashSet();
-      List sourceEntries = new ArrayList();
+      List entries = new ArrayList();
 
-      MavenProject mavenProject = collectSourceEntries(project, sourceEntries, sources, configuration, monitor);
-
-      // TODO optimize project refresh
-      monitor.subTask("Refreshing");
-      project.refreshLocal(IResource.DEPTH_INFINITE, new SubProgressMonitor(monitor, 1));
+      MavenProject mavenProject = collectSourceEntries(project, entries, sources, configuration, monitor);
 
       monitor.subTask("Configuring Build Path");
       IJavaProject javaProject = JavaCore.create(project);
@@ -524,9 +521,9 @@ public class BuildPathManager {
 
         String source = (String) options.get(JavaCore.COMPILER_SOURCE);
         if(source == null) {
-          sourceEntries.add(JavaRuntime.getDefaultJREContainerEntry());
+          entries.add(JavaRuntime.getDefaultJREContainerEntry());
         } else {
-          sourceEntries.add(getJREContainer(source));
+          entries.add(getJREContainer(source));
         }
       }
 
@@ -536,20 +533,20 @@ public class BuildPathManager {
         IClasspathEntry entry = currentClasspath[i];
         if(entry.getEntryKind() == IClasspathEntry.CPE_CONTAINER) {
           if(!JavaRuntime.JRE_CONTAINER.equals(entry.getPath().segment(0))) {
-            sourceEntries.add(entry);
+            entries.add(entry);
           }
         }
       }
 
-      IClasspathEntry[] entries = (IClasspathEntry[]) sourceEntries.toArray(new IClasspathEntry[sourceEntries.size()]);
       if(mavenProject != null) {
-        String outputDirectory = toRelativeAndFixSeparator(project.getLocation().toFile(), mavenProject.getBuild()
-            .getOutputDirectory());
+        String outputDirectory = toRelativeAndFixSeparator(project.getLocation().toFile(), //
+            mavenProject.getBuild().getOutputDirectory());
         IFolder outputFolder = project.getFolder(outputDirectory);
         Util.createFolder(outputFolder);
-        javaProject.setRawClasspath(entries, outputFolder.getFullPath(), monitor);
+        javaProject.setRawClasspath((IClasspathEntry[]) entries.toArray(new IClasspathEntry[entries.size()]),
+            outputFolder.getFullPath(), monitor);
       } else {
-        javaProject.setRawClasspath(entries, monitor);
+        javaProject.setRawClasspath((IClasspathEntry[]) entries.toArray(new IClasspathEntry[entries.size()]), monitor);
       }
 
       long t2 = System.currentTimeMillis();
@@ -699,6 +696,10 @@ public class BuildPathManager {
 
       MavenExecutionResult result = mavenEmbedder.execute(request);
 
+      // TODO optimize project refresh
+      monitor.subTask("Refreshing");
+      project.refreshLocal(IResource.DEPTH_INFINITE, new SubProgressMonitor(monitor, 1));
+      
       mavenProject = result.getProject();
 
       ReactorManager reactorManager = result.getReactorManager();
@@ -783,6 +784,14 @@ public class BuildPathManager {
     addResourceDirs(project, sources, sourceEntries, mavenProject.getBuild().getResources(), basedir, projectBaseDir);
     addResourceDirs(project, sources, sourceEntries, mavenProject.getBuild().getTestResources(), basedir,
         projectBaseDir);
+
+    // HACK to support xmlbeans generated classes MNGECLIPSE-374
+    File generatedClassesDir = new File(mavenProject.getBuild().getDirectory(), "generated-classes" + File.separator + "xmlbeans");
+    IResource generatedClasses = project.findMember(toRelativeAndFixSeparator(projectBaseDir, //
+        generatedClassesDir.getAbsolutePath()));
+    if(generatedClasses != null && generatedClasses.isAccessible() && generatedClasses.getType() == IResource.FOLDER) {
+      sourceEntries.add(JavaCore.newLibraryEntry(generatedClasses.getFullPath(), null, null));
+    }
   }
 
   private void addSourceDirs(IContainer project, Set sources, List sourceEntries, List sourceRoots, File basedir,
@@ -932,7 +941,7 @@ public class BuildPathManager {
       return option;
     }
     PluginManagement pluginManagement = project.getBuild().getPluginManagement();
-    if(pluginManagement!=null) {
+    if(pluginManagement != null) {
       return getBuildOption(pluginManagement.getPlugins(), artifactId, optionName);
     }
     return null;
@@ -1021,7 +1030,7 @@ public class BuildPathManager {
     buildpathManager.enableMavenNature(project, configuration, monitor);
     buildpathManager.updateSourceFolders(project, configuration, monitor);
     buildpathManager.updateClasspathContainer(project, monitor);
-    
+
     return project;
   }
 
