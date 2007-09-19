@@ -105,17 +105,17 @@ public class Maven2ClasspathContainerPage extends WizardPage implements IClasspa
     label.setBounds(0, 0, 0, 16);
     label.setText("Project: " + javaProject.getElementName());
 
+    resolveWorspaceProjectsButton = new Button(tabComposite, SWT.CHECK);
+    resolveWorspaceProjectsButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false));
+    resolveWorspaceProjectsButton.setBounds(0, 0, 288, 16);
+    resolveWorspaceProjectsButton.setText("Resolve dependencies from Workspace projects");
+    resolveWorspaceProjectsButton.setSelection(resolverConfiguration.shouldResolveWorkspaceProjects());
+    
     includeModulesButton = new Button(tabComposite, SWT.CHECK);
     includeModulesButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false));
     includeModulesButton.setBounds(0, 0, 337, 16);
     includeModulesButton.setText("Include dependencies and source folders from modules");
     includeModulesButton.setSelection(resolverConfiguration.shouldIncludeModules());
-
-    resolveWorspaceProjectsButton = new Button(tabComposite, SWT.CHECK);
-    resolveWorspaceProjectsButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false));
-    resolveWorspaceProjectsButton.setBounds(0, 0, 288, 16);
-    resolveWorspaceProjectsButton.setText("Resolve depndencies from Workspace projects");
-    resolveWorspaceProjectsButton.setSelection(resolverConfiguration.shouldResolveWorkspaceProjects());
 
 //    /* uncomment when profiles will be fixed in the embedder
     Label profilesLabel = new Label(tabComposite, SWT.NONE);

@@ -160,7 +160,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     buttonsComposite.setLayoutData(buttonsCompositeGridData);
 
     Button reindexButton = new Button(buttonsComposite, SWT.NONE);
-    reindexButton.setText("Re&index Local Repository");
+    reindexButton.setText(Messages.getString("preferences.reindexButton"));
     reindexButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
         plugin.getMavenEmbedderManager().invalidateMavenSettings();
@@ -169,7 +169,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     });
 
     Button refreshButton = new Button(buttonsComposite, SWT.NONE);
-    refreshButton.setText("Refresh &Settings");
+    refreshButton.setText(Messages.getString("preferences.refreshButton"));
     refreshButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
         plugin.getMavenEmbedderManager().invalidateMavenSettings();
