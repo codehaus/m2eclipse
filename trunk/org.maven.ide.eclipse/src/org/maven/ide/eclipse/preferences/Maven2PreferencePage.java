@@ -121,15 +121,43 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
         Messages.getString("preferences.debugOutput"), //$NON-NLS-1$
         getFieldEditorParent()));
 
+    globalSettingsEditor = new FileFieldEditor(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE, //
+        Messages.getString("preferences.globalSettingsFile"), getFieldEditorParent()) {{  //$NON-NLS-1$
+          setValidateStrategy(VALIDATE_ON_KEY_STROKE);
+        }
+        protected boolean doCheckState() {
+          return checkSettings(getStringValue());
+        }
+    };  
+    
     addField(new StringFieldEditor("", Messages.getString("preferences.userSettingsFile"), getFieldEditorParent()) { //$NON-NLS-1$
       protected void doLoad() {
         getTextControl().setEditable(false);
         getTextControl().setText(MavenEmbedder.DEFAULT_USER_SETTINGS_FILE.getAbsolutePath());
       }
-
+      
       protected void doLoadDefault() {
         getTextControl().setEditable(false);
         getTextControl().setText(MavenEmbedder.DEFAULT_USER_SETTINGS_FILE.getAbsolutePath());
+      }
+      
+      protected void doStore() {
+      }
+      
+      protected boolean doCheckState() {
+        return true;
+      }
+    });
+    
+    final StringFieldEditor localRepositoryEditor = new StringFieldEditor("", Messages.getString("preferences.localRepository"), getFieldEditorParent()) { //$NON-NLS-1$
+      protected void doLoad() {
+        getTextControl().setEditable(false);
+        getTextControl().setText(Maven2Plugin.getDefault().getMavenEmbedderManager().getLocalRepositoryDir().getAbsolutePath());
+      }
+
+      protected void doLoadDefault() {
+        getTextControl().setEditable(false);
+        getTextControl().setText(Maven2Plugin.getDefault().getMavenEmbedderManager().getLocalRepositoryDir().getAbsolutePath());
       }
 
       protected void doStore() {
@@ -138,17 +166,9 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
       protected boolean doCheckState() {
         return true;
       }
-    });
+    };
+    addField(localRepositoryEditor);
 
-    globalSettingsEditor = new FileFieldEditor(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE, //
-        Messages.getString("preferences.globalSettingsFile"), getFieldEditorParent()) {{  //$NON-NLS-1$
-        setValidateStrategy(VALIDATE_ON_KEY_STROKE);
-      }
-      protected boolean doCheckState() {
-        return checkSettings(getStringValue());
-      }
-    };  
-        
     addField(globalSettingsEditor);
 
     GridData buttonsCompositeGridData = new GridData();
@@ -173,6 +193,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     refreshButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
         plugin.getMavenEmbedderManager().invalidateMavenSettings();
+        localRepositoryEditor.load();
       }
     });
   }
@@ -205,10 +226,16 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
       .setMavenEmbedderLogger(new PluginConsoleMavenEmbeddedLogger(plugin.getConsole(), false));
     
     ConfigurationValidationResult result = MavenEmbedder.validateConfiguration(userConfiguration);
-    if(result.isUserSettingsFilePresent() && !result.isGlobalSettingsFileParses()) {
-      setMessage("Unable to parse user settings file", IMessageProvider.WARNING);
-    } else if(!result.isValid()) {
-      setMessage("User configuration is invalid", IMessageProvider.WARNING);
+    if(!result.isValid()) {
+      Exception uex = result.getUserSettingsException();
+      Exception gex = result.getGlobalSettingsException();
+      if(uex!=null) {
+        setMessage("Unable to parse user settings file; " + uex.toString(), IMessageProvider.WARNING);
+      } else if(gex!=null) {
+        setMessage("Unable to parse global settings file; " + gex.toString(), IMessageProvider.WARNING);
+      } else {
+        setMessage("User configuration is invalid", IMessageProvider.WARNING);
+      }
     }
 
     boolean res = super.performOk();
@@ -229,19 +256,25 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
 
   boolean checkSettings(String name) {
     File settingsFile = new File(name);
+    if(!settingsFile.exists()) {
+      setErrorMessage("Global settings file don't exists");
+      return false;
+    }
+    
     Configuration globalConfiguration = new DefaultConfiguration()
-      .setUserSettingsFile(settingsFile)
+      .setGlobalSettingsFile(settingsFile)
       .setClassLoader(Thread.currentThread().getContextClassLoader())
       .setMavenEmbedderLogger(new PluginConsoleMavenEmbeddedLogger(plugin.getConsole(), false));
     
     ConfigurationValidationResult result = MavenEmbedder.validateConfiguration(globalConfiguration);
-    if(!result.isUserSettingsFilePresent()) {
-      setErrorMessage("Global settings file " + name + " does not exist");
+    if(!result.isValid()) {
+      if(result.getGlobalSettingsException()!=null) {
+        setErrorMessage("Unable to parse settings file; " + result.getGlobalSettingsException().toString());
+        return false;
+      }
+      setErrorMessage("Global settings file is invalid");
       return false;
-    } else if(!result.isUserSettingsFileParses()) {
-      setErrorMessage("Unable to parse settings file " + name);
-      return false;
-    }
+    } 
     return true;
   }
 
