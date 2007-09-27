@@ -184,7 +184,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
     reindexButton.addSelectionListener(new SelectionAdapter() {
       public void widgetSelected(SelectionEvent e) {
         plugin.getMavenEmbedderManager().invalidateMavenSettings();
-        plugin.getMavenRepositoryIndexManager().reindexLocal();
+        plugin.getMavenRepositoryIndexManager().reindexLocal(0L);
       }
     });
 
@@ -248,7 +248,7 @@ public class Maven2PreferencePage extends FieldEditorPreferencePage implements I
 
       File newRepositoryDir = plugin.getMavenEmbedderManager().getLocalRepositoryDir();
       if(!newRepositoryDir.equals(localRepositoryDir)) {
-        plugin.getMavenRepositoryIndexManager().reindexLocal();
+        plugin.getMavenRepositoryIndexManager().reindexLocal(0L);
       }
     }
     return res;

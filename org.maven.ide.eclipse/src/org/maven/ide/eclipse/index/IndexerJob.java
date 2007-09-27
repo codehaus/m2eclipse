@@ -52,11 +52,11 @@ class IndexerJob extends Job {
     setPriority(Job.LONG);
   }
 
-  public void reindex(File repositoryDir) {
+  public void reindex(File repositoryDir, long delay) {
     this.repositoryDir = repositoryDir;
     
     if(getState()==Job.NONE) {
-      schedule();
+      schedule(delay);
     }
   }
 
