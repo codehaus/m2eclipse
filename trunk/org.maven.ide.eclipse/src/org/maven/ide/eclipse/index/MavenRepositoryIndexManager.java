@@ -75,7 +75,7 @@ public class MavenRepositoryIndexManager {
         reader = IndexReader.open(localRepositoryIndexDir);        
         indexes.add(LOCAL_INDEX);
       } catch(Exception ex) {
-        reindexLocal();
+        reindexLocal(5000L);
       } finally {
         try {
           if(reader != null) {
@@ -87,7 +87,7 @@ public class MavenRepositoryIndexManager {
       }
       
     } else {
-      reindexLocal();
+      reindexLocal(5000L);
     }
   }
   
@@ -102,11 +102,11 @@ public class MavenRepositoryIndexManager {
     return indexes;
   }
 
-  public void reindexLocal() {
+  public void reindexLocal(long delay) {
     if(localIndexer==null || localIndexer.getState()==Job.NONE) {
       localIndexer = new IndexerJob(LOCAL_INDEX, indexes, getIndexDir());
     }
-    localIndexer.reindex(embedderManager.getLocalRepositoryDir());
+    localIndexer.reindex(embedderManager.getLocalRepositoryDir(), delay);
   }
 
   public synchronized void updateIndex(File localFile, String repository, String name, long size, long date) {
