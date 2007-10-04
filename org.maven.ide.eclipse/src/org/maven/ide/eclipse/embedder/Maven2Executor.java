@@ -74,7 +74,7 @@ public class Maven2Executor implements Maven2LaunchConstants {
 
       String profiles = System.getProperty(Maven2LaunchConstants.ATTR_PROFILES);
       if(profiles != null) {
-        request.addActiveProfiles(Arrays.asList(profiles.split(", ")));
+        request.addActiveProfiles(Arrays.asList(profiles.split("[, ]")));
       }
       
       request.addEventMonitor(consoleEventMonitor);

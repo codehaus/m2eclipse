@@ -187,7 +187,12 @@ public class Maven2LaunchDelegate extends JavaLaunchDelegate implements Maven2La
     try {
       String profiles = configuration.getAttribute(ATTR_PROFILES, (String) null);
       if(profiles != null) {
-        sb.append(" -D").append(ATTR_PROFILES).append("=").append(profiles);
+        sb.append(" -D").append(ATTR_PROFILES).append("=");
+        if(profiles.indexOf(' ')>-1) {
+          sb.append('\"').append(profiles).append('\"');
+        } else {
+          sb.append(profiles);
+        }
       }
     } catch(CoreException ex) {
       String msg = "Exception while getting configuration attribute " + ATTR_PROFILES;
