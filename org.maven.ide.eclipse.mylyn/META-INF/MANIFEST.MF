@@ -1,8 +1,8 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: Mylar integration for Maven Plug-in
+Bundle-Name: Mylyn integration for Maven
 Bundle-SymbolicName: org.maven.ide.eclipse.mylyn;singleton:=true
-Bundle-Version: 0.0.11.20070907-1200
+Bundle-Version: 0.0.12.20071004-2300
 Bundle-Activator: org.maven.ide.eclipse.mylyn.MavenMylarPlugin
 Bundle-Vendor: Codehaus Foundation
 Require-Bundle: org.eclipse.ui,
