@@ -28,13 +28,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.viewers.CheckStateChangedEvent;
 import org.eclipse.jface.viewers.CheckboxTreeViewer;
 import org.eclipse.jface.viewers.ICheckStateListener;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.Viewer;
-import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -43,16 +43,10 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.DirectoryDialog;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
-import org.eclipse.ui.forms.events.ExpansionAdapter;
-import org.eclipse.ui.forms.events.ExpansionEvent;
-import org.eclipse.ui.forms.widgets.ExpandableComposite;
-import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.maven.ide.eclipse.Maven2Plugin;
-import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 
 
 /**
@@ -60,17 +54,11 @@ import org.maven.ide.eclipse.embedder.ResolverConfiguration;
  * 
  * @author Eugene Kuleshov
  */
-public class Maven2ImportWizardPage extends WizardPage {
+public class Maven2ImportWizardPage extends AbstractMavenImportWizardPage {
 
   Text rootDirectoryText;
 
   CheckboxTreeViewer projectTreeViewer;
-
-  private Button projectsForModules;
-
-  private Button resolveWorkspaceProjects;
-
-  private Text activeProfiles;
 
   protected Maven2ImportWizardPage() {
     super("Maven Projects");
@@ -80,8 +68,6 @@ public class Maven2ImportWizardPage extends WizardPage {
   }
 
   public void createControl(Composite parent) {
-    FormToolkit toolkit = new FormToolkit(Display.getCurrent());
-
     final Composite composite = new Composite(parent, SWT.NONE);
     composite.setLayout(new GridLayout(3, false));
     setControl(composite);
@@ -120,9 +106,8 @@ public class Maven2ImportWizardPage extends WizardPage {
     }
 
     final Label projectsLabel = new Label(composite, SWT.NONE);
-    projectsLabel.setLayoutData(new GridData());
+    projectsLabel.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 3, 1));
     projectsLabel.setText("&Projects:");
-    new Label(composite, SWT.NONE);
 
     projectTreeViewer = new CheckboxTreeViewer(composite, SWT.BORDER);
 
@@ -225,47 +210,7 @@ public class Maven2ImportWizardPage extends WizardPage {
       }
     });
 
-    ExpandableComposite expandable = toolkit.createExpandableComposite(composite, ExpandableComposite.COMPACT
-        | ExpandableComposite.TWISTIE);
-    expandable.clientVerticalSpacing = 1;
-    expandable.setLayoutData(new GridData(SWT.FILL, SWT.TOP, false, false, 3, 1));
-    expandable.setText("Ad&vanced");
-    expandable.setFont(composite.getFont());
-    expandable.setBackground(composite.getBackground());
-    expandable.addExpansionListener(new ExpansionAdapter() {
-      public void expansionStateChanged(ExpansionEvent e) {
-        getControl().getShell().pack();
-      }
-    });
-
-    toolkit.paintBordersFor(expandable);
-
-    Composite advancedComposite = toolkit.createComposite(expandable, SWT.NONE);
-    expandable.setClient(advancedComposite);
-
-    final GridLayout gridLayout = new GridLayout();
-    gridLayout.marginLeft = 10;
-    gridLayout.numColumns = 2;
-    advancedComposite.setLayout(gridLayout);
-    advancedComposite.setBackground(composite.getBackground());
-    // toolkit.paintBordersFor(advancedComposite);
-
-    resolveWorkspaceProjects = new Button(advancedComposite, SWT.CHECK);
-    resolveWorkspaceProjects.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 2, 1));
-    resolveWorkspaceProjects.setText("&Resolve workspace projects");
-    resolveWorkspaceProjects.setSelection(true);
-
-    projectsForModules = new Button(advancedComposite, SWT.CHECK);
-    projectsForModules.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 2, 1));
-    projectsForModules.setText("&Separate projects for modules");
-    projectsForModules.setSelection(true);
-
-    final Label profilesLabel = new Label(advancedComposite, SWT.NONE);
-    profilesLabel.setLayoutData(new GridData());
-    profilesLabel.setText("Pr&ofiles:");
-
-    activeProfiles = new Text(advancedComposite, SWT.BORDER);
-    activeProfiles.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    createAdvancedSettings(composite, new GridData(SWT.FILL, SWT.TOP, false, false, 3, 1));
   }
 
   protected void scanProjects() {
@@ -278,29 +223,31 @@ public class Maven2ImportWizardPage extends WizardPage {
       projectTreeViewer.setAllChecked(true);
       Object[] checkedElements = projectTreeViewer.getCheckedElements();
       setPageComplete(checkedElements != null && checkedElements.length > 0);
+      setErrorMessage(null);
 
     } catch(InterruptedException ex) {
       // canceled
+    
     } catch(InvocationTargetException ex) {
       Throwable e = ex.getTargetException() == null ? ex : ex.getTargetException();
-      Maven2Plugin.getDefault().getConsole().logError(
-          "Scanning error " + projectScanner.getDescription() + "; " + e.toString());
-    } catch(Exception ex) {
-      Maven2Plugin.getDefault().getConsole().logError(
-          "Scanning error " + projectScanner.getDescription() + "; " + ex.toString());
+      String msg;
+      if(e instanceof CoreException) {
+        msg = e.getMessage();
+      } else {
+        msg = "Scanning error " + projectScanner.getDescription() + "; " + e.toString();
+        Maven2Plugin.getDefault().getConsole().logError(msg);
+      }
+      setErrorMessage(msg);
+    
     }
   }
 
   protected AbstractProjectScanner getProjectScanner() {
-    return new Maven2ProjectScanner(new File(getRootPath()));
+    return new Maven2ProjectScanner(new File(rootDirectoryText.getText()));
   }
 
   protected boolean showLocation() {
     return true;
-  }
-
-  String getRootPath() {
-    return rootDirectoryText.getText();
   }
 
   public List getProjects() {
@@ -324,24 +271,6 @@ public class Maven2ImportWizardPage extends WizardPage {
         collectProjects(mavenProjects, checkedProjects, projectInfo.getProjects());
       }
     }
-  }
-  
-  public boolean createProjectsForModules() {
-    return this.projectsForModules.getSelection();
-  }
-
-  public boolean resolveWorkspaceProjects() {
-    return this.resolveWorkspaceProjects.getSelection();
-  }
-
-  public String getActiveProfiles() {
-    return this.activeProfiles.getText();
-  }
-
-  public ResolverConfiguration getResolverConfiguration() {
-    boolean includeModules = !createProjectsForModules();
-    boolean resolveWorkspaceProjects = resolveWorkspaceProjects();
-    return new ResolverConfiguration(includeModules, resolveWorkspaceProjects, getActiveProfiles());
   }
 
 }
