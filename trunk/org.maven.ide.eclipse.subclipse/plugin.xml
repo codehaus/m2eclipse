@@ -4,21 +4,21 @@
 
   <extension point="org.eclipse.ui.popupMenus">
     <objectContribution
-        id="org.tigris.subversion.subclipse.ui.RepositoryLocationContributions"
+        id="org.maven.ide.eclipse.subclipse.ui.RepositoryLocationContributions"
         objectClass="org.tigris.subversion.subclipse.core.ISVNRepositoryLocation"
         adaptable="true">
       <action
-          id="org.tigris.subversion.subclipse.ui.checkoutAs"
+          id="org.maven.ide.eclipse.subclipse.ui.checkoutAsMaven"
           label="Checkout as Maven Project..."
           class="org.maven.ide.eclipse.subclipse.CheckoutAsMavenAction"
           menubarPath="checkoutGroup"/>
     </objectContribution>
     <objectContribution
-        id="org.tigris.subversion.subclipse.ui.RemoteFolderContributions"
+        id="org.maven.ide.eclipse.subclipse.ui.RemoteFolderContributions"
         objectClass="org.tigris.subversion.subclipse.core.ISVNRemoteFolder"
         adaptable="true">
       <action
-          id="org.tigris.subversion.subclipse.ui.checkoutAs"
+          id="org.maven.ide.eclipse.subclipse.ui.checkoutAsMaven"
           label="Checkout as Maven Project..."
           class="org.maven.ide.eclipse.subclipse.CheckoutAsMavenAction"
           menubarPath="checkoutGroup"/>

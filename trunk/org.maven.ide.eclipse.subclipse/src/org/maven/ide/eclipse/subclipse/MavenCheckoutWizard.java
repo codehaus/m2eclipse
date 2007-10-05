@@ -20,6 +20,7 @@
 package org.maven.ide.eclipse.subclipse;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 import org.eclipse.core.resources.WorkspaceJob;
 import org.eclipse.core.runtime.CoreException;
@@ -33,11 +34,14 @@ import org.eclipse.ui.IWorkbench;
 
 import org.tigris.subversion.subclipse.core.ISVNRemoteFolder;
 
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
+
 
 /**
- * Maven checkout wizard 
+ * Maven checkout wizard
  * 
- * TODO new and import wizards
+ * TODO new and import wizards 
+ * TODO chare ResolverConfiguration between locationPage and projectsPage
  * 
  * @author Eugene Kuleshov
  */
@@ -71,31 +75,51 @@ public class MavenCheckoutWizard extends Wizard /* implements INewWizard, IImpor
     addPage(projectsPage);
   }
 
+  public boolean canFinish() {
+    if(locationPage.isCheckoutAllProjects()) {
+      return true;
+    }
+    return super.canFinish();
+  }
+
   public boolean performFinish() {
     if(!canFinish()) {
       return false;
     }
 
+    List projects;
+    ResolverConfiguration resolverConfiguration;
+    if(locationPage.isCheckoutAllProjects()) {
+      projects = null;
+      resolverConfiguration = locationPage.getResolverConfiguration();
+    } else {
+      projects = projectsPage.getProjects();
+      resolverConfiguration = projectsPage.getResolverConfiguration();
+    }
+
     final MavenCheckoutOperation operation = new MavenCheckoutOperation();
-    operation.setConfiguration(projectsPage.getResolverConfiguration());
-    operation.setMavenProjectInfos(projectsPage.getProjects());
+    operation.setConfiguration(resolverConfiguration);
+    operation.setMavenProjectInfos(projects);
+    operation.setFolders(folders);
     operation.setSVNRevision(locationPage.getRevision());
     operation.setLocation(locationPage.getLocation());
     operation.setWorkspaceLocation(locationPage.isDefaultWorkspaceLocation());
 
     Job job = new WorkspaceJob("Checking out Maven projects") {
-      public IStatus runInWorkspace(IProgressMonitor monitor) {
-        
+      public IStatus runInWorkspace(IProgressMonitor monitor) throws CoreException {
         try {
           operation.run(monitor);
         } catch(InterruptedException ex) {
           // interrupted
         } catch(InvocationTargetException ex) {
-          new CoreException(new Status(IStatus.ERROR, MavenSubclipsePlugin.PLUGIN_ID, 0, ex.toString(), ex));
+          Throwable e = ex.getTargetException() == null ? ex : ex.getTargetException();
+          if(e instanceof CoreException) {
+            throw (CoreException) e;
+          }
+          throw new CoreException(new Status(IStatus.ERROR, MavenSubclipsePlugin.PLUGIN_ID, 0, e.toString(), e));
         }
         return Status.OK_STATUS;
       }
-
     };
     job.schedule();
 

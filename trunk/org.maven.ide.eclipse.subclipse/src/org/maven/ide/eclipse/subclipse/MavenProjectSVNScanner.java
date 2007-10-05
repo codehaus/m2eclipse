@@ -19,30 +19,41 @@
 
 package org.maven.ide.eclipse.subclipse;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 
 import org.apache.maven.model.Model;
+
 import org.eclipse.core.resources.IStorage;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
+
+import org.tigris.subversion.subclipse.core.ISVNFolder;
+import org.tigris.subversion.subclipse.core.ISVNRemoteFile;
+import org.tigris.subversion.subclipse.core.ISVNRemoteFolder;
+import org.tigris.subversion.subclipse.core.ISVNRepositoryLocation;
+import org.tigris.subversion.subclipse.core.ISVNResource;
+
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
 import org.maven.ide.eclipse.wizards.AbstractProjectScanner;
 import org.maven.ide.eclipse.wizards.MavenProjectInfo;
-import org.tigris.subversion.subclipse.core.ISVNRemoteFile;
-import org.tigris.subversion.subclipse.core.ISVNRemoteFolder;
-import org.tigris.subversion.subclipse.core.ISVNRepositoryLocation;
+
 
 public class MavenProjectSVNScanner extends AbstractProjectScanner {
 
   private final File baseLocation;
+
   private final ISVNRemoteFolder[] folders;
 
   private final MavenModelManager modelManager;
-  
+
   MavenProjectSVNScanner(File baseLocation, ISVNRemoteFolder[] folders, MavenModelManager modelManager) {
     this.baseLocation = baseLocation;
     this.folders = folders;
@@ -50,77 +61,73 @@ public class MavenProjectSVNScanner extends AbstractProjectScanner {
   }
 
   public String getDescription() {
-    if(folders.length>1) {
+    if(folders.length > 1) {
       return folders.length + "projects";
     } else {
-      return folders[0].getUrl().toString();  
+      return folders[0].getUrl().toString();
     }
   }
 
-  public void run(IProgressMonitor monitor) throws InterruptedException {
-
+  public void run(IProgressMonitor monitor) throws InterruptedException, InvocationTargetException {
     for(int i = 0; i < folders.length; i++ ) {
       if(monitor.isCanceled()) {
-        break;
+        throw new InterruptedException();
       }
 
-      MavenProjectInfo mavenProjectInfo = readMavenProjectInfo(monitor, folders[i], null);
-      if(mavenProjectInfo!=null) {
-        addProject(mavenProjectInfo);
+      try {
+        MavenProjectInfo mavenProjectInfo = readMavenProjectInfo(monitor, folders[i], null);
+        if(mavenProjectInfo != null) {
+          addProject(mavenProjectInfo);
+        }
+      } catch(CoreException ex) {
+        throw new InvocationTargetException(ex);
       }
     }
   }
 
-  private MavenProjectInfo readMavenProjectInfo(IProgressMonitor monitor, ISVNRemoteFolder remoteFolder, MavenProjectInfo parentInfo) {
-//        ISVNResource[] members = folder.members(monitor, ISVNRemoteFolder.FILE_MEMBERS);
-//        for(int j = 0; j < members.length; j++ ) {
-//          ISVNResource resource = members[j];
-//          if(resource.getName().equals("pom.xml")) {
-//            
-//            ISVNRemoteFile remoteFile = resource.getRepository().getRemoteFile(resourceUrl);
-
+  private MavenProjectInfo readMavenProjectInfo(IProgressMonitor monitor, ISVNRemoteFolder remoteFolder,
+      MavenProjectInfo parentInfo) throws CoreException {
     if(monitor.isCanceled()) {
       return null;
     }
-    
+
     ISVNRepositoryLocation repository = remoteFolder.getRepository();
     String folderPath = remoteFolder.getRepositoryRelativePath();
 
     monitor.subTask("Reading " + folderPath);
     monitor.worked(1);
 
-    try {
-      ISVNRemoteFile remotePomFile = repository.getRemoteFile(folderPath + "/" + Maven2Plugin.POM_FILE_NAME);
-      
-      IStorage storage = remotePomFile.getStorage(monitor);
-      InputStream is = storage.getContents();
-      
-      Model model = modelManager.readMavenModel(new InputStreamReader(is));
-
-      String label = remoteFolder.getName() + "/" + Maven2Plugin.POM_FILE_NAME;
-      File pomFile = null;  // TODO calculate location from the root
-      
-      MavenProjectInfo projectInfo = new MavenProjectSVNInfo(label, pomFile, model, remoteFolder, parentInfo);
-      
-      for(Iterator it = model.getModules().iterator(); it.hasNext();) {
-        String module = (String) it.next();
-      
-        ISVNRemoteFolder moduleFolder = repository.getRemoteFolder(folderPath + "/" + module);
-        MavenProjectInfo moduleInfo = readMavenProjectInfo(monitor, moduleFolder, projectInfo); 
-        if(moduleInfo != null) {
-          projectInfo.add(moduleInfo);
-        }
+    ISVNResource[] members = remoteFolder.members(monitor, ISVNFolder.FILE_MEMBERS | ISVNFolder.EXISTING_MEMBERS);
+    ISVNRemoteFile remotePomFile = null;
+    for(int i = 0; i < members.length; i++ ) {
+      if(members[i].getName().equals(Maven2Plugin.POM_FILE_NAME)) {
+        remotePomFile = (ISVNRemoteFile) members[i];
+        break;
       }
-      
-      return projectInfo;
-      
-    } catch(CoreException ex) {
-      // TODO Auto-generated catch block
-      ex.printStackTrace();
-      
     }
-    
-    return null;
+    if(remotePomFile == null) {
+      throw new CoreException(new Status(IStatus.ERROR, MavenSubclipsePlugin.PLUGIN_ID, 0, //
+          "Folder " + remoteFolder.getRepositoryRelativePath() + " don't have Maven project", null));
+    }
+
+    IStorage storage = remotePomFile.getStorage(monitor);
+    InputStream is = storage.getContents();
+
+    String label = remoteFolder.getName() + "/" + Maven2Plugin.POM_FILE_NAME;
+    Model model = modelManager.readMavenModel(new BufferedReader(new InputStreamReader(is)));
+    MavenProjectInfo projectInfo = new MavenProjectSVNInfo(label, null, model, remoteFolder, parentInfo);
+
+    for(Iterator it = model.getModules().iterator(); it.hasNext();) {
+      String module = (String) it.next();
+
+      ISVNRemoteFolder moduleFolder = repository.getRemoteFolder(folderPath + "/" + module);
+      MavenProjectInfo moduleInfo = readMavenProjectInfo(monitor, moduleFolder, projectInfo);
+      if(moduleInfo != null) {
+        projectInfo.add(moduleInfo);
+      }
+    }
+
+    return projectInfo;
   }
 
 }
