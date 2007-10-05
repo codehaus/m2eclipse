@@ -25,32 +25,41 @@ import org.maven.ide.eclipse.wizards.AbstractProjectScanner;
 import org.maven.ide.eclipse.wizards.Maven2ImportWizardPage;
 import org.tigris.subversion.subclipse.core.ISVNRemoteFolder;
 
+
 /**
  * @author Eugene Kuleshov
  */
 public class MavenCheckoutProjectsPage extends Maven2ImportWizardPage {
 
   private final ISVNRemoteFolder[] folders;
-  private final MavenCheckoutLocationPage checkoutLocationPage;
 
-  protected MavenCheckoutProjectsPage(ISVNRemoteFolder[] folders, MavenCheckoutLocationPage checkoutLocationPage) {
+  private final MavenCheckoutLocationPage locationPage;
+
+  protected MavenCheckoutProjectsPage(ISVNRemoteFolder[] folders, MavenCheckoutLocationPage locationPage) {
     setMessage("Select Maven Projects to check out");
 
     this.folders = folders;
-    this.checkoutLocationPage = checkoutLocationPage;
+    this.locationPage = locationPage;
   }
 
   public void createControl(Composite parent) {
     super.createControl(parent);
-//    scanProjects();
   }
 
   protected AbstractProjectScanner getProjectScanner() {
-    return new MavenProjectSVNScanner(checkoutLocationPage.getLocation(), folders, Maven2Plugin.getDefault().getMavenModelManager());
+    return new MavenProjectSVNScanner(folders, locationPage.getRevision(), //
+        Maven2Plugin.getDefault().getMavenModelManager());
   }
 
   protected boolean showLocation() {
     return false;
   }
-  
+
+  public void setVisible(boolean visible) {
+    super.setVisible(visible);
+    if(visible && projectTreeViewer.getInput() == null) {
+      scanProjects();
+    }
+  }
+
 }

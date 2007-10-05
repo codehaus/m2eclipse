@@ -55,7 +55,7 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
 
   private List mavenProjects;
 
-  private SVNRevision svnRevision;
+  private SVNRevision revision;
 
   private File location;
 
@@ -67,7 +67,7 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
     IWorkspaceRoot workspaceRoot = ResourcesPlugin.getWorkspace().getRoot();
 
     if(mavenProjects == null) {
-      MavenProjectSVNScanner scanner = new MavenProjectSVNScanner(location, folders, //
+      MavenProjectSVNScanner scanner = new MavenProjectSVNScanner(folders, revision, //
           Maven2Plugin.getDefault().getMavenModelManager());
       scanner.run(monitor);
       
@@ -115,7 +115,7 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
     try {
       CheckoutAsProjectOperation operation = new CheckoutAsProjectOperation(null, remoteFolders, localFolders,
           locationPath);
-      operation.setSvnRevision(svnRevision);
+      operation.setSvnRevision(revision);
       operation.run(monitor);
     } catch(Exception ex) {
       String msg = "Checkout error; " + ex.toString();
@@ -186,10 +186,6 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
     this.mavenProjects = mavenProjects;
   }
 
-  public void setSVNRevision(SVNRevision svnRevision) {
-    this.svnRevision = svnRevision;
-  }
-
   public void setLocation(File location) {
     this.location = location;
   }
@@ -202,4 +198,8 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
     this.folders = folders;
   }
 
+  public void setSVNRevision(SVNRevision revision) {
+    this.revision = revision;
+  }
+  
 }

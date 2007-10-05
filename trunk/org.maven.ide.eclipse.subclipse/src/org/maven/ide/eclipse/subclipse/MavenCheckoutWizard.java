@@ -68,7 +68,7 @@ public class MavenCheckoutWizard extends Wizard /* implements INewWizard, IImpor
   }
 
   public void addPages() {
-    locationPage = new MavenCheckoutLocationPage();
+    locationPage = new MavenCheckoutLocationPage(folders);
     addPage(locationPage);
 
     projectsPage = new MavenCheckoutProjectsPage(folders, locationPage);
@@ -98,10 +98,10 @@ public class MavenCheckoutWizard extends Wizard /* implements INewWizard, IImpor
     }
 
     final MavenCheckoutOperation operation = new MavenCheckoutOperation();
-    operation.setConfiguration(resolverConfiguration);
-    operation.setMavenProjectInfos(projects);
     operation.setFolders(folders);
     operation.setSVNRevision(locationPage.getRevision());
+    operation.setConfiguration(resolverConfiguration);
+    operation.setMavenProjectInfos(projects);
     operation.setLocation(locationPage.getLocation());
     operation.setWorkspaceLocation(locationPage.isDefaultWorkspaceLocation());
 
