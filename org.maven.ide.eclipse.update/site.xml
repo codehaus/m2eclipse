@@ -3,10 +3,13 @@
    <description url="http://m2eclipse.codehaus.org/">
       Maven Integration
    </description>
-   <feature url="features/org.maven.ide.eclipse.feature_0.0.11.20070916-2300.jar" id="org.maven.ide.eclipse.feature" version="0.0.11.20070916-2300">
+   <feature url="features/org.maven.ide.eclipse.feature_0.0.12.20071004-2300.jar" id="org.maven.ide.eclipse.feature" version="0.0.12.20071004-2300">
       <category name="Maven Integration"/>
    </feature>
-   <feature url="features/org.maven.ide.eclipse.mylyn.feature_0.0.11.20070916-2300.jar" id="org.maven.ide.eclipse.mylyn.feature" version="0.0.11.20070916-2300">
+   <feature url="features/org.maven.ide.eclipse.mylyn.feature_0.0.12.20071004-2300.jar" id="org.maven.ide.eclipse.mylyn.feature" version="0.0.12.20071004-2300">
+      <category name="Maven Integration"/>
+   </feature>
+   <feature url="features/org.maven.ide.eclipse.subclipse.feature_0.0.12.20071004-2300.jar" id="org.maven.ide.eclipse.subclipse.feature" version="0.0.12.20071004-2300">
       <category name="Maven Integration"/>
    </feature>
    <category-def name="Maven Integration" label="Maven Integration"/>
