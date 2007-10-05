@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Maven Integration for Eclipse
 Bundle-SymbolicName: org.maven.ide.eclipse; singleton:=true
-Bundle-Version: 0.0.11.20070916-2300
+Bundle-Version: 0.0.11.20070928-2300
 Bundle-Activator: org.maven.ide.eclipse.Maven2Plugin
 Bundle-Vendor: maven.org
 Bundle-Localization: plugin
@@ -30,7 +30,7 @@ Require-Bundle:
 Eclipse-AutoStart: true
 Bundle-ClassPath: m2plugin.jar,
  lib/lucene-core-2.2.0.jar,
- lib/maven-embedder-tycho-2.1.0.v20070905-1741.jar
+ lib/maven-embedder-tycho-2.1.0.v20070928-1558.jar
 Bundle-RequiredExecutionEnvironment: J2SE-1.4,
  J2SE-1.5,
  JavaSE-1.6
@@ -54,6 +54,7 @@ Export-Package: org.apache.maven,
  org.apache.maven.artifact.versioning,
  org.apache.maven.cli,
  org.apache.maven.context,
+ org.apache.maven.doxia,
  org.apache.maven.doxia.sink,
  org.apache.maven.embedder,
  org.apache.maven.embedder.execution,
@@ -83,13 +84,14 @@ Export-Package: org.apache.maven,
  org.apache.maven.plugin.version,
  org.apache.maven.profiles,
  org.apache.maven.profiles.activation,
+ org.apache.maven.profiles.build,
+ org.apache.maven.profiles.injection,
  org.apache.maven.profiles.io.jdom,
  org.apache.maven.profiles.io.xpp3,
  org.apache.maven.project,
  org.apache.maven.project.artifact,
  org.apache.maven.project.build,
  org.apache.maven.project.build.model,
- org.apache.maven.project.build.profile,
  org.apache.maven.project.inheritance,
  org.apache.maven.project.injection,
  org.apache.maven.project.interpolation,
@@ -120,4 +122,6 @@ Export-Package: org.apache.maven,
  org.apache.maven.wagon.resource,
  org.apache.maven.wagon.shared.http,
  org.maven.ide.eclipse,
- org.maven.ide.eclipse.embedder
+ org.maven.ide.eclipse.embedder,
+ org.maven.ide.eclipse.launch.console,
+ org.maven.ide.eclipse.wizards

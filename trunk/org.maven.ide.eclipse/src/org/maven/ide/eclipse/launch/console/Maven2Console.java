@@ -75,7 +75,7 @@ public class Maven2Console extends MessageConsole implements IPropertyChangeList
 
   public Maven2Console() {
     // TODO extract constants
-    super("M2", Maven2Plugin.getImageDescriptor("icons/m2.gif")); //$NON-NLS-1$
+    super("Maven Console", Maven2Plugin.getImageDescriptor("icons/m2.gif")); //$NON-NLS-1$
     this.document = new ConsoleDocument();
   }
 

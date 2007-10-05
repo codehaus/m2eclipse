@@ -26,22 +26,50 @@ import org.apache.maven.model.Model;
 /**
  * @author Eugene Kuleshov
  */
-class MavenProjectInfo {
-  public final File pomFile;
+public class MavenProjectInfo {
+  private final MavenProjectInfo parent;
 
-  public final Model model;
+  private final String label;
+
+  private final File pomFile;
+
+  private final Model model;
 
   /**
    * List of MavenProjectInfo
    */
-  public final List projects = new ArrayList();
+  private final List projects = new ArrayList();
 
-  public MavenProjectInfo(File pomFile, Model model) {
+
+  public MavenProjectInfo(String label, File pomFile, Model model, MavenProjectInfo parent) {
+    this.label = label;
     this.pomFile = pomFile;
     this.model = model;
+    this.parent = parent;
   }
 
   public void add(MavenProjectInfo mavenProjectInfo) {
     projects.add(mavenProjectInfo);
   }
+  
+  public String getLabel() {
+    return this.label;
+  }
+  
+  public File getPomFile() {
+    return this.pomFile;
+  }
+  
+  public Model getModel() {
+    return this.model;
+  }
+  
+  public List getProjects() {
+    return this.projects;
+  }
+ 
+  public MavenProjectInfo getParent() {
+    return this.parent;
+  }
+  
 }

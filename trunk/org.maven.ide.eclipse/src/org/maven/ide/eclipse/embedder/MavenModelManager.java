@@ -22,6 +22,7 @@ package org.maven.ide.eclipse.embedder;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
 import java.io.StringWriter;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,7 +38,6 @@ import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Writer;
 import org.apache.maven.project.MavenProject;
 
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
@@ -345,6 +345,21 @@ public class MavenModelManager {
     return mavenModel;
   }
 
+  public Model readMavenModel(Reader reader) throws CoreException {
+    try {
+      MavenEmbedder projectEmbedder = embedderManager.getWorkspaceEmbedder();
+      return projectEmbedder.readModel(reader);
+    } catch(XmlPullParserException ex) {
+      String msg = "Model parsing error; " + ex.toString();
+      console.logError(msg);
+      throw new CoreException(new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, IStatus.ERROR, msg, ex));
+    } catch(IOException ex) {
+      String msg = "Can't read model; " + ex.toString();
+      console.logError(msg);
+      throw new CoreException(new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, IStatus.ERROR, msg, ex));
+    }
+  }
+  
   public Model readMavenModel(File pomFile) throws CoreException {
     try {
       MavenEmbedder projectEmbedder = embedderManager.getWorkspaceEmbedder();
@@ -412,11 +427,11 @@ public class MavenModelManager {
       model.getDependencies().addAll(dependencies);
 
       StringWriter w = new StringWriter();
-//      mavenEmbedder.writeModel(w, model, true);
-      MavenXpp3Writer writer = new MavenXpp3Writer();
-      writer.write(w, model);
+      mavenEmbedder.writeModel(w, model, true);
+//      MavenXpp3Writer writer = new MavenXpp3Writer();
+//      writer.write(w, model);
 
-      pomFile.setContents(new ByteArrayInputStream(w.toString().getBytes("ASCII")), true, true, null);
+      pomFile.setContents(new ByteArrayInputStream(w.toString().getBytes(model.getModelEncoding())), true, true, null);
       pomFile.refreshLocal(IResource.DEPTH_ONE, null); // TODO ???
     } catch(Exception ex) {
       console.logError("Unable to update POM: " + pom + "; " + ex.getMessage());

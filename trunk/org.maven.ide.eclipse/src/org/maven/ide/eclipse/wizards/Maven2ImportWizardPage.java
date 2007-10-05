@@ -23,9 +23,10 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
-
-import org.apache.maven.model.Model;
+import java.util.Set;
 
 import org.eclipse.jface.viewers.CheckStateChangedEvent;
 import org.eclipse.jface.viewers.CheckboxTreeViewer;
@@ -51,10 +52,11 @@ import org.eclipse.ui.forms.events.ExpansionEvent;
 import org.eclipse.ui.forms.widgets.ExpandableComposite;
 import org.eclipse.ui.forms.widgets.FormToolkit;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 
 
 /**
- * Maven2ImportWizardPage
+ * Maven Import Wizard Page
  * 
  * @author Eugene Kuleshov
  */
@@ -71,9 +73,9 @@ public class Maven2ImportWizardPage extends WizardPage {
   private Text activeProfiles;
 
   protected Maven2ImportWizardPage() {
-    super("Maven2ImportPage");
-    setTitle("Import Maven projects");
-    setDescription("Import Maven projects to the Workspace.");
+    super("Maven Projects");
+    setTitle("Maven Projects");
+    setDescription("Select Maven projects");
     setPageComplete(false);
   }
 
@@ -84,36 +86,38 @@ public class Maven2ImportWizardPage extends WizardPage {
     composite.setLayout(new GridLayout(3, false));
     setControl(composite);
 
-    final Label selectRootDirectoryLabel = new Label(composite, SWT.NONE);
-    selectRootDirectoryLabel.setLayoutData(new GridData());
-    selectRootDirectoryLabel.setText("&Root Directory:");
+    if(showLocation()) {
+      final Label selectRootDirectoryLabel = new Label(composite, SWT.NONE);
+      selectRootDirectoryLabel.setLayoutData(new GridData());
+      selectRootDirectoryLabel.setText("&Root Directory:");
 
-    rootDirectoryText = new Text(composite, SWT.BORDER);
-    rootDirectoryText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-    rootDirectoryText.addSelectionListener(new SelectionAdapter() {
-      public void widgetDefaultSelected(SelectionEvent e) {
-        if(rootDirectoryText.getText().trim().length() > 0) {
-          scanProjects();
+      rootDirectoryText = new Text(composite, SWT.BORDER);
+      rootDirectoryText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+      rootDirectoryText.addSelectionListener(new SelectionAdapter() {
+        public void widgetDefaultSelected(SelectionEvent e) {
+          if(rootDirectoryText.getText().trim().length() > 0) {
+            scanProjects();
+          }
         }
-      }
-    });
+      });
 
-    final Button browseButton = new Button(composite, SWT.NONE);
-    browseButton.setText("&Browse...");
-    browseButton.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
-    browseButton.addSelectionListener(new SelectionAdapter() {
-      public void widgetSelected(SelectionEvent e) {
-        DirectoryDialog dialog = new DirectoryDialog(getShell(), SWT.NONE);
-        dialog.setText("Select Root Folder");
-        dialog.setFilterPath(rootDirectoryText.getText());
+      final Button browseButton = new Button(composite, SWT.NONE);
+      browseButton.setText("&Browse...");
+      browseButton.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
+      browseButton.addSelectionListener(new SelectionAdapter() {
+        public void widgetSelected(SelectionEvent e) {
+          DirectoryDialog dialog = new DirectoryDialog(getShell(), SWT.NONE);
+          dialog.setText("Select Root Folder");
+          dialog.setFilterPath(rootDirectoryText.getText());
 
-        String result = dialog.open();
-        if(result != null) {
-          rootDirectoryText.setText(result);
-          scanProjects();
+          String result = dialog.open();
+          if(result != null) {
+            rootDirectoryText.setText(result);
+            scanProjects();
+          }
         }
-      }
-    });
+      });
+    }
 
     final Label projectsLabel = new Label(composite, SWT.NONE);
     projectsLabel.setLayoutData(new GridData());
@@ -147,7 +151,8 @@ public class Maven2ImportWizardPage extends WizardPage {
           return projects.toArray(new MavenProjectInfo[projects.size()]);
         } else if(parentElement instanceof MavenProjectInfo) {
           MavenProjectInfo mavenProjectInfo = (MavenProjectInfo) parentElement;
-          return mavenProjectInfo.projects.toArray(new MavenProjectInfo[mavenProjectInfo.projects.size()]);
+          List projects = mavenProjectInfo.getProjects();
+          return projects.toArray(new MavenProjectInfo[projects.size()]);
         }
         return new Object[0];
       }
@@ -162,7 +167,7 @@ public class Maven2ImportWizardPage extends WizardPage {
           return !projects.isEmpty();
         } else if(parentElement instanceof MavenProjectInfo) {
           MavenProjectInfo mavenProjectInfo = (MavenProjectInfo) parentElement;
-          return !mavenProjectInfo.projects.isEmpty();
+          return !mavenProjectInfo.getProjects().isEmpty();
         }
         return false;
       }
@@ -178,9 +183,7 @@ public class Maven2ImportWizardPage extends WizardPage {
       public String getText(Object element) {
         if(element instanceof MavenProjectInfo) {
           MavenProjectInfo mavenProjectInfo = (MavenProjectInfo) element;
-          Model model = mavenProjectInfo.model;
-          String path = mavenProjectInfo.pomFile.getAbsolutePath();
-          return path.substring(getRootPath().length()) + " - " + model.getId();
+          return mavenProjectInfo.getLabel() + " - " + mavenProjectInfo.getModel().getId();
         }
         return super.getText(element);
       }
@@ -222,7 +225,8 @@ public class Maven2ImportWizardPage extends WizardPage {
       }
     });
 
-    ExpandableComposite expandable = toolkit.createExpandableComposite(composite, ExpandableComposite.COMPACT | ExpandableComposite.TWISTIE);
+    ExpandableComposite expandable = toolkit.createExpandableComposite(composite, ExpandableComposite.COMPACT
+        | ExpandableComposite.TWISTIE);
     expandable.clientVerticalSpacing = 1;
     expandable.setLayoutData(new GridData(SWT.FILL, SWT.TOP, false, false, 3, 1));
     expandable.setText("Ad&vanced");
@@ -233,12 +237,12 @@ public class Maven2ImportWizardPage extends WizardPage {
         getControl().getShell().pack();
       }
     });
-    
+
     toolkit.paintBordersFor(expandable);
 
     Composite advancedComposite = toolkit.createComposite(expandable, SWT.NONE);
     expandable.setClient(advancedComposite);
-    
+
     final GridLayout gridLayout = new GridLayout();
     gridLayout.marginLeft = 10;
     gridLayout.numColumns = 2;
@@ -265,27 +269,34 @@ public class Maven2ImportWizardPage extends WizardPage {
   }
 
   protected void scanProjects() {
-    final File folder = new File(getRootPath());
+    AbstractProjectScanner projectScanner = getProjectScanner();
     try {
-      List projects = new ArrayList();
-      getWizard().getContainer().run(true, true, new Maven2ProjectScanner(folder, projects));
-      
-      projectTreeViewer.setInput(projects);
+      getWizard().getContainer().run(true, true, projectScanner);
+
+      projectTreeViewer.setInput(projectScanner.getProjects());
       projectTreeViewer.expandAll();
       projectTreeViewer.setAllChecked(true);
       Object[] checkedElements = projectTreeViewer.getCheckedElements();
       setPageComplete(checkedElements != null && checkedElements.length > 0);
-      
+
     } catch(InterruptedException ex) {
       // canceled
     } catch(InvocationTargetException ex) {
       Throwable e = ex.getTargetException() == null ? ex : ex.getTargetException();
       Maven2Plugin.getDefault().getConsole().logError(
-          "Scanning error " + folder.getAbsolutePath() + "; " + e.toString());
+          "Scanning error " + projectScanner.getDescription() + "; " + e.toString());
     } catch(Exception ex) {
       Maven2Plugin.getDefault().getConsole().logError(
-          "Scanning error " + folder.getAbsolutePath() + "; " + ex.toString());
+          "Scanning error " + projectScanner.getDescription() + "; " + ex.toString());
     }
+  }
+
+  protected AbstractProjectScanner getProjectScanner() {
+    return new Maven2ProjectScanner(new File(getRootPath()));
+  }
+
+  protected boolean showLocation() {
+    return true;
   }
 
   String getRootPath() {
@@ -293,12 +304,28 @@ public class Maven2ImportWizardPage extends WizardPage {
   }
 
   public List getProjects() {
-    return (List) projectTreeViewer.getInput();
-  }
-  public List getCheckedProjects() {
-    return Arrays.asList(projectTreeViewer.getCheckedElements());
+    List checkedProjects = Arrays.asList(projectTreeViewer.getCheckedElements());
+    
+    if(createProjectsForModules()) {
+      return checkedProjects;
+    }
+    
+    List mavenProjects = new ArrayList();
+    collectProjects(mavenProjects, new HashSet(checkedProjects), (List) projectTreeViewer.getInput());
+    return mavenProjects;
   }
 
+  private void collectProjects(List mavenProjects, Set checkedProjects, List childProjects) {
+    for(Iterator it = childProjects.iterator(); it.hasNext();) {
+      MavenProjectInfo projectInfo = (MavenProjectInfo) it.next();
+      if(checkedProjects.contains(projectInfo)) {
+        mavenProjects.add(projectInfo);
+      } else {
+        collectProjects(mavenProjects, checkedProjects, projectInfo.getProjects());
+      }
+    }
+  }
+  
   public boolean createProjectsForModules() {
     return this.projectsForModules.getSelection();
   }
@@ -309,6 +336,12 @@ public class Maven2ImportWizardPage extends WizardPage {
 
   public String getActiveProfiles() {
     return this.activeProfiles.getText();
+  }
+
+  public ResolverConfiguration getResolverConfiguration() {
+    boolean includeModules = !createProjectsForModules();
+    boolean resolveWorkspaceProjects = resolveWorkspaceProjects();
+    return new ResolverConfiguration(includeModules, resolveWorkspaceProjects, getActiveProfiles());
   }
 
 }

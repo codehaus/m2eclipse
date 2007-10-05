@@ -19,11 +19,8 @@
 
 package org.maven.ide.eclipse.wizards;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import org.eclipse.core.resources.WorkspaceJob;
 import org.eclipse.core.runtime.CoreException;
@@ -41,7 +38,7 @@ import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 
 
 /**
- * Maven2ImportWizard
+ * Maven Import Wizard
  * 
  * @author Eugene Kuleshov
  */
@@ -66,30 +63,20 @@ public class Maven2ImportWizard extends Wizard implements IImportWizard {
       return false;
     }
 
-    boolean includeModules = !page.createProjectsForModules();
-    boolean resolveWorkspaceProjects = page.resolveWorkspaceProjects();
-    final ResolverConfiguration configuration = new ResolverConfiguration(includeModules, resolveWorkspaceProjects,
-        page.getActiveProfiles());
-
-    final List mavenProjects = new ArrayList();
-    if(!configuration.shouldIncludeModules()) {
-      mavenProjects.addAll(page.getCheckedProjects());
-    } else {
-      Set checkedProjects = new HashSet(page.getCheckedProjects());
-      collectProjects(mavenProjects, checkedProjects, page.getProjects());
-    }
+    final ResolverConfiguration configuration = page.getResolverConfiguration();
+    final List mavenProjects = page.getProjects();
     
     Job job = new WorkspaceJob("Importing projects") {
       public IStatus runInWorkspace(IProgressMonitor monitor) {
         BuildPathManager buildpathManager = Maven2Plugin.getDefault().getBuildpathManager();
         for(Iterator it = mavenProjects.iterator(); it.hasNext();) {
           MavenProjectInfo projectInfo = (MavenProjectInfo) it.next();
-          monitor.subTask(projectInfo.pomFile.getAbsolutePath());
+          monitor.subTask(projectInfo.getLabel());
           try {
-            buildpathManager.createProject(projectInfo.pomFile, projectInfo.model, configuration, monitor);
+            buildpathManager.importProject(projectInfo.getPomFile(), projectInfo.getModel(), configuration, monitor);
           } catch(CoreException ex) {
             Maven2Plugin.getDefault().getConsole().logError(
-                "Unable to create project " + projectInfo.model.getId() + "; " + ex.toString());
+                "Can't create project for " + projectInfo.getModel().getId() + "; " + ex.toString());
           }
         }
         return Status.OK_STATUS;
@@ -98,17 +85,6 @@ public class Maven2ImportWizard extends Wizard implements IImportWizard {
     job.schedule();
 
     return true;
-  }
-
-  private void collectProjects(final List mavenProjects, Set checkedProjects, List childProjects) {
-    for(Iterator it = childProjects.iterator(); it.hasNext();) {
-      MavenProjectInfo projectInfo = (MavenProjectInfo) it.next();
-      if(checkedProjects.contains(projectInfo)) {
-        mavenProjects.add(projectInfo);
-      } else {
-        collectProjects(mavenProjects, checkedProjects, projectInfo.projects);
-      }
-    }
   }
 
 }
