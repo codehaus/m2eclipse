@@ -513,7 +513,7 @@ public class BuildPathManagerTest extends TestCase {
     BuildPathManager buildpathManager = plugin.getBuildpathManager();
     File pomFile = new File(pomName);
     Model model = plugin.getMavenModelManager().readMavenModel(pomFile);
-    IProject project = buildpathManager.createProject(pomFile, model, configuration, new NullProgressMonitor());
+    IProject project = buildpathManager.importProject(pomFile, model, configuration, new NullProgressMonitor());
     assertNotNull("Failed to import project " + pomFile, project);
     return project;
   }
