@@ -35,6 +35,11 @@ import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 
+import org.tigris.subversion.subclipse.core.ISVNRemoteFolder;
+import org.tigris.subversion.subclipse.core.ISVNRemoteResource;
+import org.tigris.subversion.subclipse.core.history.ILogEntry;
+import org.tigris.subversion.subclipse.ui.dialogs.HistoryDialog;
+import org.tigris.subversion.subclipse.ui.wizards.CheckoutWizard;
 import org.tigris.subversion.svnclientadapter.SVNRevision;
 
 import org.maven.ide.eclipse.wizards.AbstractMavenImportWizardPage;
@@ -44,6 +49,8 @@ import org.maven.ide.eclipse.wizards.AbstractMavenImportWizardPage;
  */
 public class MavenCheckoutLocationPage extends AbstractMavenImportWizardPage {
 
+  protected ISVNRemoteFolder[] remoteFolders;
+  
   private Button useDefaultWorkspaceLocationButton;
   private Label locationLabel;
   private Text locationText;
@@ -54,9 +61,9 @@ public class MavenCheckoutLocationPage extends AbstractMavenImportWizardPage {
   private Button revisionBrowseButton;
   private Button checkoutAllProjectsButton;
   
-  
-  protected MavenCheckoutLocationPage() {
+  protected MavenCheckoutLocationPage(ISVNRemoteFolder[] folders) {
     super("Target Location");
+    this.remoteFolders = folders;
     setTitle("Target Location");
     setDescription("Select target location and revision");
   }
@@ -106,6 +113,44 @@ public class MavenCheckoutLocationPage extends AbstractMavenImportWizardPage {
 
     revisionBrowseButton = new Button(revisionToCheckGroup, SWT.NONE);
     revisionBrowseButton.setText("&Browse...");
+    revisionBrowseButton.addSelectionListener(new SelectionAdapter() {
+      public void widgetSelected(SelectionEvent e) {
+        HistoryDialog dialog = new HistoryDialog(getShell(), getCommonParent(remoteFolders));
+        // dialog.getShell().setSize(300, 200);
+        
+        if (dialog.open() != HistoryDialog.CANCEL) {
+          ILogEntry[] selectedEntries = dialog.getSelectedLogEntries();
+          if (selectedEntries.length > 0) {
+            revisionText.setText(Long.toString(selectedEntries[0].getRevision().getNumber()));
+            revisionButton.setSelection(true);
+            revisionText.setEnabled(true);
+            headRevisionButton.setSelection(false);
+          }
+        }
+      }
+      
+      private ISVNRemoteResource getCommonParent(ISVNRemoteFolder[] remoteFolders) {
+        if (remoteFolders.length == 1) {
+          return remoteFolders[0];
+        }
+        ISVNRemoteResource commonParent = null;
+        ISVNRemoteResource parent = remoteFolders[0];
+        while (commonParent == null) {
+          parent = parent.getParent();
+          if (parent == null) {
+            break;
+          }
+          for (int i = 1; i < remoteFolders.length; i++) {
+            if (!remoteFolders[i].getUrl().toString().startsWith(parent.getUrl().toString())) {
+              break;
+            }
+          }
+          commonParent = parent;
+        }
+        return commonParent;
+      }
+      
+    });
 
     checkoutAllProjectsButton = new Button(composite, SWT.CHECK);
     GridData checkoutAllProjectsData = new GridData(SWT.LEFT, SWT.TOP, false, false, 2, 1);
@@ -133,7 +178,6 @@ public class MavenCheckoutLocationPage extends AbstractMavenImportWizardPage {
     
     boolean selectRevision = revisionButton.getSelection();
     revisionText.setEnabled(selectRevision);
-    revisionBrowseButton.setEnabled(selectRevision);
   }
 
   public boolean isDefaultWorkspaceLocation() {

@@ -20,7 +20,6 @@
 package org.maven.ide.eclipse.subclipse;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
@@ -39,6 +38,7 @@ import org.tigris.subversion.subclipse.core.ISVNRemoteFile;
 import org.tigris.subversion.subclipse.core.ISVNRemoteFolder;
 import org.tigris.subversion.subclipse.core.ISVNRepositoryLocation;
 import org.tigris.subversion.subclipse.core.ISVNResource;
+import org.tigris.subversion.svnclientadapter.SVNRevision;
 
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
@@ -48,15 +48,15 @@ import org.maven.ide.eclipse.wizards.MavenProjectInfo;
 
 public class MavenProjectSVNScanner extends AbstractProjectScanner {
 
-  private final File baseLocation;
-
   private final ISVNRemoteFolder[] folders;
 
   private final MavenModelManager modelManager;
 
-  MavenProjectSVNScanner(File baseLocation, ISVNRemoteFolder[] folders, MavenModelManager modelManager) {
-    this.baseLocation = baseLocation;
+  private final SVNRevision revision;
+
+  MavenProjectSVNScanner(ISVNRemoteFolder[] folders, SVNRevision revision, MavenModelManager modelManager) {
     this.folders = folders;
+    this.revision = revision;
     this.modelManager = modelManager;
   }
 
