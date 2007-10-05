@@ -699,7 +699,7 @@ public class BuildPathManager {
       // TODO optimize project refresh
       monitor.subTask("Refreshing");
       project.refreshLocal(IResource.DEPTH_INFINITE, new SubProgressMonitor(monitor, 1));
-      
+
       mavenProject = result.getProject();
 
       ReactorManager reactorManager = result.getReactorManager();
@@ -786,7 +786,8 @@ public class BuildPathManager {
         projectBaseDir);
 
     // HACK to support xmlbeans generated classes MNGECLIPSE-374
-    File generatedClassesDir = new File(mavenProject.getBuild().getDirectory(), "generated-classes" + File.separator + "xmlbeans");
+    File generatedClassesDir = new File(mavenProject.getBuild().getDirectory(), "generated-classes" + File.separator
+        + "xmlbeans");
     IResource generatedClasses = project.findMember(toRelativeAndFixSeparator(projectBaseDir, //
         generatedClassesDir.getAbsolutePath()));
     if(generatedClasses != null && generatedClasses.isAccessible() && generatedClasses.getType() == IResource.FOLDER) {
@@ -1004,7 +1005,7 @@ public class BuildPathManager {
     }
   }
 
-  public IProject createProject(File pomFile, Model model, ResolverConfiguration configuration, IProgressMonitor monitor)
+  public IProject importProject(File pomFile, Model model, ResolverConfiguration configuration, IProgressMonitor monitor)
       throws CoreException {
     String projectName = model.getArtifactId();
     IWorkspace workspace = ResourcesPlugin.getWorkspace();
@@ -1015,23 +1016,29 @@ public class BuildPathManager {
       return null;
     }
 
-    IProjectDescription description = workspace.newProjectDescription(projectName);
-    description.setLocation(new Path(pomFile.getParentFile().getAbsolutePath()));
-
-    project.create(description, monitor);
+    if(pomFile.getAbsolutePath().startsWith(workspace.getRoot().getLocation().toFile().getAbsolutePath())) {
+      project.create(monitor);
+    } else {
+      IProjectDescription description = workspace.newProjectDescription(projectName);
+      description.setLocation(new Path(pomFile.getParentFile().getAbsolutePath()));
+      project.create(description, monitor);
+    }
 
     if(!project.isOpen()) {
       project.open(monitor);
     }
 
-    Maven2Plugin plugin = Maven2Plugin.getDefault();
+    configureProject(project, configuration, monitor);
 
-    BuildPathManager buildpathManager = plugin.getBuildpathManager();
+    return project;
+  }
+
+  public void configureProject(IProject project, ResolverConfiguration configuration, IProgressMonitor monitor)
+      throws CoreException {
+    BuildPathManager buildpathManager = Maven2Plugin.getDefault().getBuildpathManager();
     buildpathManager.enableMavenNature(project, configuration, monitor);
     buildpathManager.updateSourceFolders(project, configuration, monitor);
     buildpathManager.updateClasspathContainer(project, monitor);
-
-    return project;
   }
 
 }

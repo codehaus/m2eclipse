@@ -485,7 +485,7 @@
    <extension
          point="org.eclipse.ui.console.consoleFactories">
       <consoleFactory
-            label="M2"
+            label="Maven Console"
             icon="icons/m2.gif"
             class="org.maven.ide.eclipse.launch.console.Maven2ConsoleFactory"/>
    </extension>

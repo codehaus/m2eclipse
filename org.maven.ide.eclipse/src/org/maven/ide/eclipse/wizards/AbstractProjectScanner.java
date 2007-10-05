@@ -17,59 +17,28 @@
 
 package org.maven.ide.eclipse.wizards;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.maven.model.Model;
+import org.eclipse.jface.operation.IRunnableWithProgress;
 
 /**
+ * Project Scanner
+ *
  * @author Eugene Kuleshov
  */
-public class MavenProjectInfo {
-  private final MavenProjectInfo parent;
+public abstract class AbstractProjectScanner implements IRunnableWithProgress {
 
-  private final String label;
-
-  private final File pomFile;
-
-  private final Model model;
-
-  /**
-   * List of MavenProjectInfo
-   */
   private final List projects = new ArrayList();
-
-
-  public MavenProjectInfo(String label, File pomFile, Model model, MavenProjectInfo parent) {
-    this.label = label;
-    this.pomFile = pomFile;
-    this.model = model;
-    this.parent = parent;
+  
+  public List getProjects() {
+    return projects;
   }
 
-  public void add(MavenProjectInfo mavenProjectInfo) {
+  protected void addProject(MavenProjectInfo mavenProjectInfo) {
     projects.add(mavenProjectInfo);
   }
   
-  public String getLabel() {
-    return this.label;
-  }
-  
-  public File getPomFile() {
-    return this.pomFile;
-  }
-  
-  public Model getModel() {
-    return this.model;
-  }
-  
-  public List getProjects() {
-    return this.projects;
-  }
- 
-  public MavenProjectInfo getParent() {
-    return this.parent;
-  }
-  
+  public abstract String getDescription();
+
 }

@@ -19,27 +19,23 @@ package org.maven.ide.eclipse.wizards;
 
 import java.io.File;
 import java.util.Iterator;
-import java.util.List;
 
 import org.apache.maven.model.Model;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.SubProgressMonitor;
-import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.MavenModelManager;
 
 /**
  * @author Eugene Kuleshov
  */
-class Maven2ProjectScanner implements IRunnableWithProgress {
+class Maven2ProjectScanner extends AbstractProjectScanner {
   private final File folder;
-  private final List projects;
 
-  Maven2ProjectScanner(File folder, List projects) {
+  Maven2ProjectScanner(File folder) {
     this.folder = folder;
-    this.projects = projects;
   }
 
   public void run(IProgressMonitor monitor) throws InterruptedException {
@@ -64,9 +60,9 @@ class Maven2ProjectScanner implements IRunnableWithProgress {
     }
 
     File pomFile = new File(file, Maven2Plugin.POM_FILE_NAME);
-    MavenProjectInfo mavenProjectInfo = readMavenProjectInfo(pomFile);
+    MavenProjectInfo mavenProjectInfo = readMavenProjectInfo(pomFile, null);
     if(mavenProjectInfo != null) {
-      projects.add(mavenProjectInfo);
+      addProject(mavenProjectInfo);
       return; // don't scan subfolders of the Maven project
     }
 
@@ -78,7 +74,7 @@ class Maven2ProjectScanner implements IRunnableWithProgress {
     }
   }
 
-  private MavenProjectInfo readMavenProjectInfo(File pomFile) {
+  private MavenProjectInfo readMavenProjectInfo(File pomFile, MavenProjectInfo parentInfo) {
     if(!pomFile.exists()) {
       return null;
     }
@@ -86,21 +82,27 @@ class Maven2ProjectScanner implements IRunnableWithProgress {
     MavenModelManager modelManager = Maven2Plugin.getDefault().getMavenModelManager();
     try {
       Model model = modelManager.readMavenModel(pomFile);
-      MavenProjectInfo mavenProjectInfo = new MavenProjectInfo(pomFile, model);
+      String pomName = pomFile.getAbsolutePath().substring(folder.getAbsolutePath().length());
+      MavenProjectInfo projectInfo = new MavenProjectInfo(pomName, pomFile, model, parentInfo);
 
       for(Iterator it = model.getModules().iterator(); it.hasNext();) {
         String module = (String) it.next();
         File modulePom = new File(pomFile.getParent(), module + "/" + Maven2Plugin.POM_FILE_NAME);
-        MavenProjectInfo moduleMavenProjectInfo = readMavenProjectInfo(modulePom);
-        if(moduleMavenProjectInfo != null) {
-          mavenProjectInfo.add(moduleMavenProjectInfo);
+        MavenProjectInfo moduleInfo = readMavenProjectInfo(modulePom, projectInfo);
+        if(moduleInfo != null) {
+          projectInfo.add(moduleInfo);
         }
       }
-      return mavenProjectInfo;
+      return projectInfo;
     } catch(CoreException ex) {
       Maven2Plugin.getDefault().getConsole().logError("Unable to read model " + pomFile.getAbsolutePath());
     }
 
     return null;
   }
+
+  public String getDescription() {
+    return folder.getAbsolutePath();
+  }
+
 }
