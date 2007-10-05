@@ -35,6 +35,7 @@ import org.eclipse.core.runtime.Path;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 
 import org.tigris.subversion.subclipse.core.ISVNRemoteFolder;
+import org.tigris.subversion.subclipse.core.ISVNRepositoryLocation;
 import org.tigris.subversion.subclipse.ui.operations.CheckoutAsProjectOperation;
 import org.tigris.subversion.svnclientadapter.SVNRevision;
 
@@ -70,7 +71,7 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
       MavenProjectSVNScanner scanner = new MavenProjectSVNScanner(folders, revision, //
           Maven2Plugin.getDefault().getMavenModelManager());
       scanner.run(monitor);
-      
+
       if(configuration.shouldIncludeModules()) {
         mavenProjects = scanner.getProjects();
       } else {
@@ -81,25 +82,31 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
 
     List remoteFolderList = new ArrayList();
     List localFolderList = new ArrayList();
+    List remoteFolderUrls = new ArrayList();
 
     // sort nested projects
     for(Iterator it = mavenProjects.iterator(); it.hasNext();) {
       MavenProjectSVNInfo info = (MavenProjectSVNInfo) it.next();
-      String remoteFolderPath = info.getRemoteFolder().getRepositoryRelativePath();
+      String folderUrl = info.getFolderUrl().toString();
 
       boolean isNestedPath = false;
       for(Iterator it2 = mavenProjects.iterator(); it2.hasNext();) {
         MavenProjectSVNInfo info2 = (MavenProjectSVNInfo) it2.next();
         if(info != info2) {
-          String path = info2.getRemoteFolder().getRepositoryRelativePath();
-          if(remoteFolderPath.startsWith(path)) {
+          String path = info2.getFolderUrl().toString();
+          if(folderUrl.startsWith(path)) {
             isNestedPath = true;
             break;
           }
         }
       }
       if(!isNestedPath) {
-        remoteFolderList.add(info.getRemoteFolder());
+        ISVNRepositoryLocation repository = info.getRepository();
+        String folderPath = folderUrl.substring(repository.getUrl().toString().length());
+        ISVNRemoteFolder folder = repository.getRemoteFolder(folderPath);
+        // TODO check if folder is not null
+        remoteFolderList.add(folder);
+        remoteFolderUrls.add(folderUrl);
         localFolderList.add(workspaceRoot.getProject(info.getModel().getArtifactId()));
       }
     }
@@ -130,20 +137,19 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
       MavenProjectSVNInfo info = (MavenProjectSVNInfo) it.next();
       monitor.subTask(info.getLabel());
 
-      ISVNRemoteFolder remoteFolder = info.getRemoteFolder();
-      String remoteFolderPath = remoteFolder.getRepositoryRelativePath();
+      String folderUrl = info.getFolderUrl().toString();
 
       try {
-        int n = remoteFolderList.indexOf(remoteFolder);
+        int n = remoteFolderUrls.indexOf(folderUrl);
         if(n > -1) {
           // project is already in workspace
           buildpathManager.configureProject((IProject) localFolderList.get(n), configuration, monitor);
 
         } else {
           // module project that need to e imported
-          File pomFile = findPomFile(remoteFolderPath, remoteFolderList, localFolderList);
+          File pomFile = findPomFile(folderUrl, remoteFolderList, localFolderList);
           if(pomFile == null) {
-            Maven2Plugin.getDefault().getConsole().logError("Can't find POM file for " + remoteFolderPath);
+            Maven2Plugin.getDefault().getConsole().logError("Can't find POM file for " + folderUrl);
           } else {
             buildpathManager.importProject(pomFile, info.getModel(), configuration, monitor);
           }
@@ -164,15 +170,14 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
     }
   }
 
-  private File findPomFile(String remoteFolderPath, List remoteFolderList, List localFolderList) {
+  private File findPomFile(String folderUrl, List remoteFolderList, List localFolderList) {
     for(int i = 0; i < remoteFolderList.size(); i++ ) {
       ISVNRemoteFolder folder = (ISVNRemoteFolder) remoteFolderList.get(i);
-      String path = folder.getRepositoryRelativePath();
-      if(remoteFolderPath.startsWith(path)) {
+      String url = folder.getUrl().toString();
+      if(folderUrl.startsWith(url)) {
         IProject parentProject = (IProject) localFolderList.get(i);
         File parentFolder = parentProject.getLocation().toFile();
-        return new File(parentFolder, remoteFolderPath.substring(path.length()) + File.separator
-            + Maven2Plugin.POM_FILE_NAME);
+        return new File(parentFolder, folderUrl.substring(url.length()) + File.separator + Maven2Plugin.POM_FILE_NAME);
       }
     }
     return null;
@@ -201,5 +206,5 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
   public void setSVNRevision(SVNRevision revision) {
     this.revision = revision;
   }
-  
+
 }

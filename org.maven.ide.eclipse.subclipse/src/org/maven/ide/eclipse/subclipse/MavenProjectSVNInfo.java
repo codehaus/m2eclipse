@@ -17,26 +17,33 @@
 
 package org.maven.ide.eclipse.subclipse;
 
-import java.io.File;
-
 import org.apache.maven.model.Model;
+
+import org.tigris.subversion.subclipse.core.ISVNRepositoryLocation;
+import org.tigris.subversion.svnclientadapter.SVNUrl;
+
 import org.maven.ide.eclipse.wizards.MavenProjectInfo;
-import org.tigris.subversion.subclipse.core.ISVNRemoteFolder;
 
 /**
  * @author Eugene Kuleshov
  */
 public class MavenProjectSVNInfo extends MavenProjectInfo {
 
-  private final ISVNRemoteFolder remoteFolder;
+  private final SVNUrl folderUrl;
+  private final ISVNRepositoryLocation repository;
 
-  public MavenProjectSVNInfo(String label, File pomFile, Model model, ISVNRemoteFolder remoteFolder, MavenProjectInfo parent) {
-    super(label, pomFile, model, parent);
-    this.remoteFolder = remoteFolder;
-  }
-
-  public ISVNRemoteFolder getRemoteFolder() {
-    return remoteFolder;
+  public MavenProjectSVNInfo(String label, Model model, SVNUrl folderUrl, ISVNRepositoryLocation repository, MavenProjectInfo parent) {
+    super(label, null, model, parent);
+    this.folderUrl = folderUrl;
+    this.repository = repository;
   }
   
+  public SVNUrl getFolderUrl() {
+    return folderUrl;
+  }
+  
+  public ISVNRepositoryLocation getRepository() {
+    return repository;
+  }
+
 }
