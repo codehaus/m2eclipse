@@ -56,9 +56,9 @@ import org.maven.ide.eclipse.Maven2Plugin;
  */
 public class Maven2ImportWizardPage extends AbstractMavenImportWizardPage {
 
-  Text rootDirectoryText;
+  protected Text rootDirectoryText;
 
-  CheckboxTreeViewer projectTreeViewer;
+  protected CheckboxTreeViewer projectTreeViewer;
 
   protected Maven2ImportWizardPage() {
     super("Maven Projects");
@@ -175,7 +175,7 @@ public class Maven2ImportWizardPage extends AbstractMavenImportWizardPage {
     });
 
     final Tree projectTree = projectTreeViewer.getTree();
-    GridData projectTreeData = new GridData(SWT.FILL, SWT.FILL, false, true, 2, 3);
+    GridData projectTreeData = new GridData(SWT.FILL, SWT.FILL, true, true, 2, 3);
     projectTreeData.heightHint = 300;
     projectTreeData.widthHint = 500;
     projectTree.setLayoutData(projectTreeData);
