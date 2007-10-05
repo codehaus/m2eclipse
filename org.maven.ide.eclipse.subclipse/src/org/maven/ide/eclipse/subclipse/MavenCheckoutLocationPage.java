@@ -23,7 +23,7 @@ import java.io.File;
 import java.text.ParseException;
 
 import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.jface.wizard.WizardPage;
+import org.eclipse.jface.wizard.IWizardPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -37,10 +37,12 @@ import org.eclipse.swt.widgets.Text;
 
 import org.tigris.subversion.svnclientadapter.SVNRevision;
 
+import org.maven.ide.eclipse.wizards.AbstractMavenImportWizardPage;
+
 /**
  * @author Eugene Kuleshov
  */
-public class MavenCheckoutLocationPage extends WizardPage {
+public class MavenCheckoutLocationPage extends AbstractMavenImportWizardPage {
 
   private Button useDefaultWorkspaceLocationButton;
   private Label locationLabel;
@@ -50,19 +52,18 @@ public class MavenCheckoutLocationPage extends WizardPage {
   private Button revisionButton;
   private Text revisionText;
   private Button revisionBrowseButton;
+  private Button checkoutAllProjectsButton;
+  
   
   protected MavenCheckoutLocationPage() {
-    super("Project Location");
-    setTitle("Project Location");
-    setDescription("Select project location");
+    super("Target Location");
+    setTitle("Target Location");
+    setDescription("Select target location and revision");
   }
 
   public void createControl(Composite parent) {
     Composite composite = new Composite(parent, SWT.NONE);
-    final GridLayout gridLayout = new GridLayout();
-    gridLayout.numColumns = 2;
-    composite.setLayout(gridLayout);
-
+    composite.setLayout(new GridLayout(2, false));
     setControl(composite);
 
     SelectionAdapter selectionAdapter = new SelectionAdapter() {
@@ -72,43 +73,59 @@ public class MavenCheckoutLocationPage extends WizardPage {
     };
     
     useDefaultWorkspaceLocationButton = new Button(composite, SWT.CHECK);
-    useDefaultWorkspaceLocationButton.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 2, 1));
-    useDefaultWorkspaceLocationButton.setText("Use default workspace location");
+    useDefaultWorkspaceLocationButton.setLayoutData(new GridData(SWT.LEFT, SWT.TOP, false, false, 2, 1));
+    useDefaultWorkspaceLocationButton.setText("Use default &workspace location");
     useDefaultWorkspaceLocationButton.addSelectionListener(selectionAdapter);
     useDefaultWorkspaceLocationButton.setSelection(true);
 
     locationLabel = new Label(composite, SWT.NONE);
-    locationLabel.setText("Location:");
+    locationLabel.setLayoutData(new GridData());
+    locationLabel.setText("&Location:");
 
     locationText = new Text(composite, SWT.BORDER);
-    final GridData gd_locationText = new GridData(SWT.FILL, SWT.CENTER, true, false);
-    locationText.setLayoutData(gd_locationText);
+    locationText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
 
     final Group revisionToCheckGroup = new Group(composite, SWT.NONE);
     revisionToCheckGroup.setText("Revision to check out");
     revisionToCheckGroup.setLayout(new GridLayout(3, false));
     final GridData revisionToCheckGroupData = new GridData(SWT.FILL, SWT.CENTER, false, false, 2, 1);
-    revisionToCheckGroupData.verticalIndent = 10;
+    revisionToCheckGroupData.verticalIndent = 7;
     revisionToCheckGroup.setLayoutData(revisionToCheckGroupData);
 
     headRevisionButton = new Button(revisionToCheckGroup, SWT.RADIO);
     headRevisionButton.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 3, 1));
-    headRevisionButton.setText("Head Revision");
+    headRevisionButton.setText("&Head Revision");
     headRevisionButton.setSelection(true);
 
     revisionButton = new Button(revisionToCheckGroup, SWT.RADIO);
-    revisionButton.setText("Revision");
+    revisionButton.setText("&Revision");
     revisionButton.addSelectionListener(selectionAdapter);
 
     revisionText = new Text(revisionToCheckGroup, SWT.BORDER);
     revisionText.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false));
 
     revisionBrowseButton = new Button(revisionToCheckGroup, SWT.NONE);
-    revisionBrowseButton.setText("Browse...");
+    revisionBrowseButton.setText("&Browse...");
+
+    checkoutAllProjectsButton = new Button(composite, SWT.CHECK);
+    GridData checkoutAllProjectsData = new GridData(SWT.LEFT, SWT.TOP, false, false, 2, 1);
+    checkoutAllProjectsData.verticalIndent = 7;
+    checkoutAllProjectsButton.setLayoutData(checkoutAllProjectsData);
+    checkoutAllProjectsButton.setText("Check out &all projects");
+    checkoutAllProjectsButton.setSelection(true);
+    checkoutAllProjectsButton.addSelectionListener(new SelectionAdapter() {
+      public void widgetSelected(SelectionEvent e) {
+        getContainer().updateButtons();
+      }
+    });
+    
+    GridData advancedSettingsData = new GridData(SWT.FILL, SWT.TOP, false, false, 2, 1);
+    advancedSettingsData.verticalIndent = 10;
+    createAdvancedSettings(composite, advancedSettingsData);
     
     updateSelection();
   }
-
+  
   private void updateSelection() {
     boolean defaultWorkspaceLocation = isDefaultWorkspaceLocation(); 
     locationLabel.setEnabled(!defaultWorkspaceLocation);
@@ -123,6 +140,22 @@ public class MavenCheckoutLocationPage extends WizardPage {
     return useDefaultWorkspaceLocationButton.getSelection();
   }
   
+  public boolean isCheckoutAllProjects() {
+    return checkoutAllProjectsButton.getSelection();
+  }
+  
+  public boolean canFlipToNextPage() {
+    return !isCheckoutAllProjects();
+  }
+  
+  public IWizardPage getNextPage() {
+    if(isCheckoutAllProjects()) {
+      return null;
+    } else {
+      return super.getNextPage();
+    }
+  }
+
   public File getLocation() {
     if(isDefaultWorkspaceLocation()) {
       return ResourcesPlugin.getWorkspace().getRoot().getLocation().toFile();

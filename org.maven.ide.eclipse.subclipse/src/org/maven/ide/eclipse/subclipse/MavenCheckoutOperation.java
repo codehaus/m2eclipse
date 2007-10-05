@@ -41,6 +41,7 @@ import org.tigris.subversion.svnclientadapter.SVNRevision;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.ResolverConfiguration;
+import org.maven.ide.eclipse.wizards.MavenProjectInfo;
 
 
 /**
@@ -60,8 +61,23 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
 
   private boolean workspaceLocation;
 
+  private ISVNRemoteFolder[] folders;
+
   public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
     IWorkspaceRoot workspaceRoot = ResourcesPlugin.getWorkspace().getRoot();
+
+    if(mavenProjects == null) {
+      MavenProjectSVNScanner scanner = new MavenProjectSVNScanner(location, folders, //
+          Maven2Plugin.getDefault().getMavenModelManager());
+      scanner.run(monitor);
+      
+      if(configuration.shouldIncludeModules()) {
+        mavenProjects = scanner.getProjects();
+      } else {
+        mavenProjects = new ArrayList();
+        collectChildProjects(mavenProjects, scanner.getProjects());
+      }
+    }
 
     List remoteFolderList = new ArrayList();
     List localFolderList = new ArrayList();
@@ -140,6 +156,14 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
     }
   }
 
+  private void collectChildProjects(List mavenProjects, List childProjects) {
+    for(Iterator it = childProjects.iterator(); it.hasNext();) {
+      MavenProjectInfo info = (MavenProjectInfo) it.next();
+      mavenProjects.add(info);
+      collectChildProjects(mavenProjects, info.getProjects());
+    }
+  }
+
   private File findPomFile(String remoteFolderPath, List remoteFolderList, List localFolderList) {
     for(int i = 0; i < remoteFolderList.size(); i++ ) {
       ISVNRemoteFolder folder = (ISVNRemoteFolder) remoteFolderList.get(i);
@@ -172,6 +196,10 @@ public class MavenCheckoutOperation implements IRunnableWithProgress {
 
   public void setWorkspaceLocation(boolean workspaceLocation) {
     this.workspaceLocation = workspaceLocation;
+  }
+
+  public void setFolders(ISVNRemoteFolder[] folders) {
+    this.folders = folders;
   }
 
 }
