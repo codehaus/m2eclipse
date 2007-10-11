@@ -1,3 +1,4 @@
+
 package org.maven.ide.eclipse.actions;
 
 /*
@@ -19,10 +20,10 @@ package org.maven.ide.eclipse.actions;
  * under the License.
  */
 
+import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IConfigurationElement;
@@ -39,6 +40,12 @@ import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.debug.ui.DebugUITools;
 import org.eclipse.debug.ui.ILaunchShortcut;
 import org.eclipse.debug.ui.RefreshTab;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
+import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.ui.IEditorInput;
@@ -59,12 +66,13 @@ import org.maven.ide.eclipse.util.Util;
  * @author Eugene Kuleshov
  */
 public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, ITraceable {
-  private static final boolean TRACE_ENABLED = Boolean.valueOf(Platform.getDebugOption("org.maven.ide.eclipse/actions")).booleanValue();
+  private static final boolean TRACE_ENABLED = Boolean
+      .valueOf(Platform.getDebugOption("org.maven.ide.eclipse/actions")).booleanValue();
 
   private boolean showDialog = false;
+
   private String goalName = null;
 
-  
   public boolean isTraceEnabled() {
     return TRACE_ENABLED;
   }
@@ -76,11 +84,11 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
       this.goalName = (String) data;
     }
   }
-  
+
   public void launch(IEditorPart editor, String mode) {
     IEditorInput editorInput = editor.getEditorInput();
     if(editorInput instanceof IFileEditorInput) {
-      launch(((IFileEditorInput) editorInput).getFile().getParent().getLocation());
+      launch(((IFileEditorInput) editorInput).getFile().getParent());
     }
   }
 
@@ -88,93 +96,117 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
     if(selection instanceof IStructuredSelection) {
       IStructuredSelection structuredSelection = (IStructuredSelection) selection;
       Object object = structuredSelection.getFirstElement();
-  
-      IPath basedir = null;
+
+      IContainer basedir = null;
       if(object instanceof IProject || object instanceof IFolder) {
-        basedir = ((IResource) object).getLocation();
+        basedir = (IContainer) object;
       } else if(object instanceof IFile) {
-        basedir = ((IFile) object).getParent().getLocation();
+        basedir = ((IFile) object).getParent();
       } else if(object instanceof IAdaptable) {
         IAdaptable adaptable = (IAdaptable) object;
         Object adapter = adaptable.getAdapter(IProject.class);
-        if(adapter!=null) {
-          basedir = ((IResource) adapter).getLocation();
+        if(adapter != null) {
+          basedir = (IContainer) adapter;
         } else {
           adapter = adaptable.getAdapter(IFolder.class);
-          if(adapter!=null) {
-            basedir = ((IResource) adapter).getLocation();
+          if(adapter != null) {
+            basedir = (IContainer) adapter;
           } else {
             adapter = adaptable.getAdapter(IFile.class);
-            if(adapter!=null) {
-              basedir = ((IFile) object).getParent().getLocation();
+            if(adapter != null) {
+              basedir = ((IFile) object).getParent();
             }
           }
         }
       }
-  
+
       launch(basedir);
     }
   }
 
-  private void launch(IPath basedir) {
+  private void launch(IContainer basedir) {
     if(basedir == null) {
       return;
     }
-    
+
     Tracer.trace(this, "Launching from basedir", basedir);
-    
+
     ILaunchConfiguration launchConfiguration = getLaunchConfiguration(basedir);
     if(launchConfiguration == null) {
       return;
     }
-    
+
     boolean openDialog = showDialog;
     if(!openDialog) {
       try {
         // if no goals specified
         String goals = launchConfiguration.getAttribute(Maven2LaunchConstants.ATTR_GOALS, (String) null);
         openDialog = goals == null || goals.trim().length() == 0;
-      } catch (CoreException ex) {
+      } catch(CoreException ex) {
         Maven2Plugin.log(ex);
       }
     }
-    
+
     if(openDialog) {
       Tracer.trace(this, "Opening dialog for launch configuration", launchConfiguration.getName());
       DebugUITools.saveBeforeLaunch();
-      DebugUITools.openLaunchConfigurationDialog(Maven2Plugin.getDefault().getWorkbench().getActiveWorkbenchWindow().getShell(), 
-          launchConfiguration, Maven2LaunchMainTab.ID_EXTERNAL_TOOLS_LAUNCH_GROUP, null);
+      DebugUITools.openLaunchConfigurationDialog(Maven2Plugin.getDefault().getWorkbench().getActiveWorkbenchWindow()
+          .getShell(), launchConfiguration, Maven2LaunchMainTab.ID_EXTERNAL_TOOLS_LAUNCH_GROUP, null);
     } else {
       Tracer.trace(this, "Launching configuration", launchConfiguration.getName());
       DebugUITools.launch(launchConfiguration, ILaunchManager.RUN_MODE);
     }
   }
 
-  private ILaunchConfiguration createLaunchConfiguration(IPath baseDir, String goal) {
+  private ILaunchConfiguration createLaunchConfiguration(IContainer basedir, String goal) {
     try {
       ILaunchManager launchManager = DebugPlugin.getDefault().getLaunchManager();
-      ILaunchConfigurationType launchConfigurationType = launchManager.getLaunchConfigurationType(Maven2LaunchConstants.LAUNCH_CONFIGURATION_TYPE_ID);
-  
-      ILaunchConfigurationWorkingCopy workingCopy = launchConfigurationType.newInstance(null, "Executing " + goal + " on " + baseDir);
-      workingCopy.setAttribute(Maven2LaunchConstants.ATTR_POM_DIR, baseDir.toOSString());
+      ILaunchConfigurationType launchConfigurationType = launchManager
+          .getLaunchConfigurationType(Maven2LaunchConstants.LAUNCH_CONFIGURATION_TYPE_ID);
+
+      ILaunchConfigurationWorkingCopy workingCopy = launchConfigurationType.newInstance(null, //
+          "Executing " + goal + " on " + basedir);
+      workingCopy.setAttribute(Maven2LaunchConstants.ATTR_POM_DIR, basedir.getLocation().toOSString());
       workingCopy.setAttribute(Maven2LaunchConstants.ATTR_GOALS, goal);
       workingCopy.setAttribute(RefreshTab.ATTR_REFRESH_SCOPE, "${project}");
       workingCopy.setAttribute(RefreshTab.ATTR_REFRESH_RECURSIVE, true);
-  
+
+      IPath path = getJREContainerPath(basedir);
+      if(path != null) {
+        workingCopy.setAttribute(IJavaLaunchConfigurationConstants.ATTR_JRE_CONTAINER_PATH, path.toPortableString());
+      }
+
       return workingCopy;
     } catch(CoreException ex) {
       Tracer.trace(this, "Error creating new launch configuration", "", ex);
     }
     return null;
   }
-  
-  private ILaunchConfiguration getLaunchConfiguration(IPath basedir) {
-    if(goalName!=null) {
-        return createLaunchConfiguration(basedir, goalName);
+
+  // TODO ideally it should use MavenProject, but it is faster to scan IJavaProjects 
+  private IPath getJREContainerPath(IContainer basedir) throws JavaModelException {
+    IProject project = basedir.getProject();
+    if(project != null) {
+      IJavaProject javaProject = JavaCore.create(project);
+      IClasspathEntry[] entries = javaProject.getRawClasspath();
+      for(int i = 0; i < entries.length; i++ ) {
+        IClasspathEntry entry = entries[i];
+        if(JavaRuntime.JRE_CONTAINER.equals(entry.getPath().segment(0))) {
+          return entry.getPath();
+        }
+      }
     }
-    
+    return null;
+  }
+
+  private ILaunchConfiguration getLaunchConfiguration(IContainer basedir) {
+    if(goalName != null) {
+      return createLaunchConfiguration(basedir, goalName);
+    }
+
     ILaunchManager launchManager = DebugPlugin.getDefault().getLaunchManager();
-    ILaunchConfigurationType launchConfigurationType = launchManager.getLaunchConfigurationType(Maven2LaunchConstants.LAUNCH_CONFIGURATION_TYPE_ID);
+    ILaunchConfigurationType launchConfigurationType = launchManager
+        .getLaunchConfigurationType(Maven2LaunchConstants.LAUNCH_CONFIGURATION_TYPE_ID);
 
     // scan existing launch configurations
     if(!showDialog) {
@@ -185,7 +217,7 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
         if(launches.length > 0) {
           for(int i = 0; i < launches.length; i++ ) {
             ILaunchConfiguration config = launches[i].getLaunchConfiguration();
-            if(config!=null && launchConfigurationType.equals(config.getType())) {
+            if(config != null && launchConfigurationType.equals(config.getType())) {
               launchConfigurations = new ILaunchConfiguration[] {config};
             }
           }
@@ -218,20 +250,20 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
 
     Tracer.trace(this, "No existing configurations found, creating new");
 
-    String newName = launchManager.generateUniqueLaunchConfigurationNameFrom(basedir.lastSegment());
+    String newName = launchManager.generateUniqueLaunchConfigurationNameFrom(basedir.getLocation().lastSegment());
     try {
       Tracer.trace(this, "New configuration name", newName);
       ILaunchConfigurationWorkingCopy workingCopy = launchConfigurationType.newInstance(null, newName);
       workingCopy.setAttribute(Maven2LaunchConstants.ATTR_POM_DIR, basedir.toString());
-      
+
       // set other defaults if needed
       // Maven2LaunchMainTab maintab = new Maven2LaunchMainTab();
       // maintab.setDefaults(workingCopy);
       // maintab.dispose();
-      
+
       ILaunchConfiguration newConfiguration = workingCopy.doSave();
       return newConfiguration;
-    } catch (Exception e) {
+    } catch(Exception e) {
       String msg = "Error creating new launch configuration";
       Tracer.trace(this, msg, newName, e);
     }
@@ -239,4 +271,3 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
   }
 
 }
-
