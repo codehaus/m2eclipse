@@ -84,7 +84,6 @@ public class Maven2Executor implements Maven2LaunchConstants {
 
     } catch(Throwable e) {
       e.printStackTrace(System.out);
-      System.exit(1);
     } finally {
       try {
         if(embedder != null) {
@@ -93,6 +92,8 @@ public class Maven2Executor implements Maven2LaunchConstants {
       } catch(MavenEmbedderException e) {
         e.printStackTrace(System.out);
       }
+      System.out.flush();
+      System.err.flush();
     }
     System.exit(consoleEventMonitor.getErrorCode());
   }

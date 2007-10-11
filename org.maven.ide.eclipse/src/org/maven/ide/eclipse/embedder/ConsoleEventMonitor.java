@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.embedder;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,13 +17,16 @@ package org.maven.ide.eclipse.embedder;
  * under the License.
  */
 
+package org.maven.ide.eclipse.embedder;
+
 import java.util.Date;
 
 import org.apache.maven.monitor.event.EventMonitor;
 
 
 class ConsoleEventMonitor implements EventMonitor {
-  private static final String PREFIX = "[INFO] ";
+  private static final String INFO_PREFIX = "[INFO] ";
+  private static final String ERROR_PREFIX = "[ERROR] ";
 
   private final boolean debug;
 
@@ -36,29 +36,77 @@ class ConsoleEventMonitor implements EventMonitor {
   private String errorText = null;
   private Throwable errorCause = null;
 
-  
   public ConsoleEventMonitor(boolean debug) {
     this.debug = debug;
   }
 
+  public int getErrorCode() {
+    return this.errorCode;
+  }
+
+  public String getErrorText() {
+    return this.errorText;
+  }
+  
+  public Throwable getErrorCause() {
+    return this.errorCause;
+  }
+
   public void startEvent(String eventName, String target, long timestamp) {
     if("mojo-execute".equals(eventName)) {
-      System.out.println(PREFIX + target);
+      printInfo(target);
     } else if("project-execute".equals(eventName)) {
       this.start = System.currentTimeMillis();
     }
   }
 
   public void endEvent(String eventName, String target, long timestamp) {
-//    if("project-execute".equals(eventName)) {
-//      System.out.println(PREFIX + "----------------------------------------------------------------------------");
-//      System.out.println(PREFIX + "BUILD SUCCESSFUL");
-//      System.out.println(PREFIX + "----------------------------------------------------------------------------");
-//      System.out.println(PREFIX + getTotalTime());
-//      System.out.println(PREFIX + getFinishedAt());
-//      System.out.println(PREFIX + getMemory());
-//      System.out.println(PREFIX + "----------------------------------------------------------------------------");
-//    }
+    if("project-execute".equals(eventName)) {
+      printSeparator();
+      printInfo("BUILD SUCCESSFUL");
+      printTrailer();
+    }
+  }
+
+  public void errorEvent(String eventName, String target, long timestamp, Throwable cause) {
+    if("project-execute".equals(eventName)) {
+      errorCode = 1;
+      errorCause = cause;
+      errorText = eventName;
+  
+      printSeparator();
+      printError("BUILD FAILURE");
+      printSeparator();
+      
+      if(cause != null) {
+        printInfo((cause.getMessage()==null ? cause.toString() : cause.getMessage()));
+        if(debug) {
+          cause.printStackTrace(System.out);
+        }
+      }
+      
+      printTrailer();
+    }
+  }
+
+  private void printError(String msg) {
+    System.out.println(ERROR_PREFIX + msg);
+  }
+
+  private void printInfo(String msg) {
+    System.out.println(INFO_PREFIX + msg);
+  }
+
+  private void printSeparator() {
+    printInfo("----------------------------------------------------------------------------");
+  }
+
+  private void printTrailer() {
+    printSeparator();
+    printInfo(getTotalTime());
+    printInfo(getFinishedAt());
+    printInfo(getMemory());
+    printSeparator();
   }
 
   private String getTotalTime() {
@@ -73,36 +121,6 @@ class ConsoleEventMonitor implements EventMonitor {
     long freeMem = Runtime.getRuntime().freeMemory();
     long totalMem = Runtime.getRuntime().totalMemory();
     return "Memory " + (freeMem / (1024 * 1024)) + "M/" + (totalMem / (1024 * 1024)) + "M";
-  }
-
-  public void errorEvent(String eventName, String target, long timestamp, Throwable cause) {
-    errorCode = 1;
-    errorCause = cause;
-    errorText = eventName;
-
-    System.out.println("[ERROR] " + eventName + " : " + target);
-    if(cause != null) {
-      if(debug) {
-        cause.printStackTrace(System.out);
-      } else {
-        System.out.println("Diagnosis: " + (cause.getMessage()==null ? cause.toString() : cause.getMessage()));
-      }
-      
-      //  && "project-execute".equals(eventName)
-    }
-    System.out.println("FATAL ERROR: Error executing Maven for a project");
-  }
-
-  public int getErrorCode() {
-    return this.errorCode;
-  }
-
-  public Throwable getErrorCause() {
-    return this.errorCause;
-  }
-
-  public String getErrorText() {
-    return this.errorText;
   }
 
 }
