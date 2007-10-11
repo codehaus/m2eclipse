@@ -75,37 +75,25 @@ public class BuildPathManagerTest extends TestCase {
   protected void setUp() throws Exception {
     super.setUp();
     workspace = ResourcesPlugin.getWorkspace();
-
-    deleteProject("MNGECLIPSE-20");
-    deleteProject("MNGECLIPSE-20-app");
-    deleteProject("MNGECLIPSE-20-ear");
-    deleteProject("MNGECLIPSE-20-ejb");
-    deleteProject("MNGECLIPSE-20-type");
-    deleteProject("MNGECLIPSE-20-web");
-
-    deleteProject("MNGECLIPSE-248parent");
-    deleteProject("MNGECLIPSE-248child");
-
-    deleteProject("MNGECLIPSE-353");
   }
 
   protected void tearDown() throws Exception {
     super.tearDown();
 
-    deleteProject("MNGECLIPSE-20");
-    deleteProject("MNGECLIPSE-20-app");
-    deleteProject("MNGECLIPSE-20-ear");
-    deleteProject("MNGECLIPSE-20-ejb");
-    deleteProject("MNGECLIPSE-20-type");
-    deleteProject("MNGECLIPSE-20-web");
-
-    deleteProject("MNGECLIPSE-248parent");
-    deleteProject("MNGECLIPSE-248child");
-
-    deleteProject("MNGECLIPSE-353");
+    workspace.run(new IWorkspaceRunnable() {
+      public void run(IProgressMonitor monitor) throws CoreException {
+        IProject[] projects = workspace.getRoot().getProjects();
+        for(int i = 0; i < projects.length; i++ ) {
+          projects[i].delete(false, true, monitor);
+        }
+      }
+    }, new NullProgressMonitor());
   }
 
   public void testEnableMavenNature() throws Exception {
+    deleteProject("MNGECLIPSE-248parent");
+    deleteProject("MNGECLIPSE-248child");
+
     final IProject project1 = createProject("MNGECLIPSE-248parent", "projects/MNGECLIPSE-248parent/pom.xml");
     final IProject project2 = createProject("MNGECLIPSE-248child", "projects/MNGECLIPSE-248child/pom.xml");
 
@@ -119,8 +107,9 @@ public class BuildPathManagerTest extends TestCase {
     buildpathManager.enableMavenNature(project2, configuration, monitor);
 //    buildpathManager.updateSourceFolders(project2, monitor);
 
-    waitForJob("Initializing " + project1.getProject().getName());
-    waitForJob("Initializing " + project2.getProject().getName());
+//    waitForJob("Initializing " + project1.getProject().getName());
+//    waitForJob("Initializing " + project2.getProject().getName());
+    waitForJobsToComplete();
 
     IClasspathEntry[] project1entries = getMavenContainerEntries(project1);
     assertEquals(1, project1entries.length);
@@ -136,6 +125,9 @@ public class BuildPathManagerTest extends TestCase {
   }
 
   public void testEnableMavenNatureWithNoWorkspace() throws Exception {
+    deleteProject("MNGECLIPSE-248parent");
+    deleteProject("MNGECLIPSE-248child");
+
     final IProject project1 = createProject("MNGECLIPSE-248parent", "projects/MNGECLIPSE-248parent/pom.xml");
     final IProject project2 = createProject("MNGECLIPSE-248child", "projects/MNGECLIPSE-248child/pom.xml");
 
@@ -148,8 +140,9 @@ public class BuildPathManagerTest extends TestCase {
 //    buildpathManager.updateSourceFolders(project1, monitor);
 //    buildpathManager.updateSourceFolders(project2, monitor);
 
-    waitForJob("Initializing " + project1.getProject().getName());
-    waitForJob("Initializing " + project2.getProject().getName());
+//    waitForJob("Initializing " + project1.getProject().getName());
+//    waitForJob("Initializing " + project2.getProject().getName());
+    waitForJobsToComplete();
 
     IClasspathEntry[] project1entries = getMavenContainerEntries(project1);
     assertEquals(1, project1entries.length);
@@ -165,6 +158,13 @@ public class BuildPathManagerTest extends TestCase {
   }
 
   public void testProjectImportDefault() throws Exception {
+    deleteProject("MNGECLIPSE-20");
+    deleteProject("MNGECLIPSE-20-app");
+    deleteProject("MNGECLIPSE-20-ear");
+    deleteProject("MNGECLIPSE-20-ejb");
+    deleteProject("MNGECLIPSE-20-type");
+    deleteProject("MNGECLIPSE-20-web");
+
     ResolverConfiguration configuration = new ResolverConfiguration();
     IProject project1 = importProject("projects/MNGECLIPSE-20/pom.xml", configuration);
     IProject project2 = importProject("projects/MNGECLIPSE-20/type/pom.xml", configuration);
@@ -173,6 +173,8 @@ public class BuildPathManagerTest extends TestCase {
     IProject project5 = importProject("projects/MNGECLIPSE-20/ejb/pom.xml", configuration);
     IProject project6 = importProject("projects/MNGECLIPSE-20/ear/pom.xml", configuration);
 
+    waitForJobsToComplete();
+    
     {
       IJavaProject javaProject = JavaCore.create(project1);
       IClasspathEntry[] classpathEntries = BuildPathManager.getMaven2ClasspathContainer(javaProject)
@@ -185,7 +187,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER", rawClasspath[1].getPath().toString());
 
       IMarker[] markers = project1.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals(0, markers.length);
+      assertEquals(toString(markers), 0, markers.length);
     }
 
     {
@@ -201,7 +203,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER", rawClasspath[2].getPath().toString());
 
       IMarker[] markers = project2.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals(0, markers.length);
+      assertEquals(toString(markers), 0, markers.length);
     }
 
     {
@@ -220,7 +222,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER", rawClasspath[2].getPath().toString());
 
       IMarker[] markers = project3.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals(0, markers.length);
+      assertEquals(toString(markers), 0, markers.length);
     }
 
     {
@@ -239,7 +241,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER", rawClasspath[2].getPath().toString());
 
       IMarker[] markers = project4.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals(0, markers.length);
+      assertEquals(toString(markers), 0, markers.length);
     }
 
     {
@@ -259,7 +261,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER", rawClasspath[3].getPath().toString());
 
       IMarker[] markers = project5.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals("" + Arrays.asList(markers), 0, markers.length);
+      assertEquals(toString(markers), 0, markers.length);
     }
 
     {
@@ -278,11 +280,33 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER", rawClasspath[1].getPath().toString());
 
       IMarker[] markers = project6.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals("" + Arrays.asList(markers), 0, markers.length);
+      assertEquals(toString(markers), 0, markers.length);
     }
   }
 
+  private String toString(IMarker[] markers) {
+    String sep = "";
+    StringBuffer sb = new StringBuffer();
+    for(int i = 0; i < markers.length; i++ ) {
+      IMarker marker = markers[i];
+      try {
+        sb.append(sep).append(marker.getType()+":"+marker.getAttribute(IMarker.MESSAGE));
+      } catch(CoreException ex) {
+        // ignore
+      }
+      sep = ", ";
+    }
+    return sb.toString();
+  }
+
   public void testProjectImportNoWorkspaceResolution() throws Exception {
+    deleteProject("MNGECLIPSE-20");
+    deleteProject("MNGECLIPSE-20-app");
+    deleteProject("MNGECLIPSE-20-ear");
+    deleteProject("MNGECLIPSE-20-ejb");
+    deleteProject("MNGECLIPSE-20-type");
+    deleteProject("MNGECLIPSE-20-web");
+
     ResolverConfiguration configuration = new ResolverConfiguration(NO_MODULES, NO_WORKSPACE, "");
     IProject project1 = importProject("projects/MNGECLIPSE-20/pom.xml", configuration);
     IProject project2 = importProject("projects/MNGECLIPSE-20/type/pom.xml", configuration);
@@ -291,6 +315,8 @@ public class BuildPathManagerTest extends TestCase {
     IProject project5 = importProject("projects/MNGECLIPSE-20/ejb/pom.xml", configuration);
     IProject project6 = importProject("projects/MNGECLIPSE-20/ear/pom.xml", configuration);
 
+    waitForJobsToComplete();
+    
     {
       IJavaProject javaProject = JavaCore.create(project1);
       IClasspathEntry[] classpathEntries = BuildPathManager.getMaven2ClasspathContainer(javaProject)
@@ -303,7 +329,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER/noworkspace", rawClasspath[1].getPath().toString());
 
       IMarker[] markers = project1.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals(0, markers.length);
+      assertEquals(toString(markers), 0, markers.length);
     }
 
     {
@@ -319,7 +345,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER/noworkspace", rawClasspath[2].getPath().toString());
 
       IMarker[] markers = project2.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals(0, markers.length);
+      assertEquals(toString(markers), 0, markers.length);
     }
 
     {
@@ -338,7 +364,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER/noworkspace", rawClasspath[2].getPath().toString());
 
       IMarker[] markers = project3.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals(2, markers.length);
+      assertEquals(toString(markers), 2, markers.length);
     }
 
     {
@@ -357,7 +383,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER/noworkspace", rawClasspath[2].getPath().toString());
 
       IMarker[] markers = project4.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals(2, markers.length);
+      assertEquals(toString(markers), 2, markers.length);
     }
 
     {
@@ -377,7 +403,7 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER/noworkspace", rawClasspath[3].getPath().toString());
 
       IMarker[] markers = project5.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals(2, markers.length);
+      assertEquals(toString(markers), 2, markers.length);
     }
 
     {
@@ -396,14 +422,23 @@ public class BuildPathManagerTest extends TestCase {
       assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER/noworkspace", rawClasspath[1].getPath().toString());
 
       IMarker[] markers = project6.findMarkers(null, true, IResource.DEPTH_INFINITE);
-      assertEquals("" + Arrays.asList(markers), 2, markers.length);
+      assertEquals(toString(markers), 2, markers.length);
     }
   }
 
   public void testProjectImportWithModules() throws Exception {
+    deleteProject("MNGECLIPSE-20");
+    deleteProject("MNGECLIPSE-20-app");
+    deleteProject("MNGECLIPSE-20-ear");
+    deleteProject("MNGECLIPSE-20-ejb");
+    deleteProject("MNGECLIPSE-20-type");
+    deleteProject("MNGECLIPSE-20-web");
+
     ResolverConfiguration configuration = new ResolverConfiguration(INCLUDE_MODULES, WORKSPACE, "");
     IProject project = importProject("projects/MNGECLIPSE-20/pom.xml", configuration);
 
+    waitForJobsToComplete();
+    
     IJavaProject javaProject = JavaCore.create(project);
     IClasspathEntry[] classpathEntries = BuildPathManager.getMaven2ClasspathContainer(javaProject)
         .getClasspathEntries();
@@ -422,13 +457,22 @@ public class BuildPathManagerTest extends TestCase {
     assertEquals("org.maven.ide.eclipse.MAVEN2_CLASSPATH_CONTAINER/modules", rawClasspath[6].getPath().toString());
 
     IMarker[] markers = project.findMarkers(null, true, IResource.DEPTH_INFINITE);
-    assertEquals(0, markers.length);
+    assertEquals(toString(markers), 0, markers.length);
   }
 
   public void testProjectImportWithModulesNoWorkspaceResolution() throws Exception {
+    deleteProject("MNGECLIPSE-20");
+    deleteProject("MNGECLIPSE-20-app");
+    deleteProject("MNGECLIPSE-20-ear");
+    deleteProject("MNGECLIPSE-20-ejb");
+    deleteProject("MNGECLIPSE-20-type");
+    deleteProject("MNGECLIPSE-20-web");
+
     ResolverConfiguration configuration = new ResolverConfiguration(INCLUDE_MODULES, NO_WORKSPACE, "");
     IProject project = importProject("projects/MNGECLIPSE-20/pom.xml", configuration);
 
+    waitForJobsToComplete();
+    
     IJavaProject javaProject = JavaCore.create(project);
     IClasspathEntry[] classpathEntries = BuildPathManager.getMaven2ClasspathContainer(javaProject)
         .getClasspathEntries();
@@ -448,41 +492,22 @@ public class BuildPathManagerTest extends TestCase {
         .toString());
 
     IMarker[] markers = project.findMarkers(null, true, IResource.DEPTH_INFINITE);
-    assertEquals(0, markers.length);
-  }
-
-  public void testProjectImportWithProfile1() throws Exception {
-    ResolverConfiguration configuration = new ResolverConfiguration(NO_MODULES, WORKSPACE, "jaxb1");
-    IProject project = importProject("projects/MNGECLIPSE-353/pom.xml", configuration);
-
-    IJavaProject javaProject = JavaCore.create(project);
-    IClasspathEntry[] classpathEntries = BuildPathManager.getMaven2ClasspathContainer(javaProject)
-        .getClasspathEntries();
-    assertEquals("" + Arrays.asList(classpathEntries), 2, classpathEntries.length);
-    assertEquals("junit-3.8.1.jar", classpathEntries[0].getPath().lastSegment());
-
-    IMarker[] markers = project.findMarkers(null, true, IResource.DEPTH_INFINITE);
-    assertEquals(0, markers.length);
-  }
-
-  public void testProjectImportWithProfile2() throws Exception {
-    ResolverConfiguration configuration = new ResolverConfiguration(NO_MODULES, WORKSPACE, "jaxb20");
-    IProject project = importProject("projects/MNGECLIPSE-353/pom.xml", configuration);
-
-    IJavaProject javaProject = JavaCore.create(project);
-    IClasspathEntry[] classpathEntries = BuildPathManager.getMaven2ClasspathContainer(javaProject)
-        .getClasspathEntries();
-    assertEquals("" + Arrays.asList(classpathEntries), 2, classpathEntries.length);
-    assertEquals("junit-3.8.1.jar", classpathEntries[0].getPath().lastSegment());
-
-    IMarker[] markers = project.findMarkers(null, true, IResource.DEPTH_INFINITE);
-    assertEquals(0, markers.length);
+    assertEquals(toString(markers), 0, markers.length);
   }
 
   public void testUpdateClasspathContainerWithModulesNoWorkspace() throws Exception {
+    deleteProject("MNGECLIPSE-20");
+    deleteProject("MNGECLIPSE-20-app");
+    deleteProject("MNGECLIPSE-20-ear");
+    deleteProject("MNGECLIPSE-20-ejb");
+    deleteProject("MNGECLIPSE-20-type");
+    deleteProject("MNGECLIPSE-20-web");
+
     ResolverConfiguration configuration = new ResolverConfiguration(INCLUDE_MODULES, NO_WORKSPACE, "");
     IProject project = importProject("projects/MNGECLIPSE-20/pom.xml", configuration);
 
+    waitForJobsToComplete();
+    
     BuildPathManager buildpathManager = Maven2Plugin.getDefault().getBuildpathManager();
     buildpathManager.updateClasspathContainer(project, new NullProgressMonitor());
 
@@ -494,9 +519,49 @@ public class BuildPathManagerTest extends TestCase {
     assertEquals("log4j-1.2.4.jar", classpathEntries[1].getPath().lastSegment());
 
     IMarker[] markers = project.findMarkers(null, true, IResource.DEPTH_INFINITE);
-    assertEquals(0, markers.length);
+    assertEquals(toString(markers), 0, markers.length);
   }
 
+  public void testProjectImportWithProfile1() throws Exception {
+    deleteProject("MNGECLIPSE-353");
+    
+    ResolverConfiguration configuration = new ResolverConfiguration(NO_MODULES, WORKSPACE, "jaxb1");
+    IProject project = importProject("projects/MNGECLIPSE-353/pom.xml", configuration);
+
+    waitForJobsToComplete();
+    
+    IJavaProject javaProject = JavaCore.create(project);
+    IClasspathEntry[] classpathEntries = BuildPathManager.getMaven2ClasspathContainer(javaProject)
+        .getClasspathEntries();
+    assertEquals("" + Arrays.asList(classpathEntries), 2, classpathEntries.length);
+    assertEquals("jaxb-api-1.5.jar", classpathEntries[0].getPath().lastSegment());
+    assertEquals("junit-3.8.1.jar", classpathEntries[1].getPath().lastSegment());
+
+    IMarker[] markers = project.findMarkers(null, true, IResource.DEPTH_INFINITE);
+    assertEquals(toString(markers), 0, markers.length);
+  }
+
+  public void testProjectImportWithProfile2() throws Exception {
+    deleteProject("MNGECLIPSE-353");
+
+    ResolverConfiguration configuration = new ResolverConfiguration(NO_MODULES, WORKSPACE, "jaxb20");
+    IProject project = importProject("projects/MNGECLIPSE-353/pom.xml", configuration);
+
+    waitForJobsToComplete();
+    
+    IJavaProject javaProject = JavaCore.create(project);
+    IClasspathEntry[] classpathEntries = BuildPathManager.getMaven2ClasspathContainer(javaProject)
+        .getClasspathEntries();
+    assertEquals("" + Arrays.asList(classpathEntries), 4, classpathEntries.length);
+    assertEquals("activation-1.1.jar", classpathEntries[0].getPath().lastSegment());
+    assertEquals("jaxb-api-2.0.jar", classpathEntries[1].getPath().lastSegment());
+    assertEquals("jsr173_api-1.0.jar", classpathEntries[2].getPath().lastSegment());
+    assertEquals("junit-3.8.1.jar", classpathEntries[3].getPath().lastSegment());
+    
+    IMarker[] markers = project.findMarkers(null, true, IResource.DEPTH_INFINITE);
+    assertEquals(toString(markers), 0, markers.length);
+  }
+  
   private List getResources(IProject project) throws CoreException {
     final List resources = new ArrayList();
     project.accept(new IResourceVisitor() {
@@ -518,6 +583,19 @@ public class BuildPathManagerTest extends TestCase {
     return project;
   }
 
+  private void waitForJobsToComplete() throws InterruptedException {
+    IJobManager jobManager = Job.getJobManager();
+    Job[] jobs = jobManager.find(null);
+    for(int i = 0; i < jobs.length; i++ ) {
+      Job job = jobs[i];
+      if(!job.isSystem()) {
+        while(job.getState() != Job.NONE) {
+          Thread.sleep(50L);
+        }
+      }
+    }
+  }
+  
   private void waitForJob(String jobName) throws InterruptedException {
     IJobManager jobManager = Job.getJobManager();
     Job[] jobs = jobManager.find(null);
@@ -553,13 +631,19 @@ public class BuildPathManagerTest extends TestCase {
     workspace.run(new IWorkspaceRunnable() {
       public void run(IProgressMonitor monitor) throws CoreException {
         if(project.exists()) {
+          deleteMember(".classpath", project, monitor);
+          deleteMember(".project", project, monitor);
           project.delete(false, true, monitor);
         }
       }
-    }, new NullProgressMonitor());
 
-    new File("projects/" + projectName + "/.classpath").delete();
-    new File("projects/" + projectName + "/.project").delete();
+      private void deleteMember(String name, final IProject project, IProgressMonitor monitor) throws CoreException {
+        IResource member = project.findMember(name);
+        if(member.exists()) {
+          member.delete(true, monitor);
+        }
+      }
+    }, new NullProgressMonitor());
   }
 
   private IProject createProject(String projectName, final String pomResource) throws CoreException {
