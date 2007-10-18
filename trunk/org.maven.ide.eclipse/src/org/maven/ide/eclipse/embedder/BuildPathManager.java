@@ -175,6 +175,14 @@ public class BuildPathManager {
   }
 
   public void updateClasspathContainer(IProject project, IProgressMonitor monitor) throws CoreException {
+    internalUpdateClasspathContainer(project, monitor, new HashSet());
+  }
+
+  private void internalUpdateClasspathContainer(IProject project, IProgressMonitor monitor, Set updated) throws JavaModelException,
+      CoreException {
+
+    updated.add(project);
+
     IJavaProject javaProject = JavaCore.create(project);
     ResolverConfiguration resolverConfiguration = getResolverConfiguration(javaProject);
 
@@ -203,8 +211,8 @@ public class BuildPathManager {
     Set dependentProjects = mavenModelManager.getDependentProjects(pomFile);
     for(Iterator it = dependentProjects.iterator(); it.hasNext();) {
       IProject p = (IProject) it.next();
-      if(p != project) {
-        updateClasspathContainer(p, monitor);
+      if(!updated.contains(p)) {
+        internalUpdateClasspathContainer(p, monitor, updated);
       }
     }
   }
