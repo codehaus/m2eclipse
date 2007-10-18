@@ -301,35 +301,40 @@ public class BuildPathManager {
           }
         }
 
-        Path srcPath = materializeArtifactPath(embedder, mavenProject, a, "java-source", "sources", downloadSources,
-            monitor);
-
-        String artifactLocation = a.getFile().getAbsolutePath();
-
-        ArrayList attributes = new ArrayList();
-        attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.GROUP_ID_ATTRIBUTE, a.getGroupId()));
-        attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.ARTIFACT_ID_ATTRIBUTE, a.getArtifactId()));
-        attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.VERSION_ATTRIBUTE, a.getVersion()));
-
-        if(srcPath == null) { // no need to search for javadoc if we have source code
-          Path javadocPath = materializeArtifactPath(embedder, mavenProject, a, "javadoc", "javadoc", downloadJavadoc,
+        File artifactFile = a.getFile();
+        if(artifactFile==null) {
+          console.logError("Missing artifact file for " + a.getId());
+        } else {
+          String artifactLocation = artifactFile.getAbsolutePath();
+  
+          Path srcPath = materializeArtifactPath(embedder, mavenProject, a, "java-source", "sources", downloadSources,
               monitor);
-          String javaDocUrl = null;
-          if(javadocPath != null) {
-            javaDocUrl = Maven2ClasspathContainer.getJavaDocUrl(javadocPath.toString());
-          } else {
-            javaDocUrl = getJavaDocUrl(artifactLocation, monitor);
+  
+          ArrayList attributes = new ArrayList();
+          attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.GROUP_ID_ATTRIBUTE, a.getGroupId()));
+          attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.ARTIFACT_ID_ATTRIBUTE, a.getArtifactId()));
+          attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.VERSION_ATTRIBUTE, a.getVersion()));
+  
+          if(srcPath == null) { // no need to search for javadoc if we have source code
+            Path javadocPath = materializeArtifactPath(embedder, mavenProject, a, "javadoc", "javadoc", downloadJavadoc,
+                monitor);
+            String javaDocUrl = null;
+            if(javadocPath != null) {
+              javaDocUrl = Maven2ClasspathContainer.getJavaDocUrl(javadocPath.toString());
+            } else {
+              javaDocUrl = getJavaDocUrl(artifactLocation, monitor);
+            }
+            if(javaDocUrl != null) {
+              attributes.add(JavaCore.newClasspathAttribute(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME,
+                  javaDocUrl));
+            }
           }
-          if(javaDocUrl != null) {
-            attributes.add(JavaCore.newClasspathAttribute(IClasspathAttribute.JAVADOC_LOCATION_ATTRIBUTE_NAME,
-                javaDocUrl));
-          }
+  
+          entries.add(JavaCore.newLibraryEntry(new Path(artifactLocation), //
+              srcPath, null, new IAccessRule[0], //
+              (IClasspathAttribute[]) attributes.toArray(new IClasspathAttribute[attributes.size()]), // 
+              false /*not exported*/));
         }
-
-        entries.add(JavaCore.newLibraryEntry(new Path(artifactLocation), //
-            srcPath, null, new IAccessRule[0], //
-            (IClasspathAttribute[]) attributes.toArray(new IClasspathAttribute[attributes.size()]), // 
-            false /*not exported*/));
       }
 
       if(resolverConfiguration.shouldIncludeModules()) {
@@ -444,7 +449,13 @@ public class BuildPathManager {
   // type = "java-source"
   private Path materializeArtifactPath(MavenEmbedder embedder, MavenProject mavenProject, Artifact a, String type,
       String suffix, boolean download, IProgressMonitor monitor) throws Exception {
-    String artifactLocation = a.getFile().getAbsolutePath();
+    File artifactFile = a.getFile();
+    if(artifactFile==null) {
+      console.logError("Missing artifact file for " + a.getId());
+      return null;
+    }
+    
+    String artifactLocation = artifactFile.getAbsolutePath();
 
     // XXX MNGECLIPSE-205
     File file;
