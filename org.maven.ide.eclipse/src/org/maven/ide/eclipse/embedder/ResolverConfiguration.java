@@ -29,9 +29,9 @@ import java.util.List;
  */
 public class ResolverConfiguration {
 
-  private final boolean includeModules;
-  private final boolean resolveWorkspaceProjects;
-  private final String activeProfiles;
+  private boolean includeModules;
+  private boolean resolveWorkspaceProjects;
+  private String activeProfiles;
 
   public ResolverConfiguration() {
     this(false, true, "");
@@ -57,6 +57,18 @@ public class ResolverConfiguration {
   
   public List getActiveProfileList() {
     return Arrays.asList(activeProfiles.split(",\\s\\|"));
+  }
+
+  public void setResolveWorkspaceProjects(boolean resolveWorkspaceProjects) {
+    this.resolveWorkspaceProjects = resolveWorkspaceProjects;
+  }
+  
+  public void setIncludeModules(boolean includeModules) {
+    this.includeModules = includeModules;
+  }
+  
+  public void setActiveProfiles(String activeProfiles) {
+    this.activeProfiles = activeProfiles;
   }
   
 }

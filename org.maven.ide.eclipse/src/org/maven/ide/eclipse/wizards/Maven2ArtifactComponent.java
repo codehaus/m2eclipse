@@ -1,5 +1,3 @@
-package org.maven.ide.eclipse.wizards;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -19,6 +17,8 @@ package org.maven.ide.eclipse.wizards;
  * under the License.
  */
 
+package org.maven.ide.eclipse.wizards;
+
 import org.apache.maven.model.Model;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyListener;
@@ -33,7 +33,7 @@ import org.eclipse.swt.widgets.Text;
 
 public class Maven2ArtifactComponent extends Composite {
   public static final String DEFAULT_PACKAGING = "jar";
-  public static final String DEFAULT_VERSION = "0.0.1";
+  public static final String DEFAULT_VERSION = "0.0.1-SNAPSHOT";
   
   private Text groupIdText;
   private Text artifactIdText;
@@ -47,20 +47,19 @@ public class Maven2ArtifactComponent extends Composite {
   public Maven2ArtifactComponent(Composite parent, int styles) {
     super(parent, styles);
 
-    GridLayout gridLayout = new GridLayout();
-    gridLayout.numColumns = 2;
-
-    Group artifactGroup = new Group(this, SWT.NONE);
-    artifactGroup.setText("Artifact");
-    artifactGroup.setLayoutData(new GridData(GridData.FILL, GridData.FILL, true, true, 3, 1));
-    artifactGroup.setLayout(gridLayout);
-
     GridLayout layout = new GridLayout();
     layout.marginWidth = 0;
     layout.marginHeight = 0;
     layout.numColumns = 2;
     setLayout(layout);
     
+    Group artifactGroup = new Group(this, SWT.NONE);
+    artifactGroup.setText("Artifact");
+    GridData gd_artifactGroup = new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1);
+    gd_artifactGroup.minimumHeight = 200;
+    artifactGroup.setLayoutData(gd_artifactGroup);
+    artifactGroup.setLayout(new GridLayout(2, false));
+
     Label groupIdlabel = new Label(artifactGroup, SWT.NONE);
     groupIdlabel.setText("Group Id:");
 
@@ -77,7 +76,7 @@ public class Maven2ArtifactComponent extends Composite {
     versionLabel.setText("Version:");
 
     versionText = new Text(artifactGroup, SWT.BORDER);
-    versionText.setLayoutData(new GridData(50, SWT.DEFAULT));
+    versionText.setLayoutData(new GridData(150, SWT.DEFAULT));
 
     Label packagingLabel = new Label(artifactGroup, SWT.NONE);
     packagingLabel.setText("Packaging:");
@@ -91,7 +90,8 @@ public class Maven2ArtifactComponent extends Composite {
     descriptionLabel.setText("Description:");
 
     descriptionText = new Text(artifactGroup, SWT.BORDER);
-    descriptionText.setLayoutData(new GridData(GridData.FILL, GridData.FILL, false, true));
+    GridData gd_descriptionText = new GridData(SWT.FILL, SWT.FILL, false, true);
+    descriptionText.setLayoutData(gd_descriptionText);
   }
   
   public void setModifyingListener( ModifyListener modifyingListener ) {
