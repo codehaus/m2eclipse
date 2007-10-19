@@ -63,7 +63,9 @@ public class MavenEmbedderManager {
           new PluginConsoleMavenEmbeddedLogger(console, debug), globalSettings);
       
     } catch(MavenEmbedderException ex) {
-      console.logError("Can't create project embedder; " + ex.toString());
+      String msg = "Can't create project embedder; " + ex.getMessage();
+      console.logError(msg);
+      Maven2Plugin.log(msg, ex);
     }
     return null;
   }

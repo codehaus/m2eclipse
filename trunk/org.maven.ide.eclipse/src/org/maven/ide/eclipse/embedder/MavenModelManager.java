@@ -391,23 +391,28 @@ public class MavenModelManager {
     }
   }
 
-  public MavenExecutionResult readMavenProject(IFile pomFile, IProgressMonitor monitor, //
+  public MavenExecutionResult readMavenProject(IFile pomFile, IProgressMonitor monitor, 
       boolean offline, boolean debug, ResolverConfiguration resolverConfiguration) {
+    MavenEmbedder embedder = embedderManager.createEmbedder( // 
+        EmbedderFactory.createWorkspaceCustomizer(resolverConfiguration.shouldResolveWorkspaceProjects()));
+    return readMavenProject(pomFile, monitor, offline, debug, resolverConfiguration, embedder);
+  }
+  
+  public MavenExecutionResult readMavenProject(IFile pomFile, IProgressMonitor monitor, //
+      boolean offline, boolean debug, ResolverConfiguration resolverConfiguration, MavenEmbedder embedder) {
     try {
       monitor.subTask("Reading " + pomFile.getFullPath());
 
       File file = pomFile.getLocation().toFile();
 
-      MavenEmbedder mavenEmbedder = embedderManager.createEmbedder( //
-          EmbedderFactory.createWorkspaceCustomizer(resolverConfiguration.shouldResolveWorkspaceProjects()));
-      MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(mavenEmbedder, offline, debug);
+      MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(embedder, offline, debug);
       request.setPomFile(file.getAbsolutePath());
       request.setBaseDirectory(file.getParentFile());
       request.setTransferListener(new TransferListenerAdapter(monitor, console, indexManager));
       request.setProfiles(resolverConfiguration.getActiveProfileList());
       request.addActiveProfiles(resolverConfiguration.getActiveProfileList());
 
-      return mavenEmbedder.readProjectWithDependencies(request);
+      return embedder.readProjectWithDependencies(request);
 
       // XXX need to manage markers somehow see MNGECLIPSE-***
       // Util.deleteMarkers(pomFile);
