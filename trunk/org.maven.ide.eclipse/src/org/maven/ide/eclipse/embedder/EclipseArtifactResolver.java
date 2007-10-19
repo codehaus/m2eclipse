@@ -153,6 +153,11 @@ public class EclipseArtifactResolver extends DefaultArtifactResolver {
       // according to the DefaultArtifactResolver source code, it looks like artifact can be null
       return false;
     }
+    
+    // workaround for MNGECLIPSE-380
+    if("maven-plugin".equals(artifact.getType())) {
+      return false;
+    }
 
     MavenModelManager modelManager = plugin.getMavenModelManager();
     IFile file = modelManager.getArtifactFile(artifact);
