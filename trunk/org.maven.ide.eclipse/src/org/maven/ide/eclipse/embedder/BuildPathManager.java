@@ -91,6 +91,13 @@ import org.maven.ide.eclipse.util.Util;
 
 
 public class BuildPathManager {
+
+  public static final String CLASSPATH_COMPONENT_DEPENDENCY = "org.eclipse.jst.component.dependency";
+  
+  public static final String CLASSPATH_COMPONENT_NON_DEPENDENCY = "org.eclipse.jst.component.nondependency";
+
+  public static final String PACKAGING_WAR = "war";
+
   private final MavenEmbedderManager embedderManager;
 
   private final Maven2Console console;
@@ -178,8 +185,8 @@ public class BuildPathManager {
     internalUpdateClasspathContainer(project, monitor, new HashSet());
   }
 
-  private void internalUpdateClasspathContainer(IProject project, IProgressMonitor monitor, Set updated) throws JavaModelException,
-      CoreException {
+  private void internalUpdateClasspathContainer(IProject project, IProgressMonitor monitor, Set updated)
+      throws JavaModelException, CoreException {
 
     updated.add(project);
 
@@ -251,6 +258,16 @@ public class BuildPathManager {
       moduleArtifacts.put(mavenProject.getGroupId() + ":" + mavenProject.getArtifactId() + ":"
           + mavenProject.getVersion(), mavenProject.getArtifact());
 
+      // From MNGECLIPSE-105
+      // If the current project is a WAR project AND it has
+      // a dynamic web project nature, make sure that any workspace
+      // projects that it depends on are NOT included in any way
+      // in the container (neither as projects nor as artifacts).
+      // The idea is that the inclusion is controlled explicitly
+      // by a developer via WTP UI.
+      boolean skipWorkspaceProjectsForWeb = PACKAGING_WAR.equals(mavenProject.getPackaging())
+          && hasDynamicWebProjectNature(currentProject);
+
       Set artifacts = mavenProject.getArtifacts();
       for(Iterator it = artifacts.iterator(); it.hasNext();) {
         if(monitor.isCanceled()) {
@@ -275,9 +292,18 @@ public class BuildPathManager {
 
         moduleArtifacts.put(artifactKey, a);
 
+        ArrayList attributes = new ArrayList();
+
         mavenModelManager.addProjectArtifact(pomFile, a);
         // this is needed to projects with have modules (either inner or external)
         mavenModelManager.addProjectArtifact(rootPomFile, a);
+
+        String scope = a.getScope();
+        // Check the scope & set WTP non-dependency as appropriate
+        if(Artifact.SCOPE_PROVIDED.equals(scope) || Artifact.SCOPE_TEST.equals(scope)
+            || Artifact.SCOPE_SYSTEM.equals(scope)) {
+          attributes.add(JavaCore.newClasspathAttribute(CLASSPATH_COMPONENT_NON_DEPENDENCY, ""));
+        }
 
         IFile artifactPomFile = mavenModelManager.getArtifactFile(a);
         if(artifactPomFile != null) {
@@ -285,6 +311,12 @@ public class BuildPathManager {
           if(artifactProject.getFullPath().equals(currentProject.getFullPath())) {
             // This is another artifact in our current project so we should not
             // add our own project to ourself
+            continue;
+          }
+
+          if(skipWorkspaceProjectsForWeb) {
+            // From MNGECLIPSE-105
+            // Leave it out so that the user can handle it the WTP way
             continue;
           }
         }
@@ -302,22 +334,21 @@ public class BuildPathManager {
         }
 
         File artifactFile = a.getFile();
-        if(artifactFile==null) {
+        if(artifactFile == null) {
           console.logError("Missing artifact file for " + a.getId());
         } else {
           String artifactLocation = artifactFile.getAbsolutePath();
-  
+
           Path srcPath = materializeArtifactPath(embedder, mavenProject, a, "java-source", "sources", downloadSources,
               monitor);
-  
-          ArrayList attributes = new ArrayList();
+
           attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.GROUP_ID_ATTRIBUTE, a.getGroupId()));
           attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.ARTIFACT_ID_ATTRIBUTE, a.getArtifactId()));
           attributes.add(JavaCore.newClasspathAttribute(Maven2Plugin.VERSION_ATTRIBUTE, a.getVersion()));
-  
+
           if(srcPath == null) { // no need to search for javadoc if we have source code
-            Path javadocPath = materializeArtifactPath(embedder, mavenProject, a, "javadoc", "javadoc", downloadJavadoc,
-                monitor);
+            Path javadocPath = materializeArtifactPath(embedder, mavenProject, a, "javadoc", "javadoc",
+                downloadJavadoc, monitor);
             String javaDocUrl = null;
             if(javadocPath != null) {
               javaDocUrl = Maven2ClasspathContainer.getJavaDocUrl(javadocPath.toString());
@@ -329,7 +360,7 @@ public class BuildPathManager {
                   javaDocUrl));
             }
           }
-  
+
           entries.add(JavaCore.newLibraryEntry(new Path(artifactLocation), //
               srcPath, null, new IAccessRule[0], //
               (IClasspathAttribute[]) attributes.toArray(new IClasspathAttribute[attributes.size()]), // 
@@ -450,11 +481,11 @@ public class BuildPathManager {
   private Path materializeArtifactPath(MavenEmbedder embedder, MavenProject mavenProject, Artifact a, String type,
       String suffix, boolean download, IProgressMonitor monitor) throws Exception {
     File artifactFile = a.getFile();
-    if(artifactFile==null) {
+    if(artifactFile == null) {
       console.logError("Missing artifact file for " + a.getId());
       return null;
     }
-    
+
     String artifactLocation = artifactFile.getAbsolutePath();
 
     // XXX MNGECLIPSE-205
@@ -1058,6 +1089,18 @@ public class BuildPathManager {
     buildpathManager.enableMavenNature(project, configuration, monitor);
     buildpathManager.updateSourceFolders(project, configuration, monitor);
     buildpathManager.updateClasspathContainer(project, monitor);
+  }
+
+  private boolean hasDynamicWebProjectNature(IProject project) {
+    try {
+      if(project.hasNature("org.eclipse.wst.common.modulecore.ModuleCoreNature")
+          || project.hasNature("org.eclipse.wst.common.project.facet.core.nature")) {
+        return true;
+      }
+    } catch(Exception e) {
+      console.logError("Unable to inspect nature: " + e);
+    }
+    return false;
   }
 
 }
