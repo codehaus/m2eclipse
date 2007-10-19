@@ -69,7 +69,7 @@ public class MavenRepositoryLinkProvider extends
     Model model = modelManager.getMavenModel(pomFile);
     if (model == null) {
       try {
-        model = modelManager.readMavenModel(pomFile.getLocation().toFile());
+        model = modelManager.readMavenModel(pomFile);
       } catch (CoreException ex) {
         // ignore
       }
