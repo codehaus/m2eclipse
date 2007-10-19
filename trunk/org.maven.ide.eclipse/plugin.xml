@@ -2,6 +2,10 @@
 <?eclipse version="3.0"?>
 <plugin>
 
+   <extension point="org.eclipse.ui.startup">
+      <startup/>
+   </extension>
+
    <extension
          id="maven2Builder"
          name="%m2.builder.name"
@@ -508,6 +512,7 @@
             name="org.maven.ide.eclipse.actions.Maven2DependencyResolver"
             id="org.maven.ide.eclipse.quickAssistProcessor"/>
    </extension>
+
    <!-- -->
    
    <!-- pom editor -->

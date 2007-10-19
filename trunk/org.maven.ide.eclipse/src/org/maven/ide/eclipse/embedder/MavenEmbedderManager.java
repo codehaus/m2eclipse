@@ -54,7 +54,7 @@ public class MavenEmbedderManager {
   }
 
   
-  public MavenEmbedder createEmbedder(ContainerCustomizer customizer) {
+  public synchronized MavenEmbedder createEmbedder(ContainerCustomizer customizer) {
     try {
       String globalSettings = preferenceStore.getString(Maven2PreferenceConstants.P_GLOBAL_SETTINGS_FILE);
       boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);

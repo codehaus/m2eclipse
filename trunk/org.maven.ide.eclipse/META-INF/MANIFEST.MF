@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Maven Integration for Eclipse
 Bundle-SymbolicName: org.maven.ide.eclipse;singleton:=true
-Bundle-Version: 0.0.12.20071018-1300
+Bundle-Version: 0.0.12.20071019-1300
 Bundle-Activator: org.maven.ide.eclipse.Maven2Plugin
 Bundle-Vendor: maven.org
 Bundle-Localization: plugin
@@ -30,7 +30,7 @@ Require-Bundle:
 Eclipse-AutoStart: true
 Bundle-ClassPath: m2plugin.jar,
  lib/lucene-core-2.2.0.jar,
- lib/maven-embedder-tycho-2.1.0.v20071017-1953.jar
+ lib/maven-embedder-tycho-2.1.0.v20071019-1302.jar
 Bundle-RequiredExecutionEnvironment: J2SE-1.4,
  J2SE-1.5,
  JavaSE-1.6
@@ -59,7 +59,6 @@ Export-Package: org.apache.maven,
  org.apache.maven.embedder,
  org.apache.maven.embedder.execution,
  org.apache.maven.embedder.user,
- org.apache.maven.embedder.writer,
  org.apache.maven.execution,
  org.apache.maven.extension,
  org.apache.maven.lifecycle,
@@ -71,7 +70,6 @@ Export-Package: org.apache.maven,
  org.apache.maven.lifecycle.statemgmt,
  org.apache.maven.messages,
  org.apache.maven.model,
- org.apache.maven.model.io.jdom,
  org.apache.maven.model.io.xpp3,
  org.apache.maven.monitor.event,
  org.apache.maven.monitor.logging,
@@ -86,7 +84,6 @@ Export-Package: org.apache.maven,
  org.apache.maven.profiles.activation,
  org.apache.maven.profiles.build,
  org.apache.maven.profiles.injection,
- org.apache.maven.profiles.io.jdom,
  org.apache.maven.profiles.io.xpp3,
  org.apache.maven.project,
  org.apache.maven.project.artifact,
@@ -101,7 +98,6 @@ Export-Package: org.apache.maven,
  org.apache.maven.reactor,
  org.apache.maven.reporting,
  org.apache.maven.settings,
- org.apache.maven.settings.io.jdom,
  org.apache.maven.settings.io.xpp3,
  org.apache.maven.settings.validation,
  org.apache.maven.wagon,
