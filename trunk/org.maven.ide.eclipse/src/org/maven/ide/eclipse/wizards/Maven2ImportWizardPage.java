@@ -54,14 +54,14 @@ import org.maven.ide.eclipse.Maven2Plugin;
  * 
  * @author Eugene Kuleshov
  */
-public class Maven2ImportWizardPage extends AbstractMavenImportWizardPage {
+public class Maven2ImportWizardPage extends AbstractMavenWizardPage {
 
   protected Text rootDirectoryText;
 
   protected CheckboxTreeViewer projectTreeViewer;
 
   protected Maven2ImportWizardPage() {
-    super("Maven Projects");
+    super("MavenProjectImportWizardPage");
     setTitle("Maven Projects");
     setDescription("Select Maven projects");
     setPageComplete(false);
@@ -227,7 +227,7 @@ public class Maven2ImportWizardPage extends AbstractMavenImportWizardPage {
 
     } catch(InterruptedException ex) {
       // canceled
-    
+
     } catch(InvocationTargetException ex) {
       Throwable e = ex.getTargetException() == null ? ex : ex.getTargetException();
       String msg;
@@ -238,7 +238,7 @@ public class Maven2ImportWizardPage extends AbstractMavenImportWizardPage {
         Maven2Plugin.getDefault().getConsole().logError(msg);
       }
       setErrorMessage(msg);
-    
+
     }
   }
 
@@ -252,11 +252,11 @@ public class Maven2ImportWizardPage extends AbstractMavenImportWizardPage {
 
   public List getProjects() {
     List checkedProjects = Arrays.asList(projectTreeViewer.getCheckedElements());
-    
-    if(createProjectsForModules()) {
+
+    if(!resolverConfiguration.shouldIncludeModules()) {
       return checkedProjects;
     }
-    
+
     List mavenProjects = new ArrayList();
     collectProjects(mavenProjects, new HashSet(checkedProjects), (List) projectTreeViewer.getInput());
     return mavenProjects;

@@ -26,7 +26,6 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Path;
-import org.eclipse.jface.wizard.WizardPage;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
@@ -36,6 +35,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.maven.ide.eclipse.Messages;
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 
 
 /**
@@ -46,7 +46,7 @@ import org.maven.ide.eclipse.Messages;
  * created. Input validation is performed in order to make sure that all the
  * project information is valid before letting the wizard continue.
  */
-public class Maven2ProjectWizardLocationPage extends WizardPage {
+public class Maven2ProjectWizardLocationPage extends AbstractMavenWizardPage {
 
   /** Text field holding the name of the project to create. */
   private Text projectNameText;
@@ -54,25 +54,19 @@ public class Maven2ProjectWizardLocationPage extends WizardPage {
   /** Component to choose at which location to create the project. */
   private Maven2LocationComponent locationComponent;
 
-  private Maven2ProjectWizardArtifactPage mavenArtifactPage;
-
   /**
    * Default constructor.
    *
    * Sets the title and description of this wizard page and marks it as not
    * being complete as user input is required for continuing.
    */
-  public Maven2ProjectWizardLocationPage() {
-    super( "Maven2ProjectWizardLocationPage" );
+  public Maven2ProjectWizardLocationPage(ResolverConfiguration resolverConfiguration) {
+    super( "Maven2ProjectWizardLocationPage", resolverConfiguration);
     setTitle( Messages.getString( "wizard.project.page.project.title" ) );
     setDescription( Messages.getString( "wizard.project.page.project.description" ) );
     setPageComplete( false );
   }
   
-  public void setMavenArtifactPage( Maven2ProjectWizardArtifactPage mavenArtifactPage ) {
-    this.mavenArtifactPage = mavenArtifactPage;
-  }
-
   /**
    * {@inheritDoc}
    *
@@ -101,15 +95,15 @@ public class Maven2ProjectWizardLocationPage extends WizardPage {
     projectNameText.setLayoutData( new GridData( GridData.FILL_HORIZONTAL ) );
     projectNameText.addModifyListener( modifyingListener );
 
-    // location group
-    gridData = new GridData( SWT.FILL, SWT.TOP, false, false, 2, 1 );
     // gridData.verticalIndent = 5;
     locationComponent = new Maven2LocationComponent( container, SWT.NONE );
-    locationComponent.setLayoutData( gridData );
+    locationComponent.setLayoutData( new GridData( SWT.FILL, SWT.TOP, false, false, 2, 1 ) );
     locationComponent.setModifyingListener( modifyingListener );
 
-    initialize();
+    createAdvancedSettings(container, new GridData(SWT.FILL, SWT.TOP, true, true, 2, 1));
 
+    initialize();
+    
     setControl( container );
   }
 
@@ -218,10 +212,6 @@ public class Maven2ProjectWizardLocationPage extends WizardPage {
       return;
     }
 
-    Maven2ArtifactComponent artifactComponent = mavenArtifactPage.getArtifactComponent();
-    artifactComponent.setGroupId( name );
-    artifactComponent.setArtifactId( name );
-    
     // check whether the project name is valid
     final IStatus nameStatus = workspace.validateName( name, IResource.PROJECT );
     if ( !nameStatus.isOK() ) {

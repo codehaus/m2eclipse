@@ -22,7 +22,6 @@ package org.maven.ide.eclipse.wizards;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.StringWriter;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 
 import org.apache.maven.embedder.MavenEmbedder;
@@ -39,12 +38,14 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.IJobChangeEvent;
+import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.core.runtime.jobs.JobChangeAdapter;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.launching.JavaRuntime;
 import org.eclipse.jface.dialogs.MessageDialog;
-import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.wizard.Wizard;
@@ -53,6 +54,7 @@ import org.eclipse.ui.IWorkbench;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.Messages;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 import org.maven.ide.eclipse.util.Util;
 
 
@@ -88,13 +90,13 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
   private static final ImageDescriptor DEFAULT_PAGE_IMAGE = Maven2Plugin.getImageDescriptor(DEFAULT_PAGE_IMAGE_NAME);
 
   /** The wizard page for gathering general project information. */
-  private Maven2ProjectWizardLocationPage projectPage;
+  private Maven2ProjectWizardLocationPage locationPage;
 
   /** The wizard page for gathering Maven2 project information. */
   private Maven2ProjectWizardArtifactPage artifactPage;
 
   /** The wizard page for choosing the Maven2 dependencies to use. */
-  private Maven2DependenciesWizardPage wizardPage;
+  private Maven2DependenciesWizardPage dependenciesPage;
 
   /**
    * Default constructor.
@@ -109,15 +111,15 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
   }
 
   public void addPages() {
-    projectPage = new Maven2ProjectWizardLocationPage();
-    artifactPage = new Maven2ProjectWizardArtifactPage();
-    wizardPage = new Maven2DependenciesWizardPage();
+    ResolverConfiguration resolverConfiguration = new ResolverConfiguration();
+    
+    locationPage = new Maven2ProjectWizardLocationPage(resolverConfiguration);
+    artifactPage = new Maven2ProjectWizardArtifactPage(resolverConfiguration, locationPage);
+    dependenciesPage = new Maven2DependenciesWizardPage(resolverConfiguration);
 
-    projectPage.setMavenArtifactPage(artifactPage);
-
-    addPage(projectPage);
+    addPage(locationPage);
     addPage(artifactPage);
-    addPage(wizardPage);
+    addPage(dependenciesPage);
   }
 
   /**
@@ -243,45 +245,48 @@ public class Maven2ProjectWizard extends Wizard implements INewWizard {
     // separate thread to perform the actual work, i.e. accessing SWT elements
     // from withing that thread would lead to an exception.
 
-    final IProject project = projectPage.getProjectHandle();
+    final IProject project = locationPage.getProjectHandle();
 
+    final String projectName = locationPage.getProjectName();
+    
     // Get the location where to create the project. For some reason, when using
     // the default workspace location for a project, we have to pass null
     // instead of the actual location.
-    final IPath location = projectPage.isInWorkspace() ? null : projectPage.getLocationPath();
+    final IPath location = locationPage.isInWorkspace() ? null : locationPage.getLocationPath();
 
     final String[] directories = artifactPage.getDirectories();
 
     final Model model = artifactPage.getModel();
-    model.getDependencies().addAll(Arrays.asList(wizardPage.getDependencies()));
+    model.getDependencies().addAll(Arrays.asList(dependenciesPage.getDependencies()));
 
     final IClasspathEntry[] classpathEntries = artifactPage.getClasspathEntries(project.getFullPath());
 
     final IPath outputPath = artifactPage.getDefaultOutputLocationPath(project.getFullPath());
 
-    // Run the actual operation for creating the project.
-    IRunnableWithProgress op = new IRunnableWithProgress() {
-      public void run(IProgressMonitor monitor) throws InvocationTargetException {
+    Job job = new Job("Creating project " + projectName) {
+      public IStatus run(IProgressMonitor monitor) {
         try {
           doFinish(project, location, directories, model, classpathEntries, outputPath, monitor);
+          return Status.OK_STATUS;
         } catch(CoreException e) {
-          throw new InvocationTargetException(e);
+          return e.getStatus();
         } finally {
           monitor.done();
         }
       }
     };
+    
+    job.addJobChangeListener(new JobChangeAdapter() {
+      public void done(IJobChangeEvent event) {
+        IStatus result = event.getResult();
+        if(!result.isOK()) {
+          MessageDialog.openError(getShell(), "Failed to create project " + projectName, result.getMessage());
+        }
+      }
+    });
 
-    try {
-      getContainer().run(true, false, op);
-    } catch(InterruptedException e) {
-      return false;
-    } catch(InvocationTargetException e) {
-      Throwable realException = e.getTargetException();
-      MessageDialog.openError(getShell(), "Error", realException.getMessage());
-      return false;
-    }
-
+    job.schedule();
+    
     return true;
   }
 
