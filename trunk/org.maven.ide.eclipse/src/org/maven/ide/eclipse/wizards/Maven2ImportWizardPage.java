@@ -47,6 +47,7 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 
 
 /**
@@ -61,7 +62,7 @@ public class Maven2ImportWizardPage extends AbstractMavenWizardPage {
   protected CheckboxTreeViewer projectTreeViewer;
 
   protected Maven2ImportWizardPage() {
-    super("MavenProjectImportWizardPage");
+    super("MavenProjectImportWizardPage", new ResolverConfiguration());
     setTitle("Maven Projects");
     setDescription("Select Maven projects");
     setPageComplete(false);
