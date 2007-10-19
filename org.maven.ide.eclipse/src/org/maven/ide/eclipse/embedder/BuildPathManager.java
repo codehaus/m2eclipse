@@ -35,7 +35,6 @@ import java.util.jar.Manifest;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
-import org.apache.maven.artifact.handler.ArtifactHandler;
 import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
 import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
 import org.apache.maven.embedder.MavenEmbedder;
@@ -207,7 +206,21 @@ public class BuildPathManager {
       addMarker(pomFile, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
     }
 
-    resolveClasspathEntries(entries, moduleArtifacts, pomFile, pomFile, resolverConfiguration, monitor);
+    MavenEmbedder embedder = embedderManager.createEmbedder( //
+        EmbedderFactory.createWorkspaceCustomizer(resolverConfiguration.shouldResolveWorkspaceProjects()));
+    if(embedder!=null) {
+      try {
+        resolveClasspathEntries(entries, moduleArtifacts, pomFile, pomFile, resolverConfiguration, monitor, embedder);
+      } finally {
+        try {
+          embedder.stop();
+        } catch(MavenEmbedderException ex) {
+          String msg = "Unable to stop project embedder; " + ex.getMessage();
+          console.logError(msg);
+          Maven2Plugin.log(CLASSPATH_COMPONENT_DEPENDENCY, ex);
+        }
+      }
+    }
 
     IClasspathEntry containerEntry = getMavenContainerEntry(javaProject);
     if(containerEntry != null) {
@@ -227,7 +240,7 @@ public class BuildPathManager {
   }
 
   private void resolveClasspathEntries(Set entries, Map moduleArtifacts, IFile rootPomFile, IFile pomFile,
-      ResolverConfiguration resolverConfiguration, IProgressMonitor monitor) {
+      ResolverConfiguration resolverConfiguration, IProgressMonitor monitor, MavenEmbedder embedder) {
     if(monitor.isCanceled()) {
       throw new OperationCanceledException();
     }
@@ -248,14 +261,12 @@ public class BuildPathManager {
       boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
 
       MavenExecutionResult result = mavenModelManager.readMavenProject(pomFile, monitor, offline, debug,
-          resolverConfiguration);
+          resolverConfiguration, embedder);
 
       MavenProject mavenProject = getMavenProject(pomFile, result);
       if(mavenProject == null) {
         return;
       }
-
-      MavenEmbedder embedder = embedderManager.getWorkspaceEmbedder();
 
       // deleteMarkers(pomFile);
       // TODO use version?
@@ -272,7 +283,16 @@ public class BuildPathManager {
       boolean skipWorkspaceProjectsForWeb = PACKAGING_WAR.equals(mavenProject.getPackaging())
           && hasDynamicWebProjectNature(currentProject);
 
-      Set artifacts = mavenProject.getArtifacts();
+      // Set artifacts = mavenProject.getArtifacts();
+      // TODO merge all artifacts into a single list; may need to refine this
+      List artifacts = new ArrayList();
+      artifacts.addAll(mavenProject.getCompileArtifacts());
+      artifacts.addAll(mavenProject.getTestArtifacts());
+      artifacts.addAll(mavenProject.getRuntimeArtifacts());
+      artifacts.addAll(mavenProject.getSystemArtifacts());
+      // artifacts.addAll(mavenProject.getAttachedArtifacts());
+      // artifacts.addAll(mavenProject.getDependencyArtifacts());
+      
       for(Iterator it = artifacts.iterator(); it.hasNext();) {
         if(monitor.isCanceled()) {
           throw new OperationCanceledException();
@@ -288,11 +308,11 @@ public class BuildPathManager {
           continue;
         }
 
-        ArtifactHandler artifactHandler = embedder.getArtifactHandler(a);
-        if(!artifactHandler.isAddedToClasspath()
-            || !("jar".equals(artifactHandler.getExtension()) || "zip".equals(artifactHandler.getExtension()))) {
-          continue;
-        }
+//        ArtifactHandler artifactHandler = embedder.getArtifactHandler(a);
+//        if(!artifactHandler.isAddedToClasspath()
+//            || !("jar".equals(artifactHandler.getExtension()) || "zip".equals(artifactHandler.getExtension()))) {
+//          continue;
+//        }
 
         moduleArtifacts.put(artifactKey, a);
 
@@ -394,7 +414,7 @@ public class BuildPathManager {
           IResource memberPom = basedir.findMember(module + "/" + Maven2Plugin.POM_FILE_NAME); //$NON-NLS-1$
           if(memberPom != null && memberPom.getType() == IResource.FILE) {
             resolveClasspathEntries(entries, moduleArtifacts, // 
-                rootPomFile, (IFile) memberPom, resolverConfiguration, monitor);
+                rootPomFile, (IFile) memberPom, resolverConfiguration, monitor, embedder);
           }
         }
       }
@@ -406,6 +426,10 @@ public class BuildPathManager {
       addMarker(pomFile, ex.getBaseMessage(), 1, IMarker.SEVERITY_ERROR);
       console.logError("Unable to read " + getPomName(pomFile) + "; " + ex.getBaseMessage());
 
+    } catch(IllegalStateException ex) {
+      addMarker(pomFile, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
+      console.logError("Unable to read " + getPomName(pomFile) + "; " + ex.getMessage());
+      
     } catch(Throwable ex) {
       addMarker(pomFile, ex.toString(), 1, IMarker.SEVERITY_ERROR);
 
