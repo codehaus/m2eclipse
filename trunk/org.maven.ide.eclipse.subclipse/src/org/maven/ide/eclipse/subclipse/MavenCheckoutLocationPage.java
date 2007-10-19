@@ -42,12 +42,12 @@ import org.tigris.subversion.subclipse.ui.dialogs.HistoryDialog;
 import org.tigris.subversion.subclipse.ui.wizards.CheckoutWizard;
 import org.tigris.subversion.svnclientadapter.SVNRevision;
 
-import org.maven.ide.eclipse.wizards.AbstractMavenImportWizardPage;
+import org.maven.ide.eclipse.wizards.AbstractMavenWizardPage;
 
 /**
  * @author Eugene Kuleshov
  */
-public class MavenCheckoutLocationPage extends AbstractMavenImportWizardPage {
+public class MavenCheckoutLocationPage extends AbstractMavenWizardPage {
 
   protected ISVNRemoteFolder[] remoteFolders;
   
