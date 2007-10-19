@@ -1,6 +1,3 @@
-
-package org.maven.ide.eclipse.index;
-
 /*
  * Licensed to the Codehaus Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,6 +17,8 @@ package org.maven.ide.eclipse.index;
  * under the License.
  */
 
+package org.maven.ide.eclipse.index;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
@@ -38,13 +37,13 @@ import org.osgi.framework.Bundle;
 
 /**
  * MavenRepositoryIndexManager
- *
+ * 
  * @author Eugene Kuleshov
  */
 public class MavenRepositoryIndexManager {
   private static final String LOCAL_INDEX = "local";
 
-  private static final String[] DEFAULT_INDEXES = {"central"};  //$NON-NLS-1$
+  private static final String[] DEFAULT_INDEXES = {"central"}; //$NON-NLS-1$
 
   private Set indexes = Collections.synchronizedSet(new HashSet());
 
@@ -56,23 +55,23 @@ public class MavenRepositoryIndexManager {
 
   private IndexerJob localIndexer;
 
-  
-  public MavenRepositoryIndexManager(MavenEmbedderManager embedderManager, Maven2Console console, 
-      Bundle pluginBundle, IPath stateLocation) {
+  public MavenRepositoryIndexManager(MavenEmbedderManager embedderManager, Maven2Console console, IPath stateLocation) {
     this.embedderManager = embedderManager;
     this.console = console;
     this.stateLocation = stateLocation;
+  }
 
+  public void initialize(Bundle pluginBundle) {
     File indexDir = getIndexDir();
-    
+
     UnpackerJob unpackerJob = new UnpackerJob(pluginBundle, indexDir, DEFAULT_INDEXES, indexes);
     unpackerJob.schedule(2000L);
-    
+
     File localRepositoryIndexDir = new File(indexDir, LOCAL_INDEX);
     if(localRepositoryIndexDir.exists()) {
       IndexReader reader = null;
       try {
-        reader = IndexReader.open(localRepositoryIndexDir);        
+        reader = IndexReader.open(localRepositoryIndexDir);
         indexes.add(LOCAL_INDEX);
       } catch(Exception ex) {
         reindexLocal(5000L);
@@ -85,12 +84,12 @@ public class MavenRepositoryIndexManager {
           // ignore
         }
       }
-      
+
     } else {
       reindexLocal(5000L);
     }
   }
-  
+
   public File[] getIndexes() {
     String[] indexNames = getIndexNames();
 
@@ -103,7 +102,7 @@ public class MavenRepositoryIndexManager {
   }
 
   public void reindexLocal(long delay) {
-    if(localIndexer==null || localIndexer.getState()==Job.NONE) {
+    if(localIndexer == null || localIndexer.getState() == Job.NONE) {
       localIndexer = new IndexerJob(LOCAL_INDEX, indexes, getIndexDir());
     }
     localIndexer.reindex(embedderManager.getLocalRepositoryDir(), delay);
@@ -114,21 +113,20 @@ public class MavenRepositoryIndexManager {
     try {
       Indexer indexer = new Indexer();
       indexer.addDocument(repository, name, size, date, indexer.readNames(localFile), indexPath);
-    } catch( IOException ex ) {
-      String msg = "Unable to index "+name;
+    } catch(IOException ex) {
+      String msg = "Unable to index " + name;
       console.logError(msg + "; " + ex.getMessage());
       Maven2Plugin.log(msg, ex);
     }
   }
-  
+
   private File getIndexDir() {
     return new File(stateLocation.toFile(), "index");
   }
-  
+
   // TODO implement index registry
   private String[] getIndexNames() {
     return (String[]) indexes.toArray(new String[indexes.size()]);
   }
 
 }
-
