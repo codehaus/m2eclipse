@@ -37,11 +37,13 @@ import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
 import org.apache.maven.artifact.handler.ArtifactHandler;
 import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
+import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.ReactorManager;
+import org.apache.maven.extension.ExtensionScanningException;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginManagement;
@@ -93,7 +95,7 @@ import org.maven.ide.eclipse.util.Util;
 public class BuildPathManager {
 
   public static final String CLASSPATH_COMPONENT_DEPENDENCY = "org.eclipse.jst.component.dependency";
-  
+
   public static final String CLASSPATH_COMPONENT_NON_DEPENDENCY = "org.eclipse.jst.component.nondependency";
 
   public static final String PACKAGING_WAR = "war";
@@ -236,6 +238,7 @@ public class BuildPathManager {
 
     console.logMessage("Reading " + pomFile.getFullPath());
     monitor.subTask("Reading " + pomFile.getFullPath());
+    deleteMarkers(pomFile);
 
     IProject currentProject = pomFile.getProject();
     try {
@@ -246,6 +249,7 @@ public class BuildPathManager {
 
       MavenExecutionResult result = mavenModelManager.readMavenProject(pomFile, monitor, offline, debug,
           resolverConfiguration);
+
       MavenProject mavenProject = getMavenProject(pomFile, result);
       if(mavenProject == null) {
         return;
@@ -335,8 +339,17 @@ public class BuildPathManager {
 
         File artifactFile = a.getFile();
         if(artifactFile == null) {
-          console.logError("Missing artifact file for " + a.getId());
-        } else {
+          // Embedder returns unresolved artifacts when dependencies can't be downloaded 
+          try {
+            embedder.resolve(a, mavenProject.getRemoteArtifactRepositories(), embedder.getLocalRepository());
+            artifactFile = a.getFile();
+          } catch(AbstractArtifactResolutionException ex) {
+            String name = ex.getGroupId() + ":" + ex.getArtifactId() + "-" + ex.getVersion() + "-" + ex.getType();
+            console.logError("Unable resolve artifact " + name);
+          }
+        }
+
+        if(artifactFile != null) {
           String artifactLocation = artifactFile.getAbsolutePath();
 
           Path srcPath = materializeArtifactPath(embedder, mavenProject, a, "java-source", "sources", downloadSources,
@@ -390,19 +403,15 @@ public class BuildPathManager {
       throw ex;
 
     } catch(InvalidArtifactRTException ex) {
-      // TODO move into ReadProjectTask
-      deleteMarkers(pomFile);
       addMarker(pomFile, ex.getBaseMessage(), 1, IMarker.SEVERITY_ERROR);
-      console.logError("Unable to read model; " + ex.toString());
+      console.logError("Unable to read " + getPomName(pomFile) + "; " + ex.getBaseMessage());
 
     } catch(Throwable ex) {
-      // TODO move into ReadProjectTask
-      deleteMarkers(pomFile);
-      addMarker(pomFile, "Unable to read model; " + ex.toString(), 1, IMarker.SEVERITY_ERROR);
+      addMarker(pomFile, ex.toString(), 1, IMarker.SEVERITY_ERROR);
 
-      String msg = "Unable to read model from " + pomFile.getFullPath();
+      String msg = "Unable to read " + getPomName(pomFile) + "; " + ex.toString();
+      console.logError(msg);
       Maven2Plugin.log(msg, ex);
-      console.logError(msg + "; " + ex.toString());
 
     } finally {
       monitor.done();
@@ -411,7 +420,7 @@ public class BuildPathManager {
   }
 
   private MavenProject getMavenProject(IFile pomFile, MavenExecutionResult result) {
-    deleteMarkers(pomFile);
+    addErrorMarkers(pomFile, result);
 
     if(!result.hasExceptions()) {
       return result.getProject();
@@ -419,13 +428,25 @@ public class BuildPathManager {
 
     for(Iterator it = result.getExceptions().iterator(); it.hasNext();) {
       Exception ex = (Exception) it.next();
-      if(ex instanceof ProjectBuildingException) {
+      if(ex instanceof ExtensionScanningException) {
+        if(ex.getCause() instanceof ProjectBuildingException) {
+          handleProjectBuildingException(pomFile, (ProjectBuildingException) ex.getCause());
+        } else {
+          handleBuildException(pomFile, ex);
+        }
+        
+      } else if(ex instanceof ProjectBuildingException) {
         handleProjectBuildingException(pomFile, (ProjectBuildingException) ex);
 
       } else if(ex instanceof AbstractArtifactResolutionException) {
-        String msg = ex.getMessage().replaceAll("----------", "").replaceAll("\r\n\r\n", "\n").replaceAll("\n\n", "\n");
-        addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR);
-        console.logError(msg);
+        // String msg = ex.getMessage().replaceAll("----------", "").replaceAll("\r\n\r\n", "\n").replaceAll("\n\n", "\n");
+        // addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR);
+        // console.logError(msg);
+
+        AbstractArtifactResolutionException rex = (AbstractArtifactResolutionException) ex;
+        String errorMessage = getArtifactId(rex) + " " + getErrorMessage(ex);
+        addMarker(pomFile, errorMessage, 1, IMarker.SEVERITY_ERROR);
+        console.logError(errorMessage);
 
         try {
           // TODO
@@ -445,6 +466,64 @@ public class BuildPathManager {
     return null;
   }
 
+  private void addErrorMarkers(IFile pomFile, MavenExecutionResult result) {
+    ArtifactResolutionResult resolutionResult = result.getArtifactResolutionResult();
+    if(resolutionResult!=null) {
+      // List missingArtifacts = resolutionResult.getMissingArtifacts();
+      addErrorMarkers(pomFile, "Metadata resolution error", resolutionResult.getMetadataResolutionExceptions());
+      addErrorMarkers(pomFile, "Artifact error", resolutionResult.getErrorArtifactExceptions());
+      addErrorMarkers(pomFile, "Version range violation", resolutionResult.getVersionRangeViolations());
+      addErrorMarkers(pomFile, "Curcular dependency error", resolutionResult.getCircularDependencyExceptions());
+    }
+  }
+
+  private void addErrorMarkers(IFile pomFile, String msg, List exceptions) {
+    if(exceptions != null) {
+      for(Iterator it = exceptions.iterator(); it.hasNext();) {
+        Exception ex = (Exception) it.next();
+        if(ex instanceof AbstractArtifactResolutionException) {
+          AbstractArtifactResolutionException rex = (AbstractArtifactResolutionException) ex;
+          String errorMessage = getArtifactId(rex) + " " + getErrorMessage(ex);
+          addMarker(pomFile, errorMessage, 1, IMarker.SEVERITY_ERROR);
+          console.logError(errorMessage);
+
+        } else {
+          addMarker(pomFile, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
+          console.logError(msg + "; " + ex.toString());
+        }
+      }
+    }
+  }
+
+  private String getArtifactId(AbstractArtifactResolutionException rex) {
+    String id = rex.getGroupId() + ":" + rex.getArtifactId() + ":" + rex.getVersion();
+    if(rex.getClassifier() != null) {
+      id += ":" + rex.getClassifier();
+    }
+    if(rex.getType() != null) {
+      id += ":" + rex.getType();
+    }
+    return id;
+  }
+
+  private String getErrorMessage(Exception ex) {
+    Throwable lastCause = ex;
+    Throwable cause = lastCause.getCause();
+
+    String msg = lastCause.getMessage();
+    while(cause != null && cause != lastCause) {
+      msg = cause.getMessage();
+//      if(lastCause instanceof ResourceDoesNotExistException) {
+//        msg = ((ResourceDoesNotExistException) lastCause).getLocalizedMessage();
+//      } else {
+//      }
+      lastCause = cause;
+      cause = cause.getCause();
+    }
+
+    return msg;
+  }
+
   private void handleBuildException(IFile pomFile, Exception ex) {
     String msg = Messages.getString("plugin.markerBuildError") + ex.getMessage();
     addMarker(pomFile, msg, 1, IMarker.SEVERITY_ERROR); //$NON-NLS-1$
@@ -455,9 +534,9 @@ public class BuildPathManager {
     Throwable cause = ex.getCause();
     if(cause instanceof XmlPullParserException) {
       XmlPullParserException pex = (XmlPullParserException) cause;
-      String msg = Messages.getString("plugin.markerParsingError") + pex.getMessage();
-      addMarker(pomFile, msg, pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-      console.logError(msg + " at line " + pex.getLineNumber());
+      console.logError(Messages.getString("plugin.markerParsingError") + getPomName(pomFile) + "; " + pex.getMessage());
+      addMarker(pomFile, pex.getMessage(), pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
+      
     } else if(ex instanceof InvalidProjectModelException) {
       InvalidProjectModelException mex = (InvalidProjectModelException) ex;
       ModelValidationResult validationResult = mex.getValidationResult();
@@ -472,9 +551,14 @@ public class BuildPathManager {
           console.logError("  " + message);
         }
       }
+      
     } else {
       handleBuildException(pomFile, ex);
     }
+  }
+
+  private String getPomName(IFile pomFile) {
+    return pomFile.getProject().getName() + "/" + pomFile.getProjectRelativePath();
   }
 
   // type = "java-source"

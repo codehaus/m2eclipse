@@ -278,7 +278,7 @@ public class MavenModelManager {
       return null;
     }
 
-    Model mavenModel = readMavenModel(pomFile.getLocation().toFile());
+    Model mavenModel = readMavenModel(pomFile);
     if(mavenModel == null) {
       console.logMessage("Unable to read model for " + pomFile.getFullPath().toString());
       return null;
@@ -375,6 +375,22 @@ public class MavenModelManager {
     }
   }
 
+  public Model readMavenModel(IFile pomFile) throws CoreException {
+    String name = pomFile.getProject().getName() + "/" + pomFile.getProjectRelativePath();
+    try {
+      MavenEmbedder projectEmbedder = embedderManager.getWorkspaceEmbedder();
+      return projectEmbedder.readModel(pomFile.getLocation().toFile());
+    } catch(XmlPullParserException ex) {
+      String msg = "Parsing error " + name + "; " + ex.getMessage();
+      console.logError(msg);
+      throw new CoreException(new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, IStatus.ERROR, msg, ex));
+    } catch(IOException ex) {
+      String msg = "Can't read model " + name + "; " + ex.toString();
+      console.logError(msg);
+      throw new CoreException(new Status(IStatus.ERROR, Maven2Plugin.PLUGIN_ID, IStatus.ERROR, msg, ex));
+    }
+  }
+
   public MavenExecutionResult readMavenProject(IFile pomFile, IProgressMonitor monitor, //
       boolean offline, boolean debug, ResolverConfiguration resolverConfiguration) {
     try {
@@ -444,12 +460,12 @@ public class MavenModelManager {
       // If the groupId is null in the model, then it needs to be inherited
       // from the parent.  And the parent's groupId has to be specified in the
       // in the parent element of the model.
-      groupId = model.getParent().getGroupId();
+      groupId = model.getParent()==null ? "[unknown]" : model.getParent().getGroupId();
     }
 
     String version = model.getVersion();
     if(version == null) {
-      version = model.getParent().getVersion();
+      version = model.getParent()==null ? "[unknown]" : model.getParent().getVersion();
     }
 
     return groupId + ":" + model.getArtifactId() + ":" + version;
