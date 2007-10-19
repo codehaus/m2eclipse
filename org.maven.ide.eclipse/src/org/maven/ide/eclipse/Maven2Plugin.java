@@ -28,6 +28,7 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.ImageRegistry;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.ui.IStartup;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.MavenEmbedderManager;
@@ -40,7 +41,7 @@ import org.osgi.framework.BundleContext;
 /**
  * Maven2Plugin main plug-in class.
  */
-public class Maven2Plugin extends AbstractUIPlugin {
+public class Maven2Plugin extends AbstractUIPlugin implements IStartup {
 
   public static final String PLUGIN_ID = Maven2Plugin.class.getPackage().getName();
   public static final String NATURE_ID = PLUGIN_ID + ".maven2Nature"; //$NON-NLS-1$
@@ -90,8 +91,7 @@ public class Maven2Plugin extends AbstractUIPlugin {
 
     this.mavenEmbedderManager = new MavenEmbedderManager(console, getPreferenceStore());
 
-    this.mavenRepositoryIndexManager = new MavenRepositoryIndexManager(mavenEmbedderManager, console, getBundle(),
-        getStateLocation());
+    this.mavenRepositoryIndexManager = new MavenRepositoryIndexManager(mavenEmbedderManager, console, getStateLocation());
 
     this.mavenModelManager = new MavenModelManager(mavenEmbedderManager, mavenRepositoryIndexManager, console);
     // this.mavenModelManager.initMavenModel(new NullProgressMonitor());
@@ -107,6 +107,10 @@ public class Maven2Plugin extends AbstractUIPlugin {
             | IResourceChangeEvent.PRE_DELETE);
   }
 
+  public void earlyStartup() {
+    this.mavenRepositoryIndexManager.initialize(getBundle());
+  }
+  
   /**
    * This method is called when the plug-in is stopped
    */
