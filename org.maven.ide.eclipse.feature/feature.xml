@@ -2,7 +2,7 @@
 <feature
       id="org.maven.ide.eclipse.feature"
       label="Maven Integration for Eclipse"
-      version="0.0.12.20071004-2300"
+      version="0.0.12.20071018-2200"
       provider-name="maven.org"
       plugin="org.maven.ide.eclipse">
    <install-handler/>
