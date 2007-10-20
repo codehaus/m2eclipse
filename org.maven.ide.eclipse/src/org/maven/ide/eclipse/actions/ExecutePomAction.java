@@ -129,7 +129,7 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
       return;
     }
 
-    Tracer.trace(this, "Launching from basedir", basedir);
+    Tracer.trace(this, "Launching", basedir);
 
     ILaunchConfiguration launchConfiguration = getLaunchConfiguration(basedir);
     if(launchConfiguration == null) {
@@ -153,7 +153,7 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
       DebugUITools.openLaunchConfigurationDialog(Maven2Plugin.getDefault().getWorkbench().getActiveWorkbenchWindow()
           .getShell(), launchConfiguration, Maven2LaunchMainTab.ID_EXTERNAL_TOOLS_LAUNCH_GROUP, null);
     } else {
-      Tracer.trace(this, "Launching configuration", launchConfiguration.getName());
+      Tracer.trace(this, "Launch configuration", launchConfiguration.getName());
       DebugUITools.launch(launchConfiguration, ILaunchManager.RUN_MODE);
     }
   }
@@ -165,7 +165,7 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
           .getLaunchConfigurationType(Maven2LaunchConstants.LAUNCH_CONFIGURATION_TYPE_ID);
 
       ILaunchConfigurationWorkingCopy workingCopy = launchConfigurationType.newInstance(null, //
-          "Executing " + goal + " on " + basedir);
+          "Executing " + goal + " in " + basedir.getLocation());
       workingCopy.setAttribute(Maven2LaunchConstants.ATTR_POM_DIR, basedir.getLocation().toOSString());
       workingCopy.setAttribute(Maven2LaunchConstants.ATTR_GOALS, goal);
       workingCopy.setAttribute(RefreshTab.ATTR_REFRESH_SCOPE, "${project}");
@@ -209,6 +209,7 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
         .getLaunchConfigurationType(Maven2LaunchConstants.LAUNCH_CONFIGURATION_TYPE_ID);
 
     // scan existing launch configurations
+    IPath basedirLocation = basedir.getLocation();
     if(!showDialog) {
       try {
         ILaunch[] launches = launchManager.getLaunches();
@@ -236,7 +237,7 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
           }
           Tracer.trace(this, "Workdir", workDir);
           IPath workPath = new Path(workDir);
-          if(basedir.equals(workPath)) {
+          if(basedirLocation.equals(workPath)) {
             Tracer.trace(this, "Found matching existing configuration", cfg.getName());
             return cfg;
           }
@@ -250,11 +251,11 @@ public class ExecutePomAction implements ILaunchShortcut, IExecutableExtension, 
 
     Tracer.trace(this, "No existing configurations found, creating new");
 
-    String newName = launchManager.generateUniqueLaunchConfigurationNameFrom(basedir.getLocation().lastSegment());
+    String newName = launchManager.generateUniqueLaunchConfigurationNameFrom(basedirLocation.lastSegment());
     try {
       Tracer.trace(this, "New configuration name", newName);
       ILaunchConfigurationWorkingCopy workingCopy = launchConfigurationType.newInstance(null, newName);
-      workingCopy.setAttribute(Maven2LaunchConstants.ATTR_POM_DIR, basedir.toString());
+      workingCopy.setAttribute(Maven2LaunchConstants.ATTR_POM_DIR, basedirLocation.toString());
 
       // set other defaults if needed
       // Maven2LaunchMainTab maintab = new Maven2LaunchMainTab();
