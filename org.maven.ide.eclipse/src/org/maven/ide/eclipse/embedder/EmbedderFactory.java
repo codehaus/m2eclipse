@@ -66,7 +66,7 @@ public class EmbedderFactory {
       } else {
         logger.error("Invalid settings " + globalSettings);
         if(globalResult.getUserSettingsException()!=null) {
-          logger.error(userResult.getUserSettingsException().getMessage());
+          logger.error(globalResult.getUserSettingsException().getMessage());
         }
       }
     }
