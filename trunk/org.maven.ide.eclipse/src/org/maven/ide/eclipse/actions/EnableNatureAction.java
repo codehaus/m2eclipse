@@ -48,6 +48,13 @@ public class EnableNatureAction implements IObjectActionDelegate, IExecutableExt
 
   private boolean workspaceProjects = true;
 
+  public EnableNatureAction() {
+  }
+  
+  public EnableNatureAction(String option) {
+    setInitializationData(null, null, option);
+  }
+
   public void setInitializationData(IConfigurationElement config, String propertyName, Object data) {
     if(Maven2Plugin.INCLUDE_MODULES.equals(data)) {
       this.includeModules = true;

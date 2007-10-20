@@ -36,9 +36,7 @@
            lightweight="true"
            location="TOP_LEFT"
            state="true">
-       <description>
-          %m2.decorator.description
-       </description>
+       <description>%m2.decorator.description</description>
        <enablement>
           <or>
 	          <objectState name="nature" value="org.maven.ide.eclipse.maven2Nature"/>
@@ -48,113 +46,79 @@
      </decorator>
    </extension>
 
+   <!--
+   <extension point="org.eclipse.ui.actionSets">
+     <actionSet id="org.maven.ide.eclipse.actionSet" label="Maven" visible="true">
+       <action id="org.maven.ide.eclipse.mainProjectMenu.action"
+               class="org.maven.ide.eclipse.actions.MavenMenuAction"
+               label="Maven"
+               menubarPath="project/additions"
+               style="pulldown"
+               icon="icons/m2.gif">
+          <enablement>
+            <and>
+              <objectState name="open" value="true"/>
+              <objectClass name="org.eclipse.core.resources.IProject"/>
+            </and>
+          </enablement>     
+        </action>
+     </actionSet>
+   </extension>
+   -->  
+
    <extension point="org.eclipse.ui.popupMenus">
-      <objectContribution
-            adaptable="true"
-            objectClass="org.eclipse.core.resources.IProject"
-            id="org.maven.ide.eclipse.projectMenu" >
-         <menu
-               id="maven2"
-               label="%m2.popup.project.label"
-               path="additions">
-            <separator name="natureGroup"/>
-            <separator name="enable"/>
-         </menu>
-      </objectContribution>      
-
-      <objectContribution
-            adaptable="true"
-            objectClass="org.eclipse.core.resources.IProject"
-            id="org.maven.ide.eclipse.projectMenus">
+      <objectContribution id="org.maven.ide.eclipse.projectMenu"
+                          objectClass="org.eclipse.core.resources.IProject"
+                          adaptable="true">
+         <action id="org.maven.ide.eclipse.projectMenu.action"
+                 class="org.maven.ide.eclipse.actions.MavenMenuAction"
+                 label="%m2.popup.project.label"
+                 style="pulldown"
+                 menubarPath="additions"
+                 enablesFor="+"
+                 icon="icons/m2.gif"/>
          <visibility>
-           <not>
-              <objectState name="nature"
-                    value="org.maven.ide.eclipse.maven2Nature">
-              </objectState>
-           </not>
+           <and>
+             <objectState name="open" value="true"/>
+             <objectState name="nature" value="org.maven.ide.eclipse.maven2Nature"/>
+           </and>
          </visibility>
-         <action
-               class="org.maven.ide.eclipse.actions.EnableNatureAction"
-               id="org.maven.ide.eclipse.enableAction"
-               label="%m2.popup.project.enable.label"
-               menubarPath="maven2/enable">
+      </objectContribution>
+      <objectContribution id="org.maven.ide.eclipse.projectMenu"
+                          objectClass="org.eclipse.core.resources.IProject"
+                          adaptable="true">
+         <action id="org.maven.ide.eclipse.projectMenu.action"
+                 class="org.maven.ide.eclipse.actions.MavenMenuAction"
+                 label="%m2.popup.project.label"
+                 style="pulldown"
+                 menubarPath="additions"
+                 enablesFor="+"
+                 icon="icons/m2.gif"/>
+         <visibility>
+           <and>
+             <objectState name="open" value="true"/>
+             <not>
+               <objectState name="nature" value="org.maven.ide.eclipse.maven2Nature"/>
+             </not>
+           </and>  
+         </visibility>
+      </objectContribution>
+      <objectContribution id="org.maven.ide.eclipse.fileMenu" 
+                          objectClass="org.eclipse.core.resources.IFile"
+                          adaptable="true">
+         <action id="org.maven.ide.eclipse.fileMenu.action"
+                 class="org.maven.ide.eclipse.actions.MavenMenuAction"
+                 label="%m2.popup.project.label"
+                 style="pulldown"
+                 menubarPath="additions"
+                 enablesFor="1"
+                 icon="icons/m2.gif">
          </action>
-      </objectContribution>
-
-      <objectContribution
-            adaptable="true"
-            objectClass="org.eclipse.core.resources.IProject"
-            id="org.maven.ide.eclipse.projectMenus">
          <visibility>
-            <objectState
-                  name="nature"
-                  value="org.maven.ide.eclipse.maven2Nature">
-            </objectState>
-         </visibility>
-         <action
-               class="org.maven.ide.eclipse.actions.AddDependencyAction"
-               enablesFor="1"
-               id="org.maven.ide.eclipse.addDependencyAction"
-               label="%m2.popup.project.add-dependency.label"
-               menubarPath="maven2/natureGroup"/>
+            <objectState name="name" value="pom.xml"/>
+         </visibility>  
       </objectContribution>
-      <objectContribution
-            adaptable="true"
-            objectClass="org.eclipse.core.resources.IProject"
-            id="org.maven.ide.eclipse.projectMenus">
-         <visibility>
-            <objectState
-                  name="nature"
-                  value="org.maven.ide.eclipse.maven2Nature">
-            </objectState>
-         </visibility>
-         <action
-               id="org.maven.ide.eclipse.updateSourcesAction"
-               class="org.maven.ide.eclipse.actions.UpdateSourcesAction"
-               label="%m2.popup.project.update-sources.label"
-               menubarPath="maven2/natureGroup"/>
-         <action
-               id="org.maven.ide.eclipse.enableModules"
-               label="%m2.popup.project.includeModules.label"
-               class="org.maven.ide.eclipse.actions.EnableNatureAction:modules"
-               menubarPath="maven2/enable"/>
-         <action
-               id="org.maven.ide.eclipse.workspaceResolution"
-               label="%m2.popup.project.workspaceResolution.label"
-               class="org.maven.ide.eclipse.actions.EnableNatureAction:workspace"
-               menubarPath="maven2/enable"/>
-         <action
-               id="org.maven.ide.eclipse.disableAction"
-               label="%m2.popup.project.disable.label"
-               class="org.maven.ide.eclipse.actions.DisableNatureAction"
-               menubarPath="maven2/enable"/>
-      </objectContribution>      
-
-      <objectContribution
-            adaptable="true"
-            objectClass="org.eclipse.core.resources.IFile"
-            id="org.maven.ide.eclipse.projectMenu" >
-         <visibility>
-            <objectState
-                  name="name"
-                  value="pom.xml">
-            </objectState>
-         </visibility>
-         <menu
-               id="maven2"
-               label="%m2.popup.project.label"
-               path="additions">
-            <separator name="natureGroup"/>
-            <separator name="enable"/>
-         </menu>
-         <action
-               id="org.maven.ide.eclipse.addDependencyAction"
-               label="%m2.popup.project.add-dependency.label"
-               class="org.maven.ide.eclipse.actions.AddDependencyAction"
-               enablesFor="1"
-               menubarPath="maven2/natureGroup"/>
-      </objectContribution>
-
+            
       <!-- DownloadSourcesAction
       <objectContribution
             objectClass="org.eclipse.jdt.core.IPackageFragmentRoot"
