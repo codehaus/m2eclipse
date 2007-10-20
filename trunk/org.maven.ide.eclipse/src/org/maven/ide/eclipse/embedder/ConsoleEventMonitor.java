@@ -30,7 +30,7 @@ class ConsoleEventMonitor implements EventMonitor {
 
   private final boolean debug;
 
-  private long start;
+  private long start = System.currentTimeMillis();
   
   private int errorCode = 0;
   private String errorText = null;
@@ -63,7 +63,7 @@ class ConsoleEventMonitor implements EventMonitor {
   public void endEvent(String eventName, String target, long timestamp) {
     if("project-execute".equals(eventName)) {
       printSeparator();
-      printInfo("BUILD SUCCESSFUL");
+      printInfo("BUILD SUCCESSFUL" + (target==null ? "" : " " + target));
       printTrailer();
     }
   }
@@ -75,7 +75,7 @@ class ConsoleEventMonitor implements EventMonitor {
       errorText = eventName;
   
       printSeparator();
-      printError("BUILD FAILURE");
+      printError("BUILD FAILURE" + (target==null ? "" : " " + target));
       printSeparator();
       
       if(cause != null) {
@@ -86,6 +86,8 @@ class ConsoleEventMonitor implements EventMonitor {
       }
       
       printTrailer();
+    } else {
+      cause.printStackTrace();
     }
   }
 

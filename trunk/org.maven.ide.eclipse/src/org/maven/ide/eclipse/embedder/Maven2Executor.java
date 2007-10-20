@@ -22,11 +22,13 @@ package org.maven.ide.eclipse.embedder;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.maven.embedder.MavenEmbedder;
 import org.apache.maven.embedder.MavenEmbedderException;
 import org.apache.maven.execution.MavenExecutionRequest;
+import org.apache.maven.execution.MavenExecutionResult;
 
 import org.maven.ide.eclipse.launch.Maven2LaunchConstants;
 import org.maven.ide.eclipse.launch.Maven2LaunchDelegate;
@@ -80,21 +82,28 @@ public class Maven2Executor implements Maven2LaunchConstants {
       request.addEventMonitor(consoleEventMonitor);
       request.setTransferListener(new ConsoleTransferMonitor());
       
-      embedder.execute(request);
+      MavenExecutionResult result = embedder.execute(request);
+      if(result.hasExceptions()) {
+        for(Iterator it = result.getExceptions().iterator(); it.hasNext();) {
+          Throwable t = (Throwable) it.next();
+          consoleEventMonitor.errorEvent("project-execute", null, System.currentTimeMillis(), t);
+        }
+      }
 
     } catch(Throwable e) {
-      e.printStackTrace(System.out);
+      consoleEventMonitor.errorEvent("project-execute", null, System.currentTimeMillis(), e);
     } finally {
       try {
         if(embedder != null) {
           embedder.stop();
         }
       } catch(MavenEmbedderException e) {
-        e.printStackTrace(System.out);
+        e.printStackTrace(System.err);
       }
       System.out.flush();
       System.err.flush();
     }
+    
     System.exit(consoleEventMonitor.getErrorCode());
   }
 

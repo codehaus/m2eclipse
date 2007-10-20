@@ -48,30 +48,38 @@ public class EmbedderFactory {
     configuration.setConfigurationCustomizer(customizer);
     
     File userSettingsFile = MavenEmbedder.DEFAULT_USER_SETTINGS_FILE;
-    if(validateConfiguration(userSettingsFile, logger)) {
+    ConfigurationValidationResult userResult = validateConfiguration(userSettingsFile, logger);
+    if(userResult.isValid()) {
       configuration.setUserSettingsFile(userSettingsFile);
+    } else {
+      logger.error("Invalid user settings " + userSettingsFile);
+      if(userResult.getUserSettingsException()!=null) {
+        logger.error(userResult.getUserSettingsException().getMessage());
+      }
     }
     
     if(globalSettings!=null && globalSettings.length()>0) {
       File globalSettingsFile = new File(globalSettings);
-      if(validateConfiguration(globalSettingsFile, logger)) {
+      ConfigurationValidationResult globalResult = validateConfiguration(globalSettingsFile, logger);
+      if(globalResult.isValid()) {
         configuration.setGlobalSettingsFile(globalSettingsFile);
+      } else {
+        logger.error("Invalid settings " + globalSettings);
+        if(globalResult.getUserSettingsException()!=null) {
+          logger.error(userResult.getUserSettingsException().getMessage());
+        }
       }
     }
       
     return new MavenEmbedder(configuration);
   }
 
-  public static boolean validateConfiguration(File file, MavenEmbedderLogger logger) {
+  public static ConfigurationValidationResult validateConfiguration(File file, MavenEmbedderLogger logger) {
     Configuration configuration = new DefaultConfiguration();
     configuration.setMavenEmbedderLogger(logger);
     configuration.setUserSettingsFile(file);
-
-    ConfigurationValidationResult result = MavenEmbedder.validateConfiguration(configuration);
-
-    return result.isUserSettingsFilePresent() && result.isUserSettingsFileParses() && result.isValid();
+    return MavenEmbedder.validateConfiguration(configuration);
   }
-
 
   public static ContainerCustomizer createWorkspaceCustomizer(final boolean resolveWorkspaceProjects) {
     return new ContainerCustomizer() {
