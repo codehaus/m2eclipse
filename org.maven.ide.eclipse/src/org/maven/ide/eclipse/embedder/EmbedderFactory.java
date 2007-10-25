@@ -39,9 +39,12 @@ import org.codehaus.plexus.component.repository.ComponentDescriptor;
 public class EmbedderFactory {
 
   public static MavenEmbedder createMavenEmbedder(ContainerCustomizer customizer, MavenEmbedderLogger logger, String globalSettings) throws MavenEmbedderException {
-    Configuration configuration = new DefaultConfiguration();
-    
     ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    return createMavenEmbedder(customizer, logger, globalSettings, loader);
+  }
+  
+  public static MavenEmbedder createMavenEmbedder(ContainerCustomizer customizer, MavenEmbedderLogger logger, String globalSettings, ClassLoader loader) throws MavenEmbedderException {
+    Configuration configuration = new DefaultConfiguration();
 
     configuration.setMavenEmbedderLogger(logger);
     configuration.setClassLoader(loader);

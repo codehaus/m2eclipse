@@ -22,6 +22,7 @@ package org.maven.ide.eclipse.embedder;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,9 +30,45 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+
+import org.eclipse.core.resources.IContainer;
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IProjectDescription;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IWorkspace;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.resources.WorkspaceJob;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.OperationCanceledException;
+import org.eclipse.core.runtime.Path;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.SubProgressMonitor;
+import org.eclipse.jdt.core.IAccessRule;
+import org.eclipse.jdt.core.IClasspathAttribute;
+import org.eclipse.jdt.core.IClasspathContainer;
+import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.launching.IVMInstall;
+import org.eclipse.jdt.launching.IVMInstallType;
+import org.eclipse.jdt.launching.JavaRuntime;
+import org.eclipse.jdt.launching.LibraryLocation;
+import org.eclipse.jface.preference.IPreferenceStore;
+
+import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.InvalidArtifactRTException;
@@ -52,36 +89,6 @@ import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuildingException;
 import org.apache.maven.project.validation.ModelValidationResult;
 
-import org.codehaus.plexus.util.xml.Xpp3Dom;
-import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
-import org.eclipse.core.resources.IContainer;
-import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IFolder;
-import org.eclipse.core.resources.IMarker;
-import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IProjectDescription;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IWorkspace;
-import org.eclipse.core.resources.IWorkspaceRoot;
-import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IPath;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.OperationCanceledException;
-import org.eclipse.core.runtime.Path;
-import org.eclipse.core.runtime.SubProgressMonitor;
-import org.eclipse.jdt.core.IAccessRule;
-import org.eclipse.jdt.core.IClasspathAttribute;
-import org.eclipse.jdt.core.IClasspathContainer;
-import org.eclipse.jdt.core.IClasspathEntry;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.launching.IVMInstall;
-import org.eclipse.jdt.launching.IVMInstallType;
-import org.eclipse.jdt.launching.JavaRuntime;
-import org.eclipse.jdt.launching.LibraryLocation;
-import org.eclipse.jface.preference.IPreferenceStore;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.Messages;
 import org.maven.ide.eclipse.container.Maven2ClasspathContainer;
@@ -109,6 +116,8 @@ public class BuildPathManager {
 
   private final IPreferenceStore preferenceStore;
 
+  private final RefreshJob refreshJob;
+
   public BuildPathManager(MavenEmbedderManager embedderManager, Maven2Console console,
       MavenModelManager mavenModelManager, MavenRepositoryIndexManager indexManager, IPreferenceStore preferenceStore) {
     this.embedderManager = embedderManager;
@@ -116,6 +125,7 @@ public class BuildPathManager {
     this.mavenModelManager = mavenModelManager;
     this.indexManager = indexManager;
     this.preferenceStore = preferenceStore;
+    this.refreshJob = new RefreshJob(this, console);
   }
 
   public static IClasspathEntry getDefaultContainerEntry() {
@@ -183,13 +193,43 @@ public class BuildPathManager {
   }
 
   public void updateClasspathContainer(IProject project, IProgressMonitor monitor) throws CoreException {
-    internalUpdateClasspathContainer(project, monitor, new HashSet());
+    Map resolved = new HashMap();
+    internalUpdateClasspathContainer(project, resolved, monitor);
+    setClasspathContainer(resolved, monitor);
   }
 
-  private void internalUpdateClasspathContainer(IProject project, IProgressMonitor monitor, Set updated)
+  void setClasspathContainer(Map resolved, IProgressMonitor monitor) throws JavaModelException {
+    monitor.subTask("Updating JDT");
+//    ArrayList javaProjects = new ArrayList();
+//    ArrayList containers = new ArrayList();
+    Iterator piter = resolved.entrySet().iterator();
+    while(piter.hasNext()) {
+      Map.Entry entry = (Entry) piter.next();
+      IJavaProject javaProject = JavaCore.create((IProject) entry.getKey());
+      IClasspathContainer container = (IClasspathContainer) entry.getValue();
+      if(javaProject != null && container != null) {
+        JavaCore.setClasspathContainer(container.getPath(), new IJavaProject[] {javaProject},
+            new IClasspathContainer[] {container}, monitor);
+//        javaProjects.add(javaProject);
+//        containers.add(container);
+      }
+    }
+    // TODO
+    // The following is supposed to have the same effect 
+    // as series JavaCore.setClasspathContainer. This seems to be the case
+    // when I work with the plugin interactively, but breaks unit tests 
+//    JavaCore.setClasspathContainer(new Path(Maven2Plugin.CONTAINER_ID), 
+//        (IJavaProject[]) javaProjects.toArray(new IJavaProject[javaProjects.size()]), 
+//        (IClasspathContainer[]) containers.toArray(new IClasspathContainer[containers.size()]), monitor);
+  }
+
+  void internalUpdateClasspathContainer(IProject project, Map resolved, IProgressMonitor monitor)
       throws JavaModelException, CoreException {
 
-    updated.add(project);
+    if(monitor.isCanceled()) {
+      throw new OperationCanceledException();
+    }
+    monitor.subTask(project.getName());
 
     IJavaProject javaProject = JavaCore.create(project);
     ResolverConfiguration resolverConfiguration = getResolverConfiguration(javaProject);
@@ -225,16 +265,16 @@ public class BuildPathManager {
     IClasspathEntry containerEntry = getMavenContainerEntry(javaProject);
     if(containerEntry != null) {
       Maven2ClasspathContainer container = new Maven2ClasspathContainer(containerEntry.getPath(), entries);
-
-      JavaCore.setClasspathContainer(container.getPath(), new IJavaProject[] {javaProject},
-          new IClasspathContainer[] {container}, monitor);
+      resolved.put(project, container);
+    } else {
+      resolved.put(project, null); // TODO test me
     }
 
     Set dependentProjects = mavenModelManager.getDependentProjects(pomFile);
     for(Iterator it = dependentProjects.iterator(); it.hasNext();) {
       IProject p = (IProject) it.next();
-      if(!updated.contains(p)) {
-        internalUpdateClasspathContainer(p, monitor, updated);
+      if(!resolved.containsKey(p)) {
+        internalUpdateClasspathContainer(p, resolved, monitor);
       }
     }
   }
@@ -1196,7 +1236,7 @@ public class BuildPathManager {
     BuildPathManager buildpathManager = Maven2Plugin.getDefault().getBuildpathManager();
     buildpathManager.enableMavenNature(project, configuration, monitor);
     buildpathManager.updateSourceFolders(project, configuration, monitor);
-    buildpathManager.updateClasspathContainer(project, monitor);
+//    buildpathManager.updateClasspathContainer(project, monitor);
   }
 
   private boolean hasDynamicWebProjectNature(IProject project) {
@@ -1209,6 +1249,80 @@ public class BuildPathManager {
       console.logError("Unable to inspect nature: " + e);
     }
     return false;
+  }
+
+  /**
+   * Schedules classpath container of the given project to be refreshed in a background job. This method returns
+   * immediately.
+   */
+  public void scheduleUpdateClasspathContainer(IProject project) {
+    refreshJob.queueRefresh(project);
+  }
+
+  /**
+   * Schedules classpath containers of the given collection of projects to be refreshed in a background job. This method
+   * returns immediately.
+   */
+  public void scheduleUpdateClasspathContainer(Collection projects) {
+    refreshJob.queueRefresh(projects);
+  }
+
+  static class RefreshJob extends WorkspaceJob {
+
+    private static final long PROCESSING_DELAY = 1000L;
+
+    private final BuildPathManager buildPathManager;
+
+    private final Maven2Console console;
+
+    private final ArrayList queue = new ArrayList();
+
+    public RefreshJob(BuildPathManager buildPathManager, Maven2Console console) {
+      super("Maven classpath container refresh job");
+      this.buildPathManager = buildPathManager;
+      this.console = console;
+    }
+
+    public IStatus runInWorkspace(IProgressMonitor monitor) throws CoreException {
+      while(true) {
+        Set projects = new HashSet();
+        synchronized(queue) {
+          projects.addAll(queue);
+          queue.clear();
+        }
+        if(projects.isEmpty()) {
+          break;
+        }
+
+        Map resolved = new HashMap();
+        for(Iterator piter = projects.iterator(); piter.hasNext();) {
+          IProject project = (IProject) piter.next();
+          try {
+            buildPathManager.internalUpdateClasspathContainer(project, resolved, monitor);
+          } catch(Exception e) {
+            console.logError("Unable to refresh classpath container: " + e);
+          }
+        }
+        this.buildPathManager.setClasspathContainer(resolved, monitor);
+      }
+      return Status.OK_STATUS;
+    }
+
+    public void queueRefresh(IProject project) {
+      synchronized(queue) {
+        queue.add(project);
+      }
+      schedule(PROCESSING_DELAY);
+    }
+
+    public void queueRefresh(Collection projects) {
+      if(projects == null || projects.isEmpty())
+        return;
+      synchronized(queue) {
+        queue.addAll(projects);
+      }
+      schedule(PROCESSING_DELAY);
+    }
   }
 
 }

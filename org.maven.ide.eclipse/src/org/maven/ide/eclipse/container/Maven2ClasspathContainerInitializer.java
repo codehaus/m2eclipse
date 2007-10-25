@@ -34,12 +34,8 @@ import org.apache.maven.execution.MavenExecutionResult;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
-import org.eclipse.core.runtime.Status;
-import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.ClasspathContainerInitializer;
 import org.eclipse.jdt.core.IAccessRule;
 import org.eclipse.jdt.core.IClasspathAttribute;
@@ -94,18 +90,8 @@ public class Maven2ClasspathContainerInitializer extends ClasspathContainerIniti
       if(container != null) {
         return;
       }
-      
-      new Job("Initializing " + project.getProject().getName()) {
-        protected IStatus run(IProgressMonitor monitor) {
-          try {
-            plugin.getBuildpathManager().updateClasspathContainer(project.getProject(), monitor);
-          } catch(CoreException ex) {
-            Maven2Plugin.log("Can't set classpath container", ex);
-          }
 
-          return Status.OK_STATUS;
-        }
-      }.schedule();
+      plugin.getBuildpathManager().scheduleUpdateClasspathContainer(project.getProject());
     }
   }
 
