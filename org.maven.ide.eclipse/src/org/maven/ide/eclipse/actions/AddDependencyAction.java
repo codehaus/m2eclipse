@@ -49,6 +49,7 @@ import org.maven.ide.eclipse.index.Indexer.FileInfo;
 
 public class AddDependencyAction implements IObjectActionDelegate {
   private IStructuredSelection selection;
+
   private IWorkbenchPart targetPart;
 
   public void run(IAction action) {
@@ -65,14 +66,14 @@ public class AddDependencyAction implements IObjectActionDelegate {
       return;
     }
 
-    
     MavenModelManager modelManager = Maven2Plugin.getDefault().getMavenModelManager();
     Set artifacts;
     try {
       IJavaProject javaProject = JavaCore.create(project);
       ResolverConfiguration resolverConfiguration = BuildPathManager.getResolverConfiguration(javaProject);
 
-      MavenExecutionResult result = modelManager.readMavenProject(file, new NullProgressMonitor(), true, false, resolverConfiguration);
+      MavenExecutionResult result = modelManager.readMavenProject(file.getLocation().toFile(),
+          new NullProgressMonitor(), true, false, resolverConfiguration);
       MavenProject mavenProject = result.getProject();
       artifacts = mavenProject == null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
     } catch(Exception ex) {

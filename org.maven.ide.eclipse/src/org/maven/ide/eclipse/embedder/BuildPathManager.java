@@ -208,7 +208,7 @@ public class BuildPathManager {
 
     MavenEmbedder embedder = embedderManager.createEmbedder( //
         EmbedderFactory.createWorkspaceCustomizer(resolverConfiguration.shouldResolveWorkspaceProjects()));
-    if(embedder!=null) {
+    if(embedder != null) {
       try {
         resolveClasspathEntries(entries, moduleArtifacts, pomFile, pomFile, resolverConfiguration, monitor, embedder);
       } finally {
@@ -260,8 +260,8 @@ public class BuildPathManager {
       boolean downloadJavadoc = !offline & preferenceStore.getBoolean(Maven2PreferenceConstants.P_DOWNLOAD_JAVADOC);
       boolean debug = preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT);
 
-      MavenExecutionResult result = mavenModelManager.readMavenProject(pomFile, monitor, offline, debug,
-          resolverConfiguration, embedder);
+      MavenExecutionResult result = mavenModelManager.readMavenProject(pomFile.getLocation().toFile(), monitor,
+          offline, debug, resolverConfiguration, embedder);
 
       MavenProject mavenProject = getMavenProject(pomFile, result);
       if(mavenProject == null) {
@@ -292,7 +292,7 @@ public class BuildPathManager {
       artifacts.addAll(mavenProject.getSystemArtifacts());
       // artifacts.addAll(mavenProject.getAttachedArtifacts());
       // artifacts.addAll(mavenProject.getDependencyArtifacts());
-      
+
       for(Iterator it = artifacts.iterator(); it.hasNext();) {
         if(monitor.isCanceled()) {
           throw new OperationCanceledException();
@@ -429,7 +429,7 @@ public class BuildPathManager {
     } catch(IllegalStateException ex) {
       addMarker(pomFile, ex.getMessage(), 1, IMarker.SEVERITY_ERROR);
       console.logError("Unable to read " + getPomName(pomFile) + "; " + ex.getMessage());
-      
+
     } catch(Throwable ex) {
       addMarker(pomFile, ex.toString(), 1, IMarker.SEVERITY_ERROR);
 
@@ -458,7 +458,7 @@ public class BuildPathManager {
         } else {
           handleBuildException(pomFile, ex);
         }
-        
+
       } else if(ex instanceof ProjectBuildingException) {
         handleProjectBuildingException(pomFile, (ProjectBuildingException) ex);
 
@@ -492,7 +492,7 @@ public class BuildPathManager {
 
   private void addErrorMarkers(IFile pomFile, MavenExecutionResult result) {
     ArtifactResolutionResult resolutionResult = result.getArtifactResolutionResult();
-    if(resolutionResult!=null) {
+    if(resolutionResult != null) {
       // List missingArtifacts = resolutionResult.getMissingArtifacts();
       addErrorMarkers(pomFile, "Metadata resolution error", resolutionResult.getMetadataResolutionExceptions());
       addErrorMarkers(pomFile, "Artifact error", resolutionResult.getErrorArtifactExceptions());
@@ -560,7 +560,7 @@ public class BuildPathManager {
       XmlPullParserException pex = (XmlPullParserException) cause;
       console.logError(Messages.getString("plugin.markerParsingError") + getPomName(pomFile) + "; " + pex.getMessage());
       addMarker(pomFile, pex.getMessage(), pex.getLineNumber(), IMarker.SEVERITY_ERROR); //$NON-NLS-1$
-      
+
     } else if(ex instanceof InvalidProjectModelException) {
       InvalidProjectModelException mex = (InvalidProjectModelException) ex;
       ModelValidationResult validationResult = mex.getValidationResult();
@@ -575,7 +575,7 @@ public class BuildPathManager {
           console.logError("  " + message);
         }
       }
-      
+
     } else {
       handleBuildException(pomFile, ex);
     }

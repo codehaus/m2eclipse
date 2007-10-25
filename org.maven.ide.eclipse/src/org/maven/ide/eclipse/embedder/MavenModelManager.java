@@ -194,7 +194,7 @@ public class MavenModelManager {
       return;
     }
 
-    MavenExecutionResult result = readMavenProject(pomFile, monitor, true, false, resolverConfiguration);
+    MavenExecutionResult result = readMavenProject(pomFile.getLocation().toFile(), monitor, true, false, resolverConfiguration);
     MavenProject mavenProject = result.getProject();
     if(mavenProject == null) {
       return;
@@ -391,23 +391,22 @@ public class MavenModelManager {
     }
   }
 
-  public MavenExecutionResult readMavenProject(IFile pomFile, IProgressMonitor monitor, 
+  public MavenExecutionResult readMavenProject(File pomFile, IProgressMonitor monitor, 
       boolean offline, boolean debug, ResolverConfiguration resolverConfiguration) {
     MavenEmbedder embedder = embedderManager.createEmbedder( // 
         EmbedderFactory.createWorkspaceCustomizer(resolverConfiguration.shouldResolveWorkspaceProjects()));
     return readMavenProject(pomFile, monitor, offline, debug, resolverConfiguration, embedder);
   }
   
-  public MavenExecutionResult readMavenProject(IFile pomFile, IProgressMonitor monitor, //
+  public MavenExecutionResult readMavenProject(File pomFile, IProgressMonitor monitor, //
       boolean offline, boolean debug, ResolverConfiguration resolverConfiguration, MavenEmbedder embedder) {
     try {
-      monitor.subTask("Reading " + pomFile.getFullPath());
-
-      File file = pomFile.getLocation().toFile();
+      // monitor.subTask("Reading " + pomFile.getFullPath());
+      // File file = pomFile.getLocation().toFile();
 
       MavenExecutionRequest request = EmbedderFactory.createMavenExecutionRequest(embedder, offline, debug);
-      request.setPomFile(file.getAbsolutePath());
-      request.setBaseDirectory(file.getParentFile());
+      request.setPomFile(pomFile.getAbsolutePath());
+      request.setBaseDirectory(pomFile.getParentFile());
       request.setTransferListener(new TransferListenerAdapter(monitor, console, indexManager));
       request.setProfiles(resolverConfiguration.getActiveProfileList());
       request.addActiveProfiles(resolverConfiguration.getActiveProfileList());
