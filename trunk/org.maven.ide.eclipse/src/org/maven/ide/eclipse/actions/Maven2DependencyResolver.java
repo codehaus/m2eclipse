@@ -55,14 +55,14 @@ import org.maven.ide.eclipse.index.Indexer.FileInfo;
 
 
 public class Maven2DependencyResolver implements IQuickAssistProcessor {
-  
+
   public boolean hasAssists(IInvocationContext context) {
     return true;
   }
 
   public IJavaCompletionProposal[] getAssists(IInvocationContext context, IProblemLocation[] locations) {
     List proposals = new ArrayList();
-    for( int i = 0; i < locations.length; i++ ) {
+    for(int i = 0; i < locations.length; i++ ) {
       IProblemLocation location = locations[i];
       String[] arguments = location.getProblemArguments();
       int id = location.getProblemId();
@@ -77,9 +77,9 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
           proposals.add(new OpenBuildPathCorrectionProposal(arguments[0], context, 0, false));
           break;
       }
-      
+
     }
-    return (IJavaCompletionProposal[]) proposals.toArray( new IJavaCompletionProposal[proposals.size()] );
+    return (IJavaCompletionProposal[]) proposals.toArray(new IJavaCompletionProposal[proposals.size()]);
 
     /*
     if (coveringNode == null) {
@@ -101,10 +101,9 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
     }
     
     return null;
-    */ 
+    */
   }
 
-  
   static public final class OpenBuildPathCorrectionProposal extends ChangeCorrectionProposal {
     private final String query;
 
@@ -130,7 +129,8 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
       MavenProject mavenProject = null;
       try {
         ResolverConfiguration resolverConfiguration = BuildPathManager.getResolverConfiguration(javaProject);
-        MavenExecutionResult result = modelManager.readMavenProject(pomFile, new NullProgressMonitor(), true, false, resolverConfiguration);
+        MavenExecutionResult result = modelManager.readMavenProject(pomFile.getLocation().toFile(),
+            new NullProgressMonitor(), true, false, resolverConfiguration);
         mavenProject = result.getProject();
 //      } catch(CoreException ex) {
 //        // TODO move into ReadProjectTask
@@ -142,7 +142,7 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
         Maven2Plugin.log(msg, ex);
         Maven2Plugin.getDefault().getConsole().logError(msg + "; " + ex.toString());
       }
-      
+
       Set artifacts = mavenProject == null ? Collections.EMPTY_SET : mavenProject.getArtifacts();
 
       IWorkbench workbench = plugin.getWorkbench();
