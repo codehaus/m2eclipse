@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Subclipse integration for Maven
 Bundle-SymbolicName: org.maven.ide.eclipse.subclipse;singleton:=true
-Bundle-Version: 0.0.12.20071018-2200
+Bundle-Version: 0.0.12.20071025-0200
 Bundle-Activator: org.maven.ide.eclipse.subclipse.MavenSubclipsePlugin
 Bundle-Vendor: Codehaus Foundation
 Require-Bundle: org.eclipse.ui,
