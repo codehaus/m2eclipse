@@ -101,10 +101,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements IStartup {
     
     this.resourceChangeListener = new Maven2ResourceChangeListener(mavenModelManager, buildpathManager, console);
     
-    ResourcesPlugin.getWorkspace().addResourceChangeListener(
-        this.resourceChangeListener,
-        IResourceChangeEvent.PRE_BUILD | IResourceChangeEvent.POST_CHANGE | IResourceChangeEvent.PRE_CLOSE
-            | IResourceChangeEvent.PRE_DELETE);
+    ResourcesPlugin.getWorkspace().addResourceChangeListener(this.resourceChangeListener, 
+        IResourceChangeEvent.POST_CHANGE | IResourceChangeEvent.PRE_CLOSE | IResourceChangeEvent.PRE_DELETE);
   }
 
   public void earlyStartup() {
