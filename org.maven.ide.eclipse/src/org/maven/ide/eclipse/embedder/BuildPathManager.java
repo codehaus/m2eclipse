@@ -45,7 +45,6 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.core.resources.WorkspaceJob;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -54,6 +53,7 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubProgressMonitor;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.core.IAccessRule;
 import org.eclipse.jdt.core.IClasspathAttribute;
 import org.eclipse.jdt.core.IClasspathContainer;
@@ -1267,7 +1267,7 @@ public class BuildPathManager {
     refreshJob.queueRefresh(projects);
   }
 
-  static class RefreshJob extends WorkspaceJob {
+  static class RefreshJob extends Job {
 
     private static final long PROCESSING_DELAY = 1000L;
 
@@ -1283,7 +1283,7 @@ public class BuildPathManager {
       this.console = console;
     }
 
-    public IStatus runInWorkspace(IProgressMonitor monitor) throws CoreException {
+    protected IStatus run(IProgressMonitor monitor) {
       while(true) {
         Set projects = new HashSet();
         synchronized(queue) {
@@ -1303,7 +1303,11 @@ public class BuildPathManager {
             console.logError("Unable to refresh classpath container: " + e);
           }
         }
-        this.buildPathManager.setClasspathContainer(resolved, monitor);
+        try {
+          buildPathManager.setClasspathContainer(resolved, monitor);
+        } catch(JavaModelException ex) {
+          console.logError("Unable to set classpath containers: " + ex);
+        }        
       }
       return Status.OK_STATUS;
     }

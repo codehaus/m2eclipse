@@ -36,15 +36,21 @@ import org.maven.ide.eclipse.launch.console.Maven2Console;
 
 /**
  * An <code>IResourceChangeListener</code> for monitoring project dependencies
- *
+ * 
  * @author Eugene Kuleshov
  */
 final class Maven2ResourceChangeListener implements IResourceChangeListener {
+  private static final int DELTA_FLAGS = IResourceDelta.CONTENT | IResourceDelta.MOVED_FROM | IResourceDelta.MOVED_TO
+      | IResourceDelta.COPIED_FROM | IResourceDelta.REPLACED;
+
   private final MavenModelManager mavenModelManager;
+
   private final BuildPathManager buildpathManager;
+
   final Maven2Console console;
 
-  public Maven2ResourceChangeListener(MavenModelManager mavenModelManager, BuildPathManager buildpathManager, Maven2Console console) {
+  public Maven2ResourceChangeListener(MavenModelManager mavenModelManager, BuildPathManager buildpathManager,
+      Maven2Console console) {
     this.mavenModelManager = mavenModelManager;
     this.buildpathManager = buildpathManager;
     this.console = console;
@@ -52,7 +58,7 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
 
   public void resourceChanged(IResourceChangeEvent event) {
     int type = event.getType();
-    if (IResourceChangeEvent.PRE_CLOSE == type || IResourceChangeEvent.PRE_DELETE == type) {
+    if(IResourceChangeEvent.PRE_CLOSE == type || IResourceChangeEvent.PRE_DELETE == type) {
       refreshDependents((IProject) event.getResource());
       return;
     }
@@ -60,12 +66,23 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
     // if (IResourceChangeEvent.POST_CHANGE == type)
     IResourceDelta delta = event.getDelta(); // this is workspace delta
     IResourceDelta[] projectDeltas = delta.getAffectedChildren();
-    for (int p = 0; p < projectDeltas.length; p++) {
-      if ((IResourceDelta.OPEN & projectDeltas[p].getKind()) != 0) continue; 
+    for(int p = 0; p < projectDeltas.length; p++ ) {
+      if(IResourceDelta.OPEN == projectDeltas[p].getKind()) {
+        continue;
+      }
+
       IProject project = (IProject) projectDeltas[p].getResource();
       try {
-        if (!project.isOpen() || !project.hasNature(Maven2Plugin.NATURE_ID)) continue;
-        if (projectDeltas[p].findMember(new Path(Maven2Plugin.POM_FILE_NAME)) != null) {
+        if(!project.isAccessible() || !project.hasNature(Maven2Plugin.NATURE_ID)) {
+          continue;
+        }
+
+        IResourceDelta pomDelta = projectDeltas[p].findMember(new Path(Maven2Plugin.POM_FILE_NAME));
+        if(pomDelta == null) {
+          continue;
+        }
+
+        if(pomDelta.getKind() == IResourceDelta.REMOVED || (pomDelta.getFlags() & DELTA_FLAGS) != 0) {
           refresh(project);
         }
       } catch(CoreException ex) {
@@ -76,9 +93,10 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
 
   private void refreshDependents(IProject project) {
     try {
-      if (!project.isOpen() || !project.hasNature(Maven2Plugin.NATURE_ID)) return;
+      if(!project.isOpen() || !project.hasNature(Maven2Plugin.NATURE_ID))
+        return;
       IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
-      if (pomFile != null) {
+      if(pomFile != null) {
         final Set projects = mavenModelManager.getDependentProjects(pomFile);
         mavenModelManager.removeMavenModel(pomFile, true, new NullProgressMonitor());
         buildpathManager.scheduleUpdateClasspathContainer(projects);
@@ -92,4 +110,3 @@ final class Maven2ResourceChangeListener implements IResourceChangeListener {
     buildpathManager.scheduleUpdateClasspathContainer(project);
   }
 }
-
