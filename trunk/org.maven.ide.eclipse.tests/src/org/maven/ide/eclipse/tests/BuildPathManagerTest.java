@@ -19,39 +19,20 @@
 
 package org.maven.ide.eclipse.tests;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Properties;
 
-import junit.framework.TestCase;
-
-import org.apache.maven.model.Model;
-import org.eclipse.core.resources.IContainer;
-import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IResourceVisitor;
-import org.eclipse.core.resources.IWorkspace;
-import org.eclipse.core.resources.IWorkspaceRunnable;
-import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
-import org.eclipse.core.runtime.Status;
-import org.eclipse.core.runtime.jobs.IJobManager;
-import org.eclipse.core.runtime.jobs.Job;
-import org.eclipse.jdt.core.IClasspathContainer;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.embedder.BuildPathManager;
 import org.maven.ide.eclipse.embedder.ResolverConfiguration;
@@ -60,7 +41,7 @@ import org.maven.ide.eclipse.embedder.ResolverConfiguration;
 /**
  * @author Eugene Kuleshov
  */
-public class BuildPathManagerTest extends TestCase {
+public class BuildPathManagerTest extends AsbtractMavenProjectTestCase {
 
   private static final boolean WORKSPACE = true;
 
@@ -69,26 +50,6 @@ public class BuildPathManagerTest extends TestCase {
   private static final boolean INCLUDE_MODULES = true;
 
   private static final boolean NO_MODULES = false;
-
-  private IWorkspace workspace;
-
-  protected void setUp() throws Exception {
-    super.setUp();
-    workspace = ResourcesPlugin.getWorkspace();
-  }
-
-  protected void tearDown() throws Exception {
-    super.tearDown();
-
-    workspace.run(new IWorkspaceRunnable() {
-      public void run(IProgressMonitor monitor) throws CoreException {
-        IProject[] projects = workspace.getRoot().getProjects();
-        for(int i = 0; i < projects.length; i++ ) {
-          projects[i].delete(false, true, monitor);
-        }
-      }
-    }, new NullProgressMonitor());
-  }
 
   public void testEnableMavenNature() throws Exception {
     deleteProject("MNGECLIPSE-248parent");
@@ -562,134 +523,35 @@ public class BuildPathManagerTest extends TestCase {
     assertEquals(toString(markers), 0, markers.length);
   }
   
-  private List getResources(IProject project) throws CoreException {
-    final List resources = new ArrayList();
-    project.accept(new IResourceVisitor() {
-      public boolean visit(IResource resource) throws CoreException {
-        resources.add(resource);
-        return true;
-      }
-    }, IResource.DEPTH_INFINITE, IContainer.EXCLUDE_DERIVED);
-    return resources;
-  }
+  public void _testResourceFiltering() throws Exception {
+    deleteProject("MNGECLIPSE-343");
+    ResolverConfiguration configuration = new ResolverConfiguration();
+    IProject project = importProject("projects/MNGECLIPSE-343/pom.xml", configuration);
+    project.build(IncrementalProjectBuilder.FULL_BUILD, new NullProgressMonitor());
 
-  private IProject importProject(String pomName, ResolverConfiguration configuration) throws CoreException {
-    Maven2Plugin plugin = Maven2Plugin.getDefault();
-    BuildPathManager buildpathManager = plugin.getBuildpathManager();
-    File pomFile = new File(pomName);
-    Model model = plugin.getMavenModelManager().readMavenModel(pomFile);
-    IProject project = buildpathManager.importProject(pomFile, model, configuration, new NullProgressMonitor());
-    assertNotNull("Failed to import project " + pomFile, project);
-    return project;
-  }
-
-  private void waitForJobsToComplete() throws InterruptedException {
-    IJobManager jobManager = Job.getJobManager();
-    Job[] jobs = jobManager.find(null);
-    for(int i = 0; i < jobs.length; i++ ) {
-      Job job = jobs[i];
-      if(!job.isSystem()) {
-        while(job.getState() != Job.NONE) {
-          Thread.sleep(50L);
-        }
-      }
-    }
-  }
-  
-  private void waitForJob(String jobName) throws InterruptedException {
-    IJobManager jobManager = Job.getJobManager();
-    Job[] jobs = jobManager.find(null);
-//    System.err.println(Arrays.asList(jobs));
-
-    Job job = findJob(jobs, jobName);
-    if(job != null) {
-      while(job.getState() != Job.NONE) {
-        Thread.sleep(50L);
-      }
-      assertEquals(Status.OK_STATUS, job.getResult());
-    }
-  }
-
-  private Job findJob(Job[] jobs, String name) {
-    for(int i = 0; i < jobs.length; i++ ) {
-      Job job = jobs[i];
-      if(name.equals(job.getName()))
-        return job;
-    }
-    return null;
-  }
-
-  private IClasspathEntry[] getMavenContainerEntries(IProject project) throws JavaModelException {
     IJavaProject javaProject = JavaCore.create(project);
-    IClasspathContainer container = BuildPathManager.getMaven2ClasspathContainer(javaProject);
-    return container.getClasspathEntries();
+    IPath outputLocation = javaProject.getOutputLocation();
+    Properties properties = new Properties();
+    InputStream contents = workspace.getRoot().getFile(outputLocation.append("application.properties")).getContents();
+    try {
+      properties.load(contents);
+    } finally {
+      contents.close();
+    }
+    assertEquals("MNGECLIPSE-343 Test 001", properties.getProperty("application.name"));
+    assertEquals("0.0.1-SNAPSHOT", properties.getProperty("application.version"));
   }
 
-  private void deleteProject(String projectName) throws CoreException {
-    final IProject project = workspace.getRoot().getProject(projectName);
+  public void testEmbedderException() throws Exception {
+    deleteProject("MNGECLIPSE-157parent");
 
-    workspace.run(new IWorkspaceRunnable() {
-      public void run(IProgressMonitor monitor) throws CoreException {
-        if(project.exists()) {
-          deleteMember(".classpath", project, monitor);
-          deleteMember(".project", project, monitor);
-          project.delete(false, true, monitor);
-        }
-      }
+    importProject("projects/MNGECLIPSE-157parent/pom.xml", new ResolverConfiguration());
+    IProject project = importProject("projects/MNGECLIPSE-157child/pom.xml", new ResolverConfiguration());
+    waitForJobsToComplete();
 
-      private void deleteMember(String name, final IProject project, IProgressMonitor monitor) throws CoreException {
-        IResource member = project.findMember(name);
-        if(member.exists()) {
-          member.delete(true, monitor);
-        }
-      }
-    }, new NullProgressMonitor());
+    IMarker[] markers = project.findMarkers(null, true, IResource.DEPTH_INFINITE);
+    assertEquals(1, markers.length);
+    assertEquals("pom.xml", markers[0].getResource().getFullPath().lastSegment());
   }
-
-  private IProject createProject(String projectName, final String pomResource) throws CoreException {
-    final IProject project = workspace.getRoot().getProject(projectName);
-
-    workspace.run(new IWorkspaceRunnable() {
-      public void run(IProgressMonitor monitor) throws CoreException {
-        project.create(monitor);
-
-        if(!project.isOpen()) {
-          project.open(monitor);
-        }
-
-        IFile pomFile = project.getFile("pom.xml");
-        if(!pomFile.exists()) {
-          InputStream is = null;
-          try {
-            is = new FileInputStream(pomResource);
-            pomFile.create(is, true, monitor);
-          } catch(FileNotFoundException ex) {
-            throw new CoreException(new Status(IStatus.ERROR, "", 0, ex.toString(), ex));
-          } finally {
-            try {
-              is.close();
-            } catch(IOException ex) {
-              // ignore
-            }
-          }
-        }
-      }
-    }, null);
-
-    return project;
-  }
-
-//  private void assertFolder(IProject project, String name) {
-//    IFolder folder = project.getFolder(name);
-//    long t = System.currentTimeMillis();
-//    while(!folder.exists() && (System.currentTimeMillis() - t) < 10000L) {
-//      try {
-//        Thread.sleep(1000L);
-//      } catch(InterruptedException ex) {
-//        // ignore
-//      }
-//    }
-//    assertTrue("Expected to see folder " + folder, folder.exists());
-//  }
 
 }
