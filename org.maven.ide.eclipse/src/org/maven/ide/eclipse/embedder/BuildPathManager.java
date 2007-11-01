@@ -25,8 +25,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -205,7 +206,7 @@ public class BuildPathManager {
   }
 
   public void updateClasspathContainer(IProject project, IProgressMonitor monitor) throws CoreException {
-    Map resolved = new HashMap();
+    Map resolved = new LinkedHashMap();
     internalUpdateClasspathContainer(project, resolved, monitor);
     setClasspathContainer(resolved, monitor);
   }
@@ -274,8 +275,8 @@ public class BuildPathManager {
 
     IFile pomFile = project.getFile(Maven2Plugin.POM_FILE_NAME);
 
-    Set entries = new HashSet();
-    Map moduleArtifacts = new HashMap();
+    Set entries = new LinkedHashSet();
+    Map moduleArtifacts = new LinkedHashMap();
 
     deleteMarkers(project);
     try {
@@ -741,7 +742,7 @@ public class BuildPathManager {
     monitor.beginTask("Updating sources " + project.getName(), IProgressMonitor.UNKNOWN);
     long t1 = System.currentTimeMillis();
     try {
-      Set sources = new HashSet();
+      Set sources = new LinkedHashSet();
       List entries = new ArrayList();
 
       MavenProject mavenProject = collectSourceEntries(project, entries, sources, configuration, monitor);
@@ -1094,7 +1095,7 @@ public class BuildPathManager {
 
     IJavaProject javaProject = JavaCore.create(project);
     if(javaProject != null) {
-      HashSet containerEntrySet = new HashSet();
+      Set containerEntrySet = new LinkedHashSet();
       IClasspathContainer container = getMaven2ClasspathContainer(javaProject);
       if(container != null) {
         IClasspathEntry[] entries = container.getClasspathEntries();
@@ -1323,7 +1324,7 @@ public class BuildPathManager {
 
     public IStatus runInWorkspace(IProgressMonitor monitor) throws CoreException {
       while(true) {
-        Set projects = new HashSet();
+        Set projects = new LinkedHashSet();
         synchronized(queue) {
           projects.addAll(queue);
           queue.clear();
@@ -1332,7 +1333,7 @@ public class BuildPathManager {
           break;
         }
 
-        Map resolved = new HashMap();
+        Map resolved = new LinkedHashMap();
         for(Iterator piter = projects.iterator(); piter.hasNext();) {
           IProject project = (IProject) piter.next();
           try {
