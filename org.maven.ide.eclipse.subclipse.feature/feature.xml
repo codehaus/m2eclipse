@@ -40,8 +40,8 @@ under the License.
       <import plugin="org.eclipse.core.resources"/>
       <import plugin="org.eclipse.team.core"/>
       <import plugin="org.eclipse.team.ui"/>
-      <import plugin="org.tigris.subversion.subclipse.core"/>
-      <import plugin="org.tigris.subversion.subclipse.ui"/>
+      <import plugin="org.tigris.subversion.subclipse.core" version="1.3.5" match="greaterOrEqual"/>
+      <import plugin="org.tigris.subversion.subclipse.ui" version="1.3.5" match="greaterOrEqual"/>
       <import plugin="org.maven.ide.eclipse" version="0.0.12" match="greaterOrEqual"/>
    </requires>
 
