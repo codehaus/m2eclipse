@@ -33,7 +33,6 @@ import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.compiler.IProblem;
-import org.eclipse.jdt.internal.ui.text.correction.ChangeCorrectionProposal;
 import org.eclipse.jdt.ui.actions.OrganizeImportsAction;
 import org.eclipse.jdt.ui.text.java.IInvocationContext;
 import org.eclipse.jdt.ui.text.java.IJavaCompletionProposal;
@@ -179,7 +178,7 @@ public class Maven2DependencyResolver implements IQuickAssistProcessor {
     }
 
     public String getAdditionalProposalInfo() {
-      return "Resolve dependencies from Maven2 repository";
+      return "Resolve dependencies from Maven repositories";
     }
 
   }
