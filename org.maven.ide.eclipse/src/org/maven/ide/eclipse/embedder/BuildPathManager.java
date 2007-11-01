@@ -35,6 +35,9 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
+import org.osgi.framework.Bundle;
+import org.osgi.framework.Constants;
+
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -45,6 +48,7 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.resources.WorkspaceJob;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -53,14 +57,20 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubProgressMonitor;
-import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jdt.core.ElementChangedEvent;
 import org.eclipse.jdt.core.IAccessRule;
 import org.eclipse.jdt.core.IClasspathAttribute;
 import org.eclipse.jdt.core.IClasspathContainer;
 import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IElementChangedListener;
+import org.eclipse.jdt.core.IJavaElementDelta;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.internal.core.DeltaProcessingState;
+import org.eclipse.jdt.internal.core.JavaElementDelta;
+import org.eclipse.jdt.internal.core.JavaModelManager;
+import org.eclipse.jdt.internal.ui.packageview.PackageExplorerContentProvider;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.IVMInstallType;
 import org.eclipse.jdt.launching.JavaRuntime;
@@ -117,6 +127,8 @@ public class BuildPathManager {
   private final IPreferenceStore preferenceStore;
 
   private final RefreshJob refreshJob;
+
+  private String jdtVersion;
 
   public BuildPathManager(MavenEmbedderManager embedderManager, Maven2Console console,
       MavenModelManager mavenModelManager, MavenRepositoryIndexManager indexManager, IPreferenceStore preferenceStore) {
@@ -198,29 +210,55 @@ public class BuildPathManager {
     setClasspathContainer(resolved, monitor);
   }
 
-  void setClasspathContainer(Map resolved, IProgressMonitor monitor) throws JavaModelException {
+  void setClasspathContainer(Map resolved, IProgressMonitor monitor) throws CoreException {
     monitor.subTask("Updating JDT");
-//    ArrayList javaProjects = new ArrayList();
-//    ArrayList containers = new ArrayList();
     Iterator piter = resolved.entrySet().iterator();
     while(piter.hasNext()) {
       Map.Entry entry = (Entry) piter.next();
       IJavaProject javaProject = JavaCore.create((IProject) entry.getKey());
       IClasspathContainer container = (IClasspathContainer) entry.getValue();
       if(javaProject != null && container != null) {
+
         JavaCore.setClasspathContainer(container.getPath(), new IJavaProject[] {javaProject},
             new IClasspathContainer[] {container}, monitor);
-//        javaProjects.add(javaProject);
-//        containers.add(container);
+
+        // XXX In Eclipse 3.3, changes to resolved classpath are not announced by JDT Core
+        // and PackageExplorer does not properly refresh when we update Maven
+        // classpath container.
+        // As a temporary workaround, send F_CLASSPATH_CHANGED notifications
+        // to all PackageExplorerContentProvider instances listening to
+        // java ElementChangedEvent. 
+        // Note that even with this hack, build clean is sometimes necessary to
+        // reconcile PackageExplorer with actual classpath
+        // See https://bugs.eclipse.org/bugs/show_bug.cgi?id=154071
+        if(getJDTVersion().startsWith("3.3")) {
+          DeltaProcessingState state = JavaModelManager.getJavaModelManager().deltaState;
+          synchronized(state) {
+            IElementChangedListener[] listeners = state.elementChangedListeners;
+            for(int i = 0; i < listeners.length; i++ ) {
+              if(listeners[i] instanceof PackageExplorerContentProvider) {
+                JavaElementDelta delta = new JavaElementDelta(javaProject);
+                delta.changed(IJavaElementDelta.F_CLASSPATH_CHANGED);
+                listeners[i].elementChanged(new ElementChangedEvent(delta, ElementChangedEvent.POST_CHANGE));
+              }
+            }
+          }
+        }
       }
     }
-    // TODO
-    // The following is supposed to have the same effect 
-    // as series JavaCore.setClasspathContainer. This seems to be the case
-    // when I work with the plugin interactively, but breaks unit tests 
-//    JavaCore.setClasspathContainer(new Path(Maven2Plugin.CONTAINER_ID), 
-//        (IJavaProject[]) javaProjects.toArray(new IJavaProject[javaProjects.size()]), 
-//        (IClasspathContainer[]) containers.toArray(new IClasspathContainer[containers.size()]), monitor);
+  }
+
+  private synchronized String getJDTVersion() {
+    if(jdtVersion == null) {
+      Bundle[] bundles = Maven2Plugin.getDefault().getBundle().getBundleContext().getBundles();
+      for(int i = 0; i < bundles.length; i++ ) {
+        if(JavaCore.PLUGIN_ID.equals(bundles[i].getSymbolicName())) {
+          jdtVersion = (String) bundles[i].getHeaders().get(Constants.BUNDLE_VERSION);
+          break;
+        }
+      }
+    }
+    return jdtVersion;
   }
 
   void internalUpdateClasspathContainer(IProject project, Map resolved, IProgressMonitor monitor)
@@ -1267,7 +1305,7 @@ public class BuildPathManager {
     refreshJob.queueRefresh(projects);
   }
 
-  static class RefreshJob extends Job {
+  static class RefreshJob extends WorkspaceJob {
 
     private static final long PROCESSING_DELAY = 1000L;
 
@@ -1283,7 +1321,7 @@ public class BuildPathManager {
       this.console = console;
     }
 
-    protected IStatus run(IProgressMonitor monitor) {
+    public IStatus runInWorkspace(IProgressMonitor monitor) throws CoreException {
       while(true) {
         Set projects = new HashSet();
         synchronized(queue) {
@@ -1303,11 +1341,7 @@ public class BuildPathManager {
             console.logError("Unable to refresh classpath container: " + e);
           }
         }
-        try {
-          buildPathManager.setClasspathContainer(resolved, monitor);
-        } catch(JavaModelException ex) {
-          console.logError("Unable to set classpath containers: " + ex);
-        }        
+        buildPathManager.setClasspathContainer(resolved, monitor);
       }
       return Status.OK_STATUS;
     }
