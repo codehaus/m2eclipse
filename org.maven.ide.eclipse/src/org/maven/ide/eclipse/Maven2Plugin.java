@@ -72,6 +72,8 @@ public class Maven2Plugin extends AbstractUIPlugin implements IStartup {
 
   private BuildPathManager buildpathManager;
   private IResourceChangeListener resourceChangeListener;
+
+  private BundleContext bundleContext;
   
   public Maven2Plugin() {
     plugin = this;
@@ -82,6 +84,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements IStartup {
    */
   public void start(final BundleContext context) throws Exception {
     super.start(context);
+    this.bundleContext = context;
 
     try {
       this.console = new Maven2Console();
@@ -182,5 +185,9 @@ public class Maven2Plugin extends AbstractUIPlugin implements IStartup {
     log(new Status(IStatus.ERROR, PLUGIN_ID, 0, msg, t));
   }
 
+  public BundleContext getBundleContext() {
+    return this.bundleContext;
+  }
+  
 }
 

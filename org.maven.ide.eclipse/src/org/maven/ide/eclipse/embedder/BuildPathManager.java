@@ -251,7 +251,7 @@ public class BuildPathManager {
 
   private synchronized String getJDTVersion() {
     if(jdtVersion == null) {
-      Bundle[] bundles = Maven2Plugin.getDefault().getBundle().getBundleContext().getBundles();
+      Bundle[] bundles = Maven2Plugin.getDefault().getBundleContext().getBundles();
       for(int i = 0; i < bundles.length; i++ ) {
         if(JavaCore.PLUGIN_ID.equals(bundles[i].getSymbolicName())) {
           jdtVersion = (String) bundles[i].getHeaders().get(Constants.BUNDLE_VERSION);
