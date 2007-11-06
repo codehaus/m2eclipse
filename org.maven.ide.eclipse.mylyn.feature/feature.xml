@@ -2,7 +2,7 @@
 <feature
       id="org.maven.ide.eclipse.mylyn.feature"
       label="Maven Integration for Mylyn (Optional)"
-      version="0.0.12.20071025-0200"
+      version="0.0.12.20071105-2200"
       provider-name="maven.org">
 
    <description url="http://m2eclipse.codehaus.org/">
