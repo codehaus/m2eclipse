@@ -550,8 +550,8 @@ public class BuildPathManagerTest extends AsbtractMavenProjectTestCase {
     waitForJobsToComplete();
 
     IMarker[] markers = project.findMarkers(null, true, IResource.DEPTH_INFINITE);
-    assertEquals(1, markers.length);
-    assertEquals("pom.xml", markers[0].getResource().getFullPath().lastSegment());
+    assertEquals(toString(markers), 1, markers.length);
+    assertEquals(toString(markers), "pom.xml", markers[0].getResource().getFullPath().lastSegment());
   }
 
 }
