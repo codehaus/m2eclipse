@@ -38,7 +38,10 @@ import org.apache.maven.model.Model;
 import org.apache.maven.model.Parent;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.jface.preference.IPreferenceStore;
+
 import org.maven.ide.eclipse.Maven2Plugin;
+import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 
 
 public class EclipseArtifactResolver extends DefaultArtifactResolver {
@@ -175,7 +178,11 @@ public class EclipseArtifactResolver extends DefaultArtifactResolver {
     artifact.setResolved(true);
 
     String loc = artifact.getFile().getAbsolutePath();
-    plugin.getConsole().logMessage(artifact.getId() + " in Eclipse Workspace " + loc);
+    
+    IPreferenceStore preferenceStore = plugin.getPreferenceStore();
+    if(preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT)) {
+      plugin.getConsole().logMessage(artifact.getId() + " in Eclipse Workspace " + loc);
+    }
     return true;
   }
 
