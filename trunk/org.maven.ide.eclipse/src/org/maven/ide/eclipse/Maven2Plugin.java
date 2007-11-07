@@ -96,7 +96,7 @@ public class Maven2Plugin extends AbstractUIPlugin implements IStartup {
 
     this.mavenRepositoryIndexManager = new MavenRepositoryIndexManager(mavenEmbedderManager, console, getStateLocation());
 
-    this.mavenModelManager = new MavenModelManager(mavenEmbedderManager, mavenRepositoryIndexManager, console);
+    this.mavenModelManager = new MavenModelManager(mavenEmbedderManager, mavenRepositoryIndexManager, console, getPreferenceStore());
     // this.mavenModelManager.initMavenModel(new NullProgressMonitor());
     
     this.buildpathManager = new BuildPathManager(mavenEmbedderManager, console, mavenModelManager,

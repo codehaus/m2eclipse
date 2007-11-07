@@ -53,9 +53,12 @@ import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jface.preference.IPreferenceStore;
+
 import org.maven.ide.eclipse.Maven2Plugin;
 import org.maven.ide.eclipse.index.MavenRepositoryIndexManager;
 import org.maven.ide.eclipse.launch.console.Maven2Console;
+import org.maven.ide.eclipse.preferences.Maven2PreferenceConstants;
 
 
 /**
@@ -72,6 +75,8 @@ public class MavenModelManager {
 
   private final Maven2Console console;
 
+  private final IPreferenceStore preferenceStore;
+  
   /**
    * Map of the project pomFile location to the Model
    */
@@ -91,10 +96,11 @@ public class MavenModelManager {
   private boolean isInitialized = false;
 
   public MavenModelManager(MavenEmbedderManager embedderManager, MavenRepositoryIndexManager indexManager,
-      Maven2Console console) {
+      Maven2Console console, IPreferenceStore preferenceStore) {
     this.embedderManager = embedderManager;
     this.indexManager = indexManager;
     this.console = console;
+    this.preferenceStore = preferenceStore;
   }
 
   public IFile getArtifactFile(Artifact a) {
@@ -289,7 +295,9 @@ public class MavenModelManager {
 
     String artifactKey = getArtifactKey(mavenModel);
     artifacts.put(artifactKey, pomFile);
-    console.logMessage("Updated model " + pomFile.getFullPath().toString() + " : " + artifactKey);
+    if(preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT)) {
+      console.logMessage("Updated model " + pomFile.getFullPath().toString() + " : " + artifactKey);
+    }
 
     if(includeModules) {
       IContainer parent = pomFile.getParent();
@@ -325,7 +333,9 @@ public class MavenModelManager {
 
       artifacts.remove(artifactKey);
 
-      console.logMessage("Removed model " + pomFile.getFullPath().toString() + " : " + artifactKey);
+      if(preferenceStore.getBoolean(Maven2PreferenceConstants.P_DEBUG_OUTPUT)) {
+        console.logMessage("Removed model " + pomFile.getFullPath().toString() + " : " + artifactKey);
+      }
 
       if(recursive) {
         IContainer parent = pomFile.getParent();
