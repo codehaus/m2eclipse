@@ -2,7 +2,7 @@
 <feature
       id="org.maven.ide.eclipse.subclipse.feature"
       label="Subclipse Integration for Maven (Optional)"
-      version="0.0.12.20071105-2200"
+      version="0.0.12.20071107-2300"
       provider-name="maven.org">
 
    <description url="http://m2eclipse.codehaus.org/">
