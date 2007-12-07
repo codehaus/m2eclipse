@@ -303,9 +303,29 @@
          name="%m2.shortcut.description.run"
          description="%m2.shortcut.description.run"
          categoryId="org.eclipse.debug.ui.category.run"
-         id="org.maven.ide.eclipse.pomFileAction.run">
-    </command>
-  </extension>	
+         id="org.maven.ide.eclipse.pomFileAction.run"/>
+    <command
+         name="%m2.shortcut.description.install"
+         description="%m2.shortcut.description.install"
+         categoryId="org.eclipse.debug.ui.category.run"
+         id="org.maven.ide.eclipse.actions.LifeCycleInstall.run"/>
+    <command
+         name="%m2.shortcut.description.clean"
+         description="%m2.shortcut.description.clean"
+         categoryId="org.eclipse.debug.ui.category.run"
+         id="org.maven.ide.eclipse.actions.LifeCycleClean.run"/>
+    <command
+         name="%m2.shortcut.description.test"
+         description="%m2.shortcut.description.test"
+         categoryId="org.eclipse.debug.ui.category.run"
+         id="org.maven.ide.eclipse.actions.LifeCycleTest.run"/>
+    <command
+         name="%m2.shortcut.description.generate-sources"
+         description="%m2.shortcut.description.generate-sources"
+         categoryId="org.eclipse.debug.ui.category.run"
+         id="org.maven.ide.eclipse.actions.LifeCycleGenerateSources.run"/>
+  </extension>
+  
   <extension point="org.eclipse.ui.bindings">
     <key sequence="M3+M2+X M"
          contextId="org.eclipse.ui.globalScope"
