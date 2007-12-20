@@ -4,6 +4,7 @@
 This will build all projects except those for testing support.
 
 - Take a clean Eclipse 3.2.1 install and deploy it into your Maven repository. From the Eclipse directory, do 'mvn targetplatform:install-bundles'. 
+(or mvn org.codehaus.tycho:maven-targetplatform-plugin:1.0-SNAPSHOT:install-bundles)
 
 To deploy to a remote repository, run:
 mvn targetplatform:deploy-bundles -DremoteRepository=repositoryId::default::repositoryUrl
@@ -53,4 +54,4 @@ Some quick rules on creating a osgi bundle project:
 - every dependency should be a valid osgi bundle (bundles with nested jars are supported)
 - the poms of every dependency should also cover their transitive dependencies
 (this is because I build a complete OSGi resolver state before compiling each project - this is necessary to calculate the correct classpath)
-
+- if you depend on SWT (and use the sychronize-plugin-pom mojo), you will have to add the platform-dependent fragment yourself (e.g. org.eclipse.swt.win32.win32.x86)

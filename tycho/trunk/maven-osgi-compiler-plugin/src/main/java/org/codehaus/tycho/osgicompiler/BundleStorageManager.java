@@ -96,7 +96,7 @@ public class BundleStorageManager {
 
 			bundleInfo = new BundleInfo();
 			bundleInfo.original = canonicalOriginal;
-			jarFile = new JarFile(f);
+			jarFile = new JarFile(f, false);
 			Manifest mft = jarFile.getManifest();
 			String bundleClassPath = getClassPath(mft);
 			if (bundleClassPath == null || bundleClassPath.equals(".")) {

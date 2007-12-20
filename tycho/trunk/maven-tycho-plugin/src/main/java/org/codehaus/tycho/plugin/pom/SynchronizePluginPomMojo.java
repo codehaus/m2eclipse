@@ -41,6 +41,7 @@ public class SynchronizePluginPomMojo extends AbstractMojo {
 
 	/**
 	 * @parameter expression="${targetPlatform}"
+	 * @required	 
 	 */
 	private File targetPlatform;
 
@@ -184,7 +185,7 @@ public class SynchronizePluginPomMojo extends AbstractMojo {
 				}
 			});
 			for (int i = 0; i < dirs.length; i++) {
-				collectPluginProjects(state, dir);
+				collectPluginProjects(state, dirs[i]);
 			}
 		}
 	}
