@@ -5,19 +5,31 @@ import java.io.FileFilter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.regex.Pattern;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.factory.ArtifactFactory;
 import org.apache.maven.artifact.metadata.ArtifactMetadata;
+import org.apache.maven.artifact.metadata.ArtifactMetadataSource;
+import org.apache.maven.artifact.repository.ArtifactRepository;
+import org.apache.maven.artifact.resolver.ArtifactNotFoundException;
+import org.apache.maven.artifact.resolver.ArtifactResolutionException;
+import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
+import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
+import org.apache.maven.artifact.resolver.filter.ScopeArtifactFilter;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.io.xpp3.MavenXpp3Writer;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.MavenProjectBuilder;
+import org.apache.maven.project.ProjectBuildingException;
 import org.apache.maven.project.artifact.ProjectArtifactMetadata;
 import org.codehaus.plexus.archiver.jar.JarArchiver;
 import org.codehaus.plexus.util.StringUtils;
@@ -90,19 +102,41 @@ public abstract class AbstractDeployBundlesMojo extends AbstractMojo {
 
 	private List noSourceFound = new ArrayList();
 
+	/** @component */
+	private org.apache.maven.artifact.resolver.ArtifactResolver resolver;
+
+	/** @component */
+	private ArtifactMetadataSource metadataSource;
+
+	/** @component */
+	private MavenProjectBuilder mavenProjectBuilder;
+
 	/**
-	 * @parameter expression="${artifactId}"
+	 * @parameter expression="${targetArtifactId}"
 	 */
-	private String artifactId;
+	private String targetArtifactId;
+
+	/**
+	 * @parameter expression="${sourceArtifactId}"
+	 */
+	private String sourceArtifactId;
+
+	/** @parameter expression="${localRepository}" */
+	ArtifactRepository localRepository;
+
+	/** @parameter expression="${project.remoteArtifactRepositories}" */
+	private List remoteRepositories;
 
 	private Artifact targetPlatformArtifact;
+
+	private List sourceArtifacts = new ArrayList();
 
 	public void execute() throws MojoExecutionException {
 		try {
 
-			if (!StringUtils.isEmpty(artifactId)) {
-				targetPlatformArtifact = cliTools.createArtifact(artifactId,
-						"jar");
+			if (!StringUtils.isEmpty(targetArtifactId)) {
+				targetPlatformArtifact = cliTools.createArtifact(
+						targetArtifactId, "pom");
 				targetPlatformPom = new Model();
 				targetPlatformPom.setModelVersion("4.0.0");
 				targetPlatformPom.setArtifactId(targetPlatformArtifact
@@ -112,6 +146,16 @@ public abstract class AbstractDeployBundlesMojo extends AbstractMojo {
 				targetPlatformPom.setVersion(targetPlatformArtifact
 						.getVersion());
 				targetPlatformPom.setPackaging("eclipse-feature");
+			}
+
+			if (!StringUtils.isEmpty(sourceArtifactId)) {
+				String[] split = sourceArtifactId.split(",");
+				for (int i = 0; i < split.length; i++) {
+					Set dependencies = new HashSet();
+					Artifact artifact = cliTools
+							.createArtifact(split[i], "pom");
+					sourceArtifacts.addAll(getTransitiveDependencies(artifact));
+				}
 			}
 
 			OsgiStateController state = createOsgiState();
@@ -180,7 +224,8 @@ public abstract class AbstractDeployBundlesMojo extends AbstractMojo {
 		return result;
 	}
 
-	private OsgiStateController createOsgiState() throws MojoExecutionException {
+	private OsgiStateController createOsgiState()
+			throws MojoExecutionException, TychoException {
 		OsgiStateController state = new OsgiStateController();
 		File[] bundles = new File(baseDir, "plugins")
 				.listFiles(new FileFilter() {
@@ -197,14 +242,37 @@ public abstract class AbstractDeployBundlesMojo extends AbstractMojo {
 			throw new MojoExecutionException("No bundles found!");
 		}
 
+		Set deployed = new HashSet();
+
 		for (int i = 0; i < bundles.length; i++) {
 			File bundle = bundles[i];
 			try {
-				state.addBundle(bundle);
+				BundleDescription bd = state.addBundle(bundle);
+				bd.setUserObject(bundle);
+				deployed.add(bd.getSymbolicName());
 			} catch (BundleException e) {
 				getLog().info("Could not add bundle: " + bundle);
 			}
 		}
+		Iterator it = sourceArtifacts.iterator();
+		while (it.hasNext()) {
+			Artifact a = (Artifact) it.next();
+			try {
+				BundleDescription bd = state.addBundle(a.getFile());
+				if (!deployed.contains(bd.getSymbolicName())) {
+					bd.setUserObject(a.getFile());
+					deployed.add(bd.getSymbolicName());
+				} else {
+					state.getState().removeBundle(bd);
+					getLog().info(
+							"Duplicate bundles - ignoring in target platform:"
+									+ bd.getSymbolicName());
+				}
+			} catch (BundleException e) {
+				getLog().info("Could not add bundle: " + a.getFile());
+			}
+		}
+
 		state.resolveState();
 
 		BundleDescription[] bds = state.getState().getBundles();
@@ -326,4 +394,44 @@ public abstract class AbstractDeployBundlesMojo extends AbstractMojo {
 		}
 	}
 
+	public Set getTransitiveDependencies(Artifact artifact)
+			throws TychoException {
+		String groupId = artifact.getGroupId();
+		String artifactId = artifact.getArtifactId();
+		String version = artifact.getVersion();
+
+		try {
+			org.apache.maven.artifact.Artifact pomArtifact = artifactFactory
+					.createArtifact(groupId, artifactId, version, null, "pom");
+			MavenProject pomProject = mavenProjectBuilder.buildFromRepository(
+					pomArtifact, remoteRepositories, localRepository);
+			String scope = org.apache.maven.artifact.Artifact.SCOPE_RUNTIME;
+			ArtifactFilter filter = new ScopeArtifactFilter(scope);
+
+			Set artifacts = pomProject.createArtifacts(artifactFactory, null,
+					null);
+			ArtifactResolutionResult arr = resolver.resolveTransitively(
+					artifacts, pomArtifact, localRepository,
+					remoteRepositories, metadataSource, filter);
+			artifacts = arr.getArtifacts();
+			for (Iterator iter = artifacts.iterator(); iter.hasNext();) {
+				org.apache.maven.artifact.Artifact a = (org.apache.maven.artifact.Artifact) iter
+						.next();
+				resolver.resolve(a, remoteRepositories, localRepository);
+			}
+			return artifacts;
+		} catch (ProjectBuildingException e) {
+			throw new TychoException("Error resolving transitively for "
+					+ artifact, e);
+		} catch (ArtifactResolutionException e) {
+			throw new TychoException("Error resolving transitively for "
+					+ artifact, e);
+		} catch (ArtifactNotFoundException e) {
+			throw new TychoException("Error resolving transitively for "
+					+ artifact, e);
+		} catch (Exception e) {
+			throw new TychoException("Error resolving transitively for "
+					+ artifact, e);
+		}
+	}
 }

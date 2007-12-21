@@ -25,11 +25,6 @@ public class DeployBundlesMojo extends AbstractDeployBundlesMojo {
 	 */
 	private String remoteRepository;
 	
-	/**
-	 * @parameter expression="${localRepository}"
-	 */
-	private ArtifactRepository localRepository;
-	
 	public void deployArtifact(Artifact artifact) throws TychoException {
 		ArtifactRepository deploymentRepository = cliTools.createRemoteRepository(remoteRepository);
 		

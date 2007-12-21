@@ -16,11 +16,6 @@ public class InstallBundlesMojo extends AbstractDeployBundlesMojo {
 	 */
 	private ArtifactInstaller installer;
 	
-	/**
-	 * @parameter expression="${localRepository}"
-	 */
-	private ArtifactRepository localRepository;
-	
 	public void deployArtifact(Artifact artifact) throws TychoException {
 		try {
 			installer.install(artifact.getFile(), artifact, localRepository);
