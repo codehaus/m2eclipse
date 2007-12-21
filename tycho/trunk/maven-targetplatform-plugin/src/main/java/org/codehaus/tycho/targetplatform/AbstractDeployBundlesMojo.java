@@ -203,10 +203,26 @@ public abstract class AbstractDeployBundlesMojo extends AbstractMojo {
 
 				}
 			}
+			
+			File featureDir = new File(baseDir, "features");
+			if (featureDir.exists()) {
+				File[] featureDirs = featureDir.listFiles();
+				for (int i = 0; i < featureDirs.length; i++) {
+					File f = featureDirs[i];
+					File featureXML = new File(f, "feature.xml");
+					if (featureXML.exists()) {
+						deployFeature(f, bundles);
+					}
+				}
+			}
 
 		} catch (Exception e) {
 			throw new MojoExecutionException("Error", e);
 		}
+	}
+
+	private void deployFeature(File f, BundleDescription[] bundles) {
+		System.out.println("TODO deploy feature " + f);
 	}
 
 	private List filterDeployed(Pattern[] patterns, BundleDescription[] bundles) {
