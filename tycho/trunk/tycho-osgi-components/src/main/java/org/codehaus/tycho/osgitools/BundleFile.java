@@ -40,7 +40,7 @@ public class BundleFile {
 				manifest.read(fis);
 				fis.close();
 			} else {
-				JarFile jar = new JarFile(file);
+				JarFile jar = new JarFile(file, false);
 				manifest = jar.getManifest();
 
 				localization = manifest.getMainAttributes().getValue(

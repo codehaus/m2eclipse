@@ -163,10 +163,14 @@ public class TestMojo extends AbstractMojo {
 
 			cli.setWorkingDirectory(work.getAbsolutePath());
 
-			cli.setExecutable(System.getProperty("java.home") + File.separator
-					+ "bin" + File.separator + "java.exe");
+			String executable = System.getProperty("java.home") + File.separator
+					+ "bin" + File.separator + "java";
+			if (File.separatorChar == '\\') {
+				executable = executable + ".exe";
+			}
+			cli.setExecutable(executable);
 
-			Artifact startup = getPluginArtifact("org.eclipse", "startup");
+			Artifact launcher = getPluginArtifact("org.eclipse.equinox", "launcher");
 
 			// cli.addArguments(args);
 			if (debugPort > 0) {
@@ -176,7 +180,7 @@ public class TestMojo extends AbstractMojo {
 								+ ",server=y,suspend=y" });
 			}
 			cli.addArguments(new String[] { "-jar",
-					startup.getFile().getAbsolutePath() });
+					launcher.getFile().getAbsolutePath() });
 			cli
 					.addArguments(new String[] {
 							"-application",
@@ -279,6 +283,9 @@ public class TestMojo extends AbstractMojo {
 	private String createOsgiBundlesProperty(String osgiBundles)
 			throws MojoExecutionException {
 		String[] s = osgiBundles.split(",");
+		for (int i = 0; i < s.length; i++) {
+			s[i] = s[i].trim();
+		}
 		StringBuffer result = new StringBuffer();
 		result.append(projectArtifact.getFile().getAbsolutePath());
 		result.append(",");

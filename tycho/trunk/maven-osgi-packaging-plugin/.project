@@ -1,0 +1,15 @@
+<projectDescription>
+  <name>maven-osgi-packaging-plugin</name>
+  <comment>A plugin for packaging OSGi bundles</comment>
+  <projects>
+    <project>tycho-osgi-components</project>
+  </projects>
+  <buildSpec>
+    <buildCommand>
+      <name>org.eclipse.jdt.core.javabuilder</name>
+    </buildCommand>
+  </buildSpec>
+  <natures>
+    <nature>org.eclipse.jdt.core.javanature</nature>
+  </natures>
+</projectDescription>

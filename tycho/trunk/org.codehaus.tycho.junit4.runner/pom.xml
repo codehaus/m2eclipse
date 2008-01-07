@@ -25,7 +25,7 @@
 		 </dependency>
 		 <dependency>
 		   <groupId>org.apache.ant</groupId>
-		   <artifactId> org.apache.ant</artifactId>
+		   <artifactId>org.apache.ant</artifactId>
 		   <version>1.6.5</version>
 		 </dependency>
 		 <dependency>
