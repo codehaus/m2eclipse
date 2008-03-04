@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+
+<plugin>
+
+  <extension point="org.eclipse.wst.common.project.facet.core.facets">
+
+    <category id="m2.category">
+      <label>m2</label>
+      <description>Enables M2 in the dynamic web project.</description>
+    </category>
+
+    <project-facet id="m2.artifact">
+      <label>m2 Artifact</label>
+      <description>
+        Enables M2 support in the dynamic web project.
+      </description>
+       <category>m2.category</category>
+    </project-facet>
+
+    <project-facet-version facet="m2.artifact" version="1.0">
+      <constraint>
+        <requires facet="jst.web" version="2.2,2.3,2.4,2.5"/>
+      </constraint>
+      <action type="INSTALL" id="m2.artifact.install">
+        <config-factory class="org.maven.ide.eclipse.wtp.facet.M2ArtifactFacetInstallConfig$Factory"/>
+        <delegate class="org.maven.ide.eclipse.wtp.facet.M2ArtifactFacetInstallDelegate"/>
+      </action>
+    </project-facet-version>
+<!--
+    <project-facet id="m2.dep">
+      <label>m2 Dependencies</label>
+      <description>
+        Dependency Management.
+      </description>
+      <category>m2.category</category>
+    </project-facet>
+
+    <project-facet-version facet="m2.dep" version="1.0">
+      <constraint>
+        <requires facet="m2.artifact" version="1.0"/>
+       
+      </constraint>
+      <action type="INSTALL"  id="m2.dep.install">
+      <config-factory class="org.maven.ide.eclipse.wizards.M2DependencyFacetInstallConfig$Factory"/>
+        <delegate class="com.raghu121.m2.wtpfacet.M2DependencyFacetInstallDelegate"/>
+      </action>
+    </project-facet-version>
+-->
+    <preset id="m2.preset">
+      <label>m2 Web Project</label>
+      <description>Creates a web project with m2 functionality.</description>
+      <facet id="jst.java" version="5.0"/>
+      <facet id="jst.web" version="2.2"/>
+      <facet id="m2.artifact" version="1.0"/>
+      <!--
+      <facet id="m2.dep" version="1.0"/>
+      -->
+    </preset>
+  
+  </extension>
+  
+  <extension point="org.eclipse.wst.common.project.facet.core.runtimes">
+    <supported>
+      <runtime-component any="true"/>
+      <facet id="m2.artifact"/>
+      <!--
+      <facet id="m2.dep"/>
+      -->
+    </supported>
+  </extension>
+
+  <extension point="org.eclipse.wst.common.project.facet.ui.images">
+    <image facet="m2.artifact" path="icons/m2_project.gif"/>
+    <!--
+    <image facet="m2.dep" path="icons/mjar.gif"/>
+    -->
+    <image category="m2.category" path="icons/m2_project.gif"/>
+  </extension>
+
+  <extension point="org.eclipse.wst.common.project.facet.ui.wizardPages">
+    <wizard-pages action="m2.artifact.install">
+      <page class="org.maven.ide.eclipse.wtp.facet.M2ArtifactFacetInstallPage"/>
+      <page class="org.maven.ide.eclipse.wtp.facet.M2DependencyFacetInstallPage"/>
+    </wizard-pages>
+    <!--
+    <wizard-pages action="jst.web.install">
+      <page class="com.raghu121.m2.wtpfacet.M2WebFacetInstallPage"/>
+    </wizard-pages>
+    -->
+    
+  </extension>  
+  
+  
+  
+
+</plugin>
