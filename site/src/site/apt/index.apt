@@ -4,7 +4,7 @@
  Jason van Zyl
  Eugene Kuleshov
  -----
- 18 February 2007
+ 11 March 2008
  The Maven Integration for Eclipse
  -----
 
@@ -39,39 +39,23 @@
  {{{http://www.eclipseplugincentral.com/Web_Links-index-req-ratelink-lid-651.html}Rate this plugin at Eclipse Plugin Central}}
 
  
-Flash Demos
-
- There is a Flash demo that you can view which shows you how to install the
- plug-in if you are unfamiliar with Eclipse's standard install mechanism:
- 
- {{http://m2eclipse.codehaus.org/Installing_Maven_2.0_plugin_for_Eclipse.html}}
- 
- You can see what the Maven Integration for Eclipse can do by viewing the
- following demo in Flash:
-
- {{http://m2eclipse.codehaus.org/Maven_2.0_Plugin_for_Eclipse.html}}
-
-
 Installation
 
  You can install the Maven Integration for Eclipse by using the following update site from within Eclipse:
  
- {{http://m2eclipse.codehaus.org/update/}}
+ {{http://m2eclipse.sonatype.org/update/}}
 
- Latest stable development build is available from the update site at the following location:  
- 
- {{http://m2eclipse.codehaus.org/update-dev/}}
 
 Source Code
   
  You can view the source code for the Maven Integration for Eclipse here:
   
- {{http://svn.codehaus.org/m2eclipse/trunk/}}
+ {{http://svn.sonatype.org/m2eclipse/trunk/}}
 
  If you would like to checkout the sources of the Maven Integration for
- Eclipse you can do so using the following:
+ Eclipse you can do so using the following command:
  
 -----
-svn co https://svn.codehaus.org/m2eclipse/trunk m2eclipse
+svn co https://svn.sonatype.org/m2eclipse/trunk/ m2eclipse
 -----
 
